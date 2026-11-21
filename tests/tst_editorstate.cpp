@@ -8384,7 +8384,7 @@ void EditorStateTest::vegasMultiTakeManagementAndCycling()
     drift::MediaAsset a1;
     a1.id = QStringLiteral("asset-cam-a");
     a1.name = QStringLiteral("Camera A");
-    a1.path = QStringLiteral("/media/cam_a.mp4");
+    a1.path = QFileInfo(QStringLiteral("/media/cam_a.mp4")).absoluteFilePath();
     a1.kind = drift::MediaKind::Video;
     a1.durationUs = drift::secondsToUs(10.0);
     state.project()->addAsset(a1);
@@ -8393,7 +8393,7 @@ void EditorStateTest::vegasMultiTakeManagementAndCycling()
     drift::MediaAsset a2;
     a2.id = QStringLiteral("asset-cam-b");
     a2.name = QStringLiteral("Camera B");
-    a2.path = QStringLiteral("/media/cam_b.mp4");
+    a2.path = QFileInfo(QStringLiteral("/media/cam_b.mp4")).absoluteFilePath();
     a2.kind = drift::MediaKind::Video;
     a2.durationUs = drift::secondsToUs(10.0);
     state.project()->addAsset(a2);
@@ -8402,7 +8402,7 @@ void EditorStateTest::vegasMultiTakeManagementAndCycling()
     drift::MediaAsset a3;
     a3.id = QStringLiteral("asset-cam-c");
     a3.name = QStringLiteral("Camera C");
-    a3.path = QStringLiteral("/media/cam_c.mp4");
+    a3.path = QFileInfo(QStringLiteral("/media/cam_c.mp4")).absoluteFilePath();
     a3.kind = drift::MediaKind::Video;
     a3.durationUs = drift::secondsToUs(10.0);
     state.project()->addAsset(a3);

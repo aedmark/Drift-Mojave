@@ -1120,6 +1120,12 @@ QJsonObject mcpDetailRow(const QVariantMap &clipMap, const QVariantMap &transfor
         m.remove(QStringLiteral("audioStreamIndex"));
     if (m.value(QStringLiteral("pan")).toDouble() == 0.0)
         m.remove(QStringLiteral("pan"));
+    if (m.value(QStringLiteral("pitchSemitones")).toDouble() == 0.0)
+        m.remove(QStringLiteral("pitchSemitones"));
+    if (m.value(QStringLiteral("audioChannelMode")).toString() == QLatin1String("stereo"))
+        m.remove(QStringLiteral("audioChannelMode"));
+    if (qFuzzyCompare(m.value(QStringLiteral("normalizeGain")).toDouble(), 1.0))
+        m.remove(QStringLiteral("normalizeGain"));
     if (m.value(QStringLiteral("assetIndex")).toInt() < 0)
         m.remove(QStringLiteral("assetIndex"));
     if (m.value(QStringLiteral("sourceDuration")).toDouble() <= 0.0)

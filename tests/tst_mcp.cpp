@@ -4629,6 +4629,9 @@ void McpTest::inspectDetailRowIsCompact()
     QVERIFY(!text.contains(QStringLiteral("reverse")));
     QVERIFY(!text.contains(QStringLiteral("fadeInShape")));
     QVERIFY(!text.contains(QStringLiteral("fadeOutShape")));
+    QVERIFY(!text.contains(QStringLiteral("pitchSemitones")));
+    QVERIFY(!text.contains(QStringLiteral("audioChannelMode")));
+    QVERIFY(!text.contains(QStringLiteral("normalizeGain")));
     const QJsonObject transform = text.value(QStringLiteral("transform")).toObject();
     for (const char *key : {"positionX", "positionY", "scaleX", "scaleY", "frameW", "frameH", "rotation", "opacity"})
         QVERIFY2(transform.contains(QLatin1String(key)), key);
