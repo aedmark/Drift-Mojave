@@ -249,9 +249,9 @@ PreferencesController::PreferencesController(QObject *parent)
     m_proxySuggestion = settings.value(QStringLiteral("proxy/suggestion"), QStringLiteral("ask")).toString();
     if (!proxySuggestionModes().contains(m_proxySuggestion))
         m_proxySuggestion = QStringLiteral("ask");
-    m_undoHistoryMode = settings.value(QStringLiteral("editor/undoHistoryMode"), QStringLiteral("project")).toString();
+    m_undoHistoryMode = settings.value(QStringLiteral("editor/undoHistoryMode"), QStringLiteral("session")).toString();
     if (!undoHistoryModes().contains(m_undoHistoryMode))
-        m_undoHistoryMode = QStringLiteral("project");
+        m_undoHistoryMode = QStringLiteral("session");
     m_undoHistoryLimit = qMax(0, settings.value(QStringLiteral("editor/undoHistoryLimit"), 0).toInt());
     m_timelineOverviewVisible =
         settings.value(QStringLiteral("ui/timelineOverviewVisible"), false).toBool();

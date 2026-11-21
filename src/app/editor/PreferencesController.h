@@ -62,7 +62,7 @@ class PreferencesController : public QObject
     // What an import does with footage that would preview slowly: "ask" (offer proxies in a
     // notification, the default), "always" (create them straight away) or "never".
     Q_PROPERTY(QString proxySuggestion READ proxySuggestion WRITE setProxySuggestion NOTIFY proxySuggestionChanged)
-    // Undo history: "project" (saved into the project file, the default), "session" (kept until
+    // Undo history: "project" (saved into the project file), "session" (the default; kept until
     // the project closes, never saved) or "off" (no undo steps at all).
     Q_PROPERTY(QString undoHistoryMode READ undoHistoryMode WRITE setUndoHistoryMode NOTIFY undoHistoryModeChanged)
     // Most undo steps kept; older ones are dropped, with the media only they referenced. 0 = no limit.
@@ -384,7 +384,7 @@ private:
     bool m_reopenLastProject = false;
     QString m_agentNotifications = QStringLiteral("problems");
     QString m_proxySuggestion = QStringLiteral("ask");
-    QString m_undoHistoryMode = QStringLiteral("project");
+    QString m_undoHistoryMode = QStringLiteral("session");
     int m_undoHistoryLimit = 0;
     bool m_vaapiZeroCopy = false;
     bool m_mediaCodecZeroCopy = false;

@@ -7029,6 +7029,7 @@ void McpTest::historyHousekeepingOps()
 
     AssetLibrary library;
     AppController state(&library);
+    state.preferences()->setUndoHistoryMode(QStringLiteral("project"));
     drift::mcp::McpDispatcher dispatcher(&state);
     for (int i = 0; i < 5; ++i)
         QVERIFY(dispatcher.apply(addTextOp(i)).value(QStringLiteral("ok")).toBool());
