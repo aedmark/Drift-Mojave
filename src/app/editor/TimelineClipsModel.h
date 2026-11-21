@@ -65,6 +65,7 @@ public:
         LoopPeriodRole,
         LoopPhaseRole,
         EnabledRole,
+        LockedRole,
         HasVelocityEnvelopeRole,
         VelocityEnvelopeEnabledRole,
         VelocityPointsRole,
@@ -120,6 +121,7 @@ public:
         double loopPeriod = 0.0;
         double loopPhase = 0.0;
         bool enabled = true;
+        bool locked = false;
         bool hasVelocityEnvelope = false;
         bool velocityEnvelopeEnabled = false;
         QVariantList velocityPoints;

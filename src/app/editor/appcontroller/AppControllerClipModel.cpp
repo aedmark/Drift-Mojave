@@ -993,6 +993,7 @@ QVariantMap AppController::clipToMap(const drift::Clip &clip, const drift::Clip 
         {QStringLiteral("reverse"), clip.reverse},
         {QStringLiteral("loop"), clip.loop},
         {QStringLiteral("enabled"), clip.enabled},
+        {QStringLiteral("locked"), clip.locked},
         {QStringLiteral("flipH"), clip.flipH},
         {QStringLiteral("layer3d"), clip.layer3d},
         {QStringLiteral("frameW"), clip.frameW > 0.0 ? clip.frameW : double(m_project.width())},
@@ -1127,6 +1128,7 @@ TimelineClipsModel::Row AppController::clipRow(const drift::Clip &clip,
     row.outPoint = drift::usToSeconds(clip.srcOut);
     row.sourceDuration = sourceAsset ? drift::usToSeconds(sourceAsset->durationUs) : 0.0;
     row.enabled = clip.enabled;
+    row.locked = clip.locked;
     row.loop = clip.loops();
     if (row.loop) {
         row.loopPeriod = drift::usToSeconds(clip.loopPeriodUs());
@@ -1839,6 +1841,10 @@ QVariantList AppController::actions() const
         action(QStringLiteral("clearGroup"), tr("Clear group")),
         action(QStringLiteral("toggleIgnoreGrouping"), tr("Toggle ignore event grouping")),
         action(QStringLiteral("toggleClipEnabled"), tr("Enable or disable selected clips")),
+        action(QStringLiteral("toggleClipMuted"), tr("Mute or unmute selected clips")),
+        action(QStringLiteral("toggleClipLocked"), tr("Lock or unlock selected clips")),
+        action(QStringLiteral("toggleQuantizeToFrames"), tr("Toggle Quantize to Frames")),
+        action(QStringLiteral("toggleExpandedEdit"), tr("Toggle Expanded Edit Mode")),
         action(QStringLiteral("clearSelection"), tr("Clear selection")),
         action(QStringLiteral("selectAll"), tr("Select all clips")),
         action(QStringLiteral("nudgeLeft"), tr("Move selection left a little")),

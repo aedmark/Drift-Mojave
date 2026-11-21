@@ -24,6 +24,12 @@ ThemedContextMenu {
         onTriggered: root.host.addToTimelineRequested(root.host.selectedAssetIds)
     }
     ThemedMenuItem {
+        text: qsTr("Select timeline events using media")
+        icon.name: Theme.icons.search
+        visible: root.host.selectedAssetIds.length <= 1
+        onTriggered: EditorState.selectClipsUsingAsset(root.assetId)
+    }
+    ThemedMenuItem {
         text: root.kind === "video" ? qsTr("Trim, crop and upscale…") : qsTr("Preview and edit…")
         icon.name: Theme.icons.eye
         visible: root.kind !== "composite"

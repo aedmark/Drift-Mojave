@@ -2003,6 +2003,8 @@ ExportSettings Exporter::settingsFromMap(const QVariantMap &map)
         s.audioOnly = map.value(QStringLiteral("audioOnly")).toBool();
     if (map.contains(QStringLiteral("gifExport")))
         s.gifExport = map.value(QStringLiteral("gifExport")).toBool();
+    if (map.contains(QStringLiteral("smartRender")))
+        s.smartRender = map.value(QStringLiteral("smartRender")).toBool();
     if (map.contains(QStringLiteral("metadataTitle")))
         s.metadataTitle = map.value(QStringLiteral("metadataTitle")).toString();
     if (map.contains(QStringLiteral("metadataArtist")))
@@ -2826,4 +2828,137 @@ QUrl Exporter::publishToGallery(const QUrl &source, const QString &displayName, 
     Q_UNUSED(errorOut);
     return {};
 #endif
+}
+
+QList<Exporter::SmartRenderSegment> Exporter::findSmartRenderSegments(const drift::Project &project,
+                                                                      const ExportSettings &settings)
+{
+    QList<SmartRenderSegment> segments;
+    if (!settings.smartRender || settings.audioOnly || settings.gifExport)
+        return segments;
+    if (settings.videoCodecId != QLatin1String("prores"))
+        return segments;
+    if (!project.masterVideoEffects().isEmpty())
+        return segments;
+
+    const int exportW = settings.targetHeight > 0 && project.height() > 0
+                            ? qMax(2, static_cast<int>(llround(double(project.width()) * settings.targetHeight
+                                                               / double(project.height())))
+                                          & ~1)
+                            : project.width();
+    const int exportH = settings.targetHeight > 0 ? settings.targetHeight : project.height();
+    const double exportFps = (settings.fpsNum > 0 && settings.fpsDen > 0)
+                                 ? (double(settings.fpsNum) / double(settings.fpsDen))
+                                 : project.fps();
+
+    auto clipVisualUnmodified = [&](const drift::Clip &clip) {
+        if (!clip.enabled || clip.type != drift::ClipType::Video)
+            return false;
+        if (clip.blendMode != drift::BlendMode::Normal)
+            return false;
+        if (!clip.effects.isEmpty())
+            return false;
+        if (clip.flipH || clip.flipV || clip.layer3d || clip.reverse || clip.loops())
+            return false;
+        if (clip.hasSpeedCurve() || clip.velocityEnvelope.enabled())
+            return false;
+        if (!qFuzzyCompare(clip.speed, 1.0))
+            return false;
+        if (clip.fadeInUs > 0 || clip.fadeOutUs > 0)
+            return false;
+        if (clip.sourceFrame != QRectF(0, 0, 1, 1) || !qFuzzyIsNull(clip.sourceFrameAngle)
+            || clip.rotationCorrection != 0)
+            return false;
+
+        auto keyTrackIsConstant = [](const drift::KeyframeTrack<double> &kt, double expected) {
+            if (kt.isEmpty())
+                return true;
+            if (kt.keyframes().size() > 1)
+                return false;
+            return qAbs(kt.keyframes().constBegin()->value - expected) < 1e-4;
+        };
+        if (!keyTrackIsConstant(clip.opacity, 1.0)
+            || !keyTrackIsConstant(clip.scaleX, 1.0)
+            || !keyTrackIsConstant(clip.scaleY, 1.0)
+            || !keyTrackIsConstant(clip.rotation, 0.0)
+            || !keyTrackIsConstant(clip.positionX, project.width() * 0.5)
+            || !keyTrackIsConstant(clip.positionY, project.height() * 0.5)) {
+            return false;
+        }
+        return true;
+    };
+
+    const QList<drift::Track> &tracks = project.tracks();
+    for (int ti = 0; ti < tracks.size(); ++ti) {
+        const drift::Track &track = tracks.at(ti);
+        if (track.type != drift::TrackType::Video || track.hidden || track.excludeFromExport)
+            continue;
+        if (!track.effects.isEmpty() || !track.motion.isDefault() || track.compositeBlendMode != drift::BlendMode::Normal)
+            continue;
+
+        for (const drift::Clip &clip : track.clips) {
+            if (clip.timelineDuration <= 0 || !clipVisualUnmodified(clip))
+                continue;
+            const drift::MediaAsset *asset = project.asset(clip.assetId);
+            if (!asset || asset->kind != drift::MediaKind::Video)
+                continue;
+            const bool isProResCodec = asset->codecName.contains(QLatin1String("prores"), Qt::CaseInsensitive);
+            const bool isMovContainer = asset->path.endsWith(QLatin1String(".mov"), Qt::CaseInsensitive);
+            if (!isProResCodec || !isMovContainer)
+                continue;
+            if (asset->width > 0 && asset->width != exportW)
+                continue;
+            if (asset->height > 0 && asset->height != exportH)
+                continue;
+            if (asset->fps > 0.0 && exportFps > 0.0 && qAbs(asset->fps - exportFps) > 0.05)
+                continue;
+
+            // Reject if any transition touches this clip on its track.
+            bool inTransition = false;
+            for (const drift::Transition &tr : track.transitions) {
+                if (tr.fromClipId == clip.id || tr.toClipId == clip.id) {
+                    inTransition = true;
+                    break;
+                }
+            }
+            if (inTransition)
+                continue;
+
+            // Reject if another visual track, adjustment track, or sibling clip covers any part of this span.
+            const drift::TimeUs segStart = clip.timelineStart;
+            const drift::TimeUs segEnd = clip.timelineEnd();
+            bool overlapped = false;
+            for (int oi = 0; oi < tracks.size() && !overlapped; ++oi) {
+                const drift::Track &otherTrack = tracks.at(oi);
+                if (otherTrack.hidden || otherTrack.excludeFromExport)
+                    continue;
+                if (otherTrack.type == drift::TrackType::Audio)
+                    continue;
+                for (const drift::Clip &otherClip : otherTrack.clips) {
+                    if (otherClip.id == clip.id || !otherClip.enabled)
+                        continue;
+                    if (otherClip.timelineStart < segEnd && otherClip.timelineEnd() > segStart) {
+                        overlapped = true;
+                        break;
+                    }
+                }
+            }
+            if (overlapped)
+                continue;
+
+            SmartRenderSegment seg;
+            seg.timelineStartUs = segStart;
+            seg.timelineDurationUs = clip.timelineDuration;
+            seg.clipId = clip.id;
+            seg.sourcePath = clip.path;
+            seg.srcInUs = clip.srcIn;
+            seg.srcOutUs = clip.srcOut;
+            segments.append(seg);
+        }
+    }
+
+    std::sort(segments.begin(), segments.end(), [](const SmartRenderSegment &a, const SmartRenderSegment &b) {
+        return a.timelineStartUs < b.timelineStartUs;
+    });
+    return segments;
 }

@@ -32,7 +32,7 @@ struct SnapTargets {
     // still sitting at its old position in the model, so without this a short drag snaps
     // straight back to where it started.
     void build(const Project &project, TimeUs playheadUs, const QList<TimeUs> &extraTargets,
-               const QString &excludeClipId = {});
+               const QString &excludeClipId = {}, bool includeClipEvents = true);
     bool isEmpty() const { return sorted.empty(); }
 };
 
@@ -48,7 +48,7 @@ TimeUs snapTimeTo(const SnapTargets &targets, TimeUs time, bool snapEnabled,
 // up front and call snapTimeTo() instead.
 TimeUs snapTime(const Project &project, TimeUs time, bool snapEnabled, TimeUs playheadUs,
                 const QList<TimeUs> &extraTargets = {}, const QString &excludeClipId = {},
-                TimeUs thresholdUs = kSnapThresholdUs);
+                TimeUs thresholdUs = kSnapThresholdUs, bool includeClipEvents = true);
 
 TimeUs resolveClipStart(const Project &project, const Track &track, int excludeClipIndex,
                         TimeUs desiredStart, TimeUs duration, bool snapEnabled, TimeUs playheadUs,

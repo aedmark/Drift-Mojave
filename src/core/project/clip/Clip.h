@@ -178,6 +178,8 @@ struct Clip
     // A disabled clip stays on the timeline but is skipped by preview, playback and export, both
     // picture and sound.
     bool enabled = true;
+    // A locked clip cannot be moved, trimmed, stretched, slipped, rolled, slid, split, or deleted.
+    bool locked = false;
     bool flipH = false;
     bool flipV = false;
     // Meaningful on a Mask-kind adjustment clip and nowhere else — a media clip's masks live on

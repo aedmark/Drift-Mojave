@@ -337,6 +337,8 @@ QJsonObject clipToJson(const Clip &clip)
         json.insert(QStringLiteral("hiddenInLane"), true);
     if (!clip.enabled)
         json.insert(QStringLiteral("enabled"), false);
+    if (clip.locked)
+        json.insert(QStringLiteral("locked"), true);
     if (clip.audioFadeInUs > 0)
         json.insert(QStringLiteral("audioFadeInUs"), static_cast<double>(clip.audioFadeInUs));
     if (clip.audioFadeOutUs > 0)
@@ -524,6 +526,7 @@ Clip clipFromJsonV2(const QJsonObject &object, int version, int canvasW = 1920, 
     clip.loop = object.value(QStringLiteral("loop")).toBool(false);
     clip.loopOffsetUs = object.value(QStringLiteral("loopOffsetUs")).toInteger(0);
     clip.enabled = object.value(QStringLiteral("enabled")).toBool(true);
+    clip.locked = object.value(QStringLiteral("locked")).toBool(false);
     clip.flipH = object.value(QStringLiteral("flipH")).toBool(false);
     clip.flipV = object.value(QStringLiteral("flipV")).toBool(false);
     clip.mask = maskFromJson(object.value(QStringLiteral("mask")).toObject());
@@ -1124,6 +1127,8 @@ QJsonArray audioBusesToJson(const QList<AudioBus> &buses)
             {QStringLiteral("muted"), bus.muted},
             {QStringLiteral("solo"), bus.solo},
         };
+        if (!bus.outputBusId.isEmpty())
+            obj.insert(QStringLiteral("outputBusId"), bus.outputBusId);
         if (!bus.audioEffects.isEmpty())
             obj.insert(QStringLiteral("audioEffects"), effectsToJson(bus.audioEffects));
         array.append(obj);
@@ -1145,6 +1150,7 @@ QList<AudioBus> audioBusesFromJson(const QJsonArray &array)
         bus.pan = qBound(-1.0, obj.value(QStringLiteral("pan")).toDouble(0.0), 1.0);
         bus.muted = obj.value(QStringLiteral("muted")).toBool(false);
         bus.solo = obj.value(QStringLiteral("solo")).toBool(false);
+        bus.outputBusId = obj.value(QStringLiteral("outputBusId")).toString();
         bus.audioEffects = effectsFromJson(obj.value(QStringLiteral("audioEffects")).toArray());
         buses.append(bus);
     }

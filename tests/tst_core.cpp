@@ -252,6 +252,7 @@ private slots:
     void closeRippleRangesShiftsEachGroupOnce();
     void clipLabelsRoundTripAndNumberCopies();
     void diffProjectsReportsClipChanges();
+    void clipLockedAndBusOutputBusRoundTrip();
 };
 
 void CoreTest::timeConversion()
@@ -8792,6 +8793,42 @@ void CoreTest::diffProjectsReportsClipChanges()
     drift::Project rotated = withAsset;
     rotated.assets()[asset.id].rotationDegrees = 90;
     QCOMPARE(drift::diffProjects(withAsset, rotated).assets.size(), 1);
+}
+
+void CoreTest::clipLockedAndBusOutputBusRoundTrip()
+{
+    drift::Project p;
+
+    drift::Clip c;
+    c.id = QStringLiteral("locked-clip");
+    c.type = drift::ClipType::Video;
+    c.path = QStringLiteral("/tmp/sample.mp4");
+    c.timelineStart = 0;
+    c.timelineDuration = drift::secondsToUs(2.0);
+    c.srcIn = 0;
+    c.srcOut = drift::secondsToUs(2.0);
+    c.locked = true;
+    p.tracks()[0].clips.append(c);
+
+    drift::AudioBus stemBus;
+    stemBus.id = QStringLiteral("bus-sfx");
+    stemBus.name = QStringLiteral("SFX");
+    stemBus.outputBusId = QStringLiteral("bus-master-sub");
+
+    drift::AudioBus subBus;
+    subBus.id = QStringLiteral("bus-master-sub");
+    subBus.name = QStringLiteral("SubMix");
+    p.audioBuses().append(stemBus);
+    p.audioBuses().append(subBus);
+
+    const QJsonObject json = p.toJson();
+    QString err;
+    const drift::Project loaded = drift::Project::fromJson(json, &err);
+    QVERIFY2(err.isEmpty(), qPrintable(err));
+    QCOMPARE(loaded.tracks().at(0).clips.at(0).locked, true);
+    QCOMPARE(loaded.audioBuses().size(), 2);
+    QCOMPARE(loaded.audioBuses().at(0).outputBusId, QStringLiteral("bus-master-sub"));
+    QCOMPARE(loaded.audioBuses().at(1).outputBusId, QString());
 }
 
 QTEST_MAIN(CoreTest)

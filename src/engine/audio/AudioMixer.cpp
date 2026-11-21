@@ -1020,9 +1020,57 @@ void AudioMixer::mix(drift::TimeUs timelineStartUs, int sampleCount, int sampleR
     }
 
     QHash<QString, QPair<float, float>> newBusLevels;
+    QSet<QString> validBusIds;
+    validBusIds.reserve(buses.size());
     for (const drift::AudioBus &bus : buses) {
-        if (bus.id.isEmpty())
-            continue;
+        if (!bus.id.isEmpty())
+            validBusIds.insert(bus.id);
+    }
+
+    // Topological pass ordering so bus-to-bus routing feeds downstream sub-buses
+    // before those buses run their own FX/fader/pan stage. Any remaining cyclic
+    // entries are drained cleanly on a fallback pass with feedback prevention.
+    QVector<int> orderedBusIndices;
+    orderedBusIndices.reserve(buses.size());
+    QSet<QString> scheduled;
+    scheduled.reserve(buses.size());
+
+    auto allFeedersScheduled = [&](const QString &targetBusId) {
+        for (const drift::AudioBus &candidate : buses) {
+            if (!candidate.id.isEmpty() && candidate.outputBusId == targetBusId
+                && !scheduled.contains(candidate.id)) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    for (int pass = 0; pass < buses.size() && orderedBusIndices.size() < buses.size(); ++pass) {
+        bool progressed = false;
+        for (int bi = 0; bi < buses.size(); ++bi) {
+            const drift::AudioBus &bus = buses.at(bi);
+            if (bus.id.isEmpty() || scheduled.contains(bus.id))
+                continue;
+            if (allFeedersScheduled(bus.id)) {
+                orderedBusIndices.append(bi);
+                scheduled.insert(bus.id);
+                progressed = true;
+            }
+        }
+        if (!progressed)
+            break;
+    }
+    for (int bi = 0; bi < buses.size(); ++bi) {
+        const drift::AudioBus &bus = buses.at(bi);
+        if (!bus.id.isEmpty() && !scheduled.contains(bus.id))
+            orderedBusIndices.append(bi);
+    }
+
+    QSet<QString> processedBuses;
+    processedBuses.reserve(buses.size());
+    for (const int bi : std::as_const(orderedBusIndices)) {
+        const drift::AudioBus &bus = buses.at(bi);
+        processedBuses.insert(bus.id);
         auto bufIt = busBuffers.find(bus.id);
         if (bufIt == busBuffers.end())
             continue;
@@ -1041,6 +1089,17 @@ void AudioMixer::mix(drift::TimeUs timelineStartUs, int sampleCount, int sampleR
         panGainsForPan(bus.pan, &busPanL, &busPanR);
         const float busGainL = static_cast<float>(qMax(0.0, bus.volume)) * busPanL;
         const float busGainR = static_cast<float>(qMax(0.0, bus.volume)) * busPanR;
+
+        // Route into another bus if configured, valid, and not already processed (cycle-safe);
+        // otherwise sum to the master mix.
+        float *targetOut = interleavedStereoOut;
+        if (!bus.outputBusId.isEmpty() && bus.outputBusId != bus.id
+            && validBusIds.contains(bus.outputBusId) && !processedBuses.contains(bus.outputBusId)) {
+            auto destIt = busBuffers.find(bus.outputBusId);
+            if (destIt != busBuffers.end())
+                targetOut = destIt->data();
+        }
+
         float bPeakL = 0.0f;
         float bPeakR = 0.0f;
         for (int i = 0; i < totalFloats; i += 2) {
@@ -1048,8 +1107,8 @@ void AudioMixer::mix(drift::TimeUs timelineStartUs, int sampleCount, int sampleR
             const float r = busData[i + 1] * busGainR;
             bPeakL = qMax(bPeakL, qAbs(l));
             bPeakR = qMax(bPeakR, qAbs(r));
-            interleavedStereoOut[i] += l;
-            interleavedStereoOut[i + 1] += r;
+            targetOut[i] += l;
+            targetOut[i + 1] += r;
         }
         newBusLevels.insert(bus.id, {bPeakL, bPeakR});
     }

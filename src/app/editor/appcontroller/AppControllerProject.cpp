@@ -11,6 +11,8 @@
 #include "app/editor/ProjectFileController.h"
 #include "ui/preview/PreviewController.h"
 
+#include "core/interchange/TimelineExporter.h"
+#include "engine/audio/AudioMixer.h"
 #include "engine/decode/readers/ClipReaderPool.h"
 #include "engine/diagnostics/DebugReport.h"
 #include "engine/project/ProjectDependencies.h"
@@ -41,6 +43,11 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QDir>
+#include <QImage>
+#include <QLinearGradient>
+#include <QPainter>
+#include <QRadialGradient>
+#include <QtEndian>
 using namespace drift::appdetail;
 using drift::mcpdetail::findClipById;
 using drift::mcpdetail::runBeatAnalysis;
@@ -141,6 +148,10 @@ void AppController::resetSessionState()
     m_preview->setGuideEditSetId(QString());
     setSubtitleEditing(false);
     setSelectedSubtitleCue(-1);
+    m_expandedEditActive = false;
+    m_expandedEditTrack = -1;
+    m_expandedEditLeftClip = -1;
+    emit expandedEditChanged();
 
     emit projectReset();
 }
@@ -1594,4 +1605,545 @@ QByteArray AppController::historyJsonAt(int stackIndex) const
     }
     const auto *cmd = historyCommand(m_undoStack, stackIndex - 1);
     return cmd ? cmd->after().toCompactJson() : m_project.toCompactJson();
+}
+
+// --- Tier 4B: Media Usage Audit, Smart Bin Filters & VEGAS Media Generators ---
+
+namespace {
+
+bool clipUsesAsset(const drift::Clip &clip, const QString &assetId, const drift::MediaAsset *asset,
+                   bool assetIsSubclip)
+{
+    if (!clip.assetId.isEmpty())
+        return clip.assetId == assetId;
+    if (asset && !assetIsSubclip && !asset->path.isEmpty())
+        return clip.path == asset->path;
+    return false;
+}
+
+QString sanitizeStemFilename(QString name, const QString &fallback)
+{
+    name = name.trimmed().replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9._-]+")),
+                                  QStringLiteral("_"));
+    while (name.startsWith(QLatin1Char('_')))
+        name.remove(0, 1);
+    while (name.endsWith(QLatin1Char('_')))
+        name.chop(1);
+    return name.isEmpty() ? fallback : name;
+}
+
+bool writeWavFromProject(const drift::Project &project, const QString &outPath, QString *errorOut)
+{
+    constexpr int kSampleRate = 48000;
+    constexpr int kChannels = 2;
+    constexpr int kBitsPerSample = 16;
+    constexpr int kBlockFrames = 4096;
+
+    QFile file(outPath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        if (errorOut)
+            *errorOut = file.errorString();
+        return false;
+    }
+
+    // Reserve standard 44-byte RIFF/WAVE header.
+    QByteArray header(44, '\0');
+    file.write(header);
+
+    AudioMixer mixer;
+    mixer.setProject(&project);
+    mixer.setMasterClipEnabled(false);
+
+    const drift::TimeUs durationUs = qMax<drift::TimeUs>(0, project.durationUs());
+    const qint64 totalFrames = (durationUs * kSampleRate + 500000) / 1000000;
+    QVector<float> floatBuf(kBlockFrames * kChannels);
+    QVector<qint16> pcmBuf(kBlockFrames * kChannels);
+
+    quint64 totalDataBytes = 0;
+    qint64 framePos = 0;
+    while (framePos < totalFrames) {
+        const int frames = int(qMin<qint64>(kBlockFrames, totalFrames - framePos));
+        const drift::TimeUs startUs = (framePos * 1000000) / kSampleRate;
+        mixer.mix(startUs, frames, kSampleRate, floatBuf.data());
+        for (int i = 0; i < frames * kChannels; ++i) {
+            const float clamped = qBound(-1.0f, floatBuf.at(i), 1.0f);
+            pcmBuf[i] = static_cast<qint16>(qRound(clamped * 32767.0f));
+        }
+        const qint64 bytes = qint64(frames) * kChannels * sizeof(qint16);
+        if (file.write(reinterpret_cast<const char *>(pcmBuf.constData()), bytes) != bytes) {
+            if (errorOut)
+                *errorOut = file.errorString();
+            return false;
+        }
+        totalDataBytes += quint64(bytes);
+        framePos += frames;
+    }
+
+    auto putLe32 = [](uchar *dst, quint32 v) { qToLittleEndian(v, dst); };
+    auto putLe16 = [](uchar *dst, quint16 v) { qToLittleEndian(v, dst); };
+    uchar *h = reinterpret_cast<uchar *>(header.data());
+    std::memcpy(h + 0, "RIFF", 4);
+    putLe32(h + 4, quint32(36 + totalDataBytes));
+    std::memcpy(h + 8, "WAVE", 4);
+    std::memcpy(h + 12, "fmt ", 4);
+    putLe32(h + 16, 16);
+    putLe16(h + 20, 1); // PCM
+    putLe16(h + 22, kChannels);
+    putLe32(h + 24, kSampleRate);
+    putLe32(h + 28, kSampleRate * kChannels * (kBitsPerSample / 8));
+    putLe16(h + 32, kChannels * (kBitsPerSample / 8));
+    putLe16(h + 34, kBitsPerSample);
+    std::memcpy(h + 36, "data", 4);
+    putLe32(h + 40, quint32(totalDataBytes));
+
+    if (!file.seek(0) || file.write(header) != header.size()) {
+        if (errorOut)
+            *errorOut = file.errorString();
+        return false;
+    }
+    file.close();
+    return true;
+}
+
+QImage renderGeneratorImage(const QString &generatorId, int w, int h, int fps, const QVariantMap &params)
+{
+    QImage img(qMax(16, w), qMax(16, h), QImage::Format_RGBA8888);
+    img.fill(Qt::black);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::Antialiasing, true);
+
+    if (generatorId == QLatin1String("solidColor")) {
+        const QColor c(params.value(QStringLiteral("color"), QStringLiteral("#1f2937")).toString());
+        img.fill(c.isValid() ? c : QColor(QStringLiteral("#1f2937")));
+    } else if (generatorId == QLatin1String("colorGradient")) {
+        const QColor c1(params.value(QStringLiteral("colorStart"), QStringLiteral("#0f172a")).toString());
+        const QColor c2(params.value(QStringLiteral("colorEnd"), QStringLiteral("#2563eb")).toString());
+        const QString style = params.value(QStringLiteral("style"), QStringLiteral("linear")).toString();
+        if (style == QLatin1String("radial")) {
+            QRadialGradient g(w * 0.5, h * 0.5, qMax(w, h) * 0.6);
+            g.setColorAt(0.0, c2.isValid() ? c2 : Qt::blue);
+            g.setColorAt(1.0, c1.isValid() ? c1 : Qt::black);
+            p.fillRect(0, 0, w, h, g);
+        } else {
+            QLinearGradient g(0, 0, w, h);
+            g.setColorAt(0.0, c1.isValid() ? c1 : Qt::black);
+            g.setColorAt(1.0, c2.isValid() ? c2 : Qt::blue);
+            p.fillRect(0, 0, w, h, g);
+        }
+    } else if (generatorId == QLatin1String("creditRoll")) {
+        const QColor bg(params.value(QStringLiteral("background"), QStringLiteral("#090b10")).toString());
+        const QColor fg(params.value(QStringLiteral("foreground"), QStringLiteral("#f8fafc")).toString());
+        img.fill(bg.isValid() ? bg : Qt::black);
+        p.setPen(fg.isValid() ? fg : Qt::white);
+        const QString title = params.value(QStringLiteral("title"), QStringLiteral("CREDITS")).toString();
+        const QString body = params.value(QStringLiteral("body"),
+                                          QStringLiteral("Directed by\nProducer\nEdited in Drift")).toString();
+        QFont titleFont = p.font();
+        titleFont.setPixelSize(qMax(24, h / 14));
+        titleFont.setBold(true);
+        p.setFont(titleFont);
+        p.drawText(QRect(0, h / 8, w, h / 6), Qt::AlignHCenter | Qt::AlignTop, title);
+
+        QFont bodyFont = p.font();
+        bodyFont.setPixelSize(qMax(18, h / 22));
+        bodyFont.setBold(false);
+        p.setFont(bodyFont);
+        p.drawText(QRect(w / 10, h / 3, w * 8 / 10, h / 2), Qt::AlignHCenter | Qt::AlignTop, body);
+    } else if (generatorId == QLatin1String("timecodeBurnIn")) {
+        img.fill(Qt::transparent);
+        const QRect box(w / 2 - w / 5, h - h / 5, (w * 2) / 5, h / 9);
+        p.setBrush(QColor(0, 0, 0, 190));
+        p.setPen(QColor(255, 255, 255, 110));
+        p.drawRoundedRect(box, 10, 10);
+        p.setPen(Qt::white);
+        QFont tcFont(QStringLiteral("monospace"));
+        tcFont.setPixelSize(qMax(18, box.height() / 2));
+        tcFont.setBold(true);
+        p.setFont(tcFont);
+        const QString label = QStringLiteral("00:00:00:00  %1fps").arg(qMax(1, fps));
+        p.drawText(box, Qt::AlignCenter, label);
+    } else {
+        // Default: SMPTE RP 219-style 75% color bars.
+        const QColor topBars[7] = {
+            QColor(191, 191, 191), QColor(191, 191, 0), QColor(0, 191, 191), QColor(0, 191, 0),
+            QColor(191, 0, 191),   QColor(191, 0, 0),   QColor(0, 0, 191),
+        };
+        const QColor midBars[7] = {
+            QColor(0, 0, 191),   QColor(19, 19, 19), QColor(191, 0, 191), QColor(19, 19, 19),
+            QColor(0, 191, 191), QColor(19, 19, 19), QColor(191, 191, 191),
+        };
+        const int topH = (h * 67) / 100;
+        const int midH = (h * 8) / 100;
+        const int botY = topH + midH;
+        const int botH = h - botY;
+        for (int i = 0; i < 7; ++i) {
+            const int x0 = (i * w) / 7;
+            const int x1 = ((i + 1) * w) / 7;
+            p.fillRect(x0, 0, x1 - x0, topH, topBars[i]);
+            p.fillRect(x0, topH, x1 - x0, midH, midBars[i]);
+        }
+        p.fillRect(0, botY, (w * 5) / 28, botH, QColor(0, 33, 76));
+        p.fillRect((w * 5) / 28, botY, (w * 5) / 28, botH, QColor(255, 255, 255));
+        p.fillRect((w * 10) / 28, botY, (w * 5) / 28, botH, QColor(50, 0, 106));
+        p.fillRect((w * 15) / 28, botY, (w * 13) / 28 + 1, botH, QColor(19, 19, 19));
+    }
+
+    p.end();
+    return img;
+}
+
+} // namespace
+
+bool AppController::isSubclipAsset(const QString &assetId) const
+{
+    const drift::MediaAsset *asset = m_project.asset(assetId);
+    if (!asset)
+        return false;
+    return asset->trimInUs > 0 || asset->trimOutUs >= 0;
+}
+
+int AppController::assetUseCount(const QString &assetId) const
+{
+    const drift::MediaAsset *asset = m_project.asset(assetId);
+    if (!asset)
+        return 0;
+    const bool subclip = isSubclipAsset(assetId);
+    int count = 0;
+    for (const drift::Track &track : m_project.tracks()) {
+        for (const drift::Clip &clip : track.clips) {
+            if (clipUsesAsset(clip, assetId, asset, subclip))
+                ++count;
+        }
+    }
+    return count;
+}
+
+int AppController::selectClipsUsingAsset(const QString &assetId)
+{
+    const drift::MediaAsset *asset = m_project.asset(assetId);
+    if (!asset)
+        return 0;
+    const bool subclip = isSubclipAsset(assetId);
+    QList<QPair<int, int>> matches;
+    for (int t = 0; t < m_project.tracks().size(); ++t) {
+        const drift::Track &track = m_project.tracks().at(t);
+        for (int c = 0; c < track.clips.size(); ++c) {
+            if (clipUsesAsset(track.clips.at(c), assetId, asset, subclip))
+                matches.append({t, c});
+        }
+    }
+    if (matches.isEmpty()) {
+        clearSelection();
+        return 0;
+    }
+    m_selection = matches;
+    m_selectedTrack = matches.first().first;
+    m_selectedClip = matches.first().second;
+    emit selectionChanged();
+    return int(matches.size());
+}
+
+QVariantList AppController::filterMediaAssets(const QString &filterMode) const
+{
+    QVariantList result;
+    if (!m_assetLibrary)
+        return result;
+    const QString mode = filterMode.trimmed().toLower();
+    const int n = m_assetLibrary->rowCount();
+    for (int i = 0; i < n; ++i) {
+        const QString id = m_assetLibrary->assetIdAt(i);
+        const drift::MediaAsset *asset = m_project.asset(id);
+        if (!asset)
+            continue;
+        const int uses = assetUseCount(id);
+        const bool subclip = isSubclipAsset(id);
+        const bool missing = m_assetLibrary->isMissing(id);
+        const bool editFriendly = m_assetLibrary->isEditFriendly(id);
+        const bool unconverted = asset->kind == drift::MediaKind::Video && !editFriendly;
+
+        bool match = true;
+        if (mode == QLatin1String("unused"))
+            match = (uses == 0);
+        else if (mode == QLatin1String("unconverted"))
+            match = unconverted;
+        else if (mode == QLatin1String("missing"))
+            match = missing;
+        else if (mode == QLatin1String("subclips"))
+            match = subclip;
+        if (!match)
+            continue;
+
+        QVariantMap row = m_assetLibrary->assetAt(i);
+        row.insert(QStringLiteral("assetIndex"), i);
+        row.insert(QStringLiteral("useCount"), uses);
+        row.insert(QStringLiteral("isSubclip"), subclip);
+        row.insert(QStringLiteral("missing"), missing);
+        row.insert(QStringLiteral("editFriendly"), editFriendly);
+        result.append(row);
+    }
+    return result;
+}
+
+QVariantList AppController::mediaGeneratorCatalog() const
+{
+    return {
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("smpteBars")},
+                    {QStringLiteral("name"), tr("SMPTE Color Bars")},
+                    {QStringLiteral("description"), tr("Broadcast 75% SMPTE RP 219 color bars test pattern")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("solidColor")},
+                    {QStringLiteral("name"), tr("Solid Color")},
+                    {QStringLiteral("description"), tr("Full-frame solid matte color generator")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("colorGradient")},
+                    {QStringLiteral("name"), tr("Color Gradient")},
+                    {QStringLiteral("description"), tr("Linear or radial two-stop color ramp generator")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("creditRoll")},
+                    {QStringLiteral("name"), tr("Credit Roll")},
+                    {QStringLiteral("description"), tr("End-credits title card generator")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("timecodeBurnIn")},
+                    {QStringLiteral("name"), tr("Timecode Burn-In")},
+                    {QStringLiteral("description"), tr("Burnt-in SMPTE timecode overlay graphic")}},
+    };
+}
+
+QString AppController::insertMediaGenerator(const QString &generatorId, double atSeconds,
+                                            double durationSeconds, const QVariantMap &params)
+{
+    if (!m_assetLibrary)
+        return {};
+    const QString genId = generatorId.trimmed().isEmpty() ? QStringLiteral("smpteBars") : generatorId.trimmed();
+    const int w = qMax(16, m_project.width());
+    const int h = qMax(16, m_project.height());
+    const QImage image = renderGeneratorImage(genId, w, h, m_project.fps(), params);
+    const QString mediaDir = projectMediaDir(m_project.id());
+    if (!QDir().mkpath(mediaDir))
+        return {};
+
+    const QString fileId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const QString outPath = QDir(mediaDir).filePath(QStringLiteral("gen_%1_%2.png").arg(genId, fileId));
+    if (!image.save(outPath, "PNG"))
+        return {};
+
+    QString label = tr("Generator (%1)").arg(genId);
+    for (const QVariant &entryVar : mediaGeneratorCatalog()) {
+        const QVariantMap entry = entryVar.toMap();
+        if (entry.value(QStringLiteral("id")).toString() == genId) {
+            label = entry.value(QStringLiteral("name")).toString();
+            break;
+        }
+    }
+
+    const drift::Project before = m_project;
+
+    drift::MediaAsset asset;
+    asset.name = label;
+    asset.path = outPath;
+    asset.kind = drift::MediaKind::Image;
+    asset.width = w;
+    asset.height = h;
+    asset.thumbnailPath = outPath;
+    asset.filmstripPath = outPath;
+    asset.hasAudio = false;
+    asset.hasAudioKnown = true;
+    const QString assetId = m_assetLibrary->addGeneratedAsset(asset);
+
+    const int trackIndex = drift::ensureTrackForClipType(m_project, drift::ClipType::Image, true);
+    drift::Track &track = m_project.tracks()[trackIndex];
+    const drift::TimeUs desiredUs = atSeconds >= 0.0 ? drift::secondsToUs(atSeconds) : m_playheadUs;
+    const drift::TimeUs durUs = drift::secondsToUs(qMax(0.1, durationSeconds));
+    const drift::TimeUs startUs = drift::resolveClipStart(m_project, track, -1, desiredUs, durUs,
+                                                          m_snapEnabled, m_playheadUs);
+
+    drift::Clip clip;
+    clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    clip.assetId = assetId;
+    clip.type = drift::ClipType::Image;
+    clip.name = label;
+    clip.path = outPath;
+    clip.thumbnailPath = outPath;
+    clip.filmstripPath = outPath;
+    clip.timelineStart = startUs;
+    clip.timelineDuration = durUs;
+    clip.srcIn = 0;
+    clip.srcOut = durUs;
+    fitClipLayoutToCanvas(clip, w, h, w, h);
+
+    track.clips.append(clip);
+    const int clipIdx = int(track.clips.size()) - 1;
+    pushProjectEdit(before, tr("Media generator inserted"));
+    finishEdit(tr("Media generator inserted"));
+    selectClip(trackIndex, clipIdx);
+    return clip.id;
+}
+
+// --- Tier 4C: Audio Stem Export & Smart Render Analysis ----------------------
+
+QVariantMap AppController::exportAudioStems(const QUrl &outputDirUrl, bool includeTracks,
+                                            bool includeBuses, bool includeMaster)
+{
+    QString dirPath = outputDirUrl.isLocalFile() ? outputDirUrl.toLocalFile() : outputDirUrl.toString();
+    dirPath = dirPath.trimmed();
+    QVariantMap result{{QStringLiteral("ok"), false},
+                       {QStringLiteral("outputDir"), dirPath},
+                       {QStringLiteral("files"), QStringList{}},
+                       {QStringLiteral("count"), 0},
+                       {QStringLiteral("error"), QString{}}};
+    if (dirPath.isEmpty()) {
+        result.insert(QStringLiteral("error"), tr("Output directory is empty"));
+        return result;
+    }
+    if (!QDir().mkpath(dirPath)) {
+        result.insert(QStringLiteral("error"), tr("Could not create output directory"));
+        return result;
+    }
+
+    const drift::Project baseProject = m_project.exportView({});
+    QStringList files;
+    QSet<QString> usedNames;
+    auto uniqueStemPath = [&](const QString &rawName, const QString &fallback) -> QString {
+        QString stem = sanitizeStemFilename(rawName, fallback);
+        QString candidate = stem;
+        int n = 2;
+        while (usedNames.contains(candidate.toLower())) {
+            candidate = QStringLiteral("%1_%2").arg(stem).arg(n++);
+        }
+        usedNames.insert(candidate.toLower());
+        return QDir(dirPath).filePath(candidate + QStringLiteral(".wav"));
+    };
+
+    if (includeTracks) {
+        const auto &tracks = baseProject.tracks();
+        for (int i = 0; i < tracks.size(); ++i) {
+            const drift::Track &t = tracks.at(i);
+            bool hasAudioCapableClip = (t.type == drift::TrackType::Audio);
+            if (!hasAudioCapableClip && t.type == drift::TrackType::Video) {
+                for (const drift::Clip &c : t.clips) {
+                    if (c.type == drift::ClipType::Video || c.type == drift::ClipType::Audio) {
+                        hasAudioCapableClip = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasAudioCapableClip)
+                continue;
+
+            drift::Project iso = baseProject;
+            for (drift::AudioBus &b : iso.audioBuses())
+                b.solo = false;
+            for (int j = 0; j < iso.tracks().size(); ++j) {
+                drift::Track &tr = iso.tracks()[j];
+                tr.solo = false;
+                tr.muted = (j != i);
+            }
+            QString err;
+            const QString fallback = QStringLiteral("track_%1").arg(i + 1);
+            const QString outPath = uniqueStemPath(t.name.trimmed().isEmpty() ? fallback : t.name, fallback);
+            if (!writeWavFromProject(iso, outPath, &err)) {
+                result.insert(QStringLiteral("error"), err);
+                result.insert(QStringLiteral("files"), files);
+                result.insert(QStringLiteral("count"), int(files.size()));
+                return result;
+            }
+            files.append(outPath);
+        }
+    }
+
+    if (includeBuses) {
+        for (const drift::AudioBus &target : baseProject.audioBuses()) {
+            // Collect this bus and any upstream sub-bus that routes to it.
+            QSet<QString> activeBuses{target.id};
+            bool added = true;
+            while (added) {
+                added = false;
+                for (const drift::AudioBus &b : baseProject.audioBuses()) {
+                    if (!activeBuses.contains(b.id) && activeBuses.contains(b.outputBusId)) {
+                        activeBuses.insert(b.id);
+                        added = true;
+                    }
+                }
+            }
+
+            drift::Project iso = baseProject;
+            for (drift::AudioBus &b : iso.audioBuses()) {
+                b.solo = false;
+                b.muted = !activeBuses.contains(b.id);
+                if (b.id == target.id)
+                    b.outputBusId.clear();
+            }
+            for (drift::Track &tr : iso.tracks()) {
+                tr.solo = false;
+                bool feeds = activeBuses.contains(tr.outputBusId);
+                for (const drift::AudioSend &send : tr.audioSends) {
+                    if (send.enabled && send.level > 0.0 && activeBuses.contains(send.busId))
+                        feeds = true;
+                }
+                if (!feeds)
+                    tr.muted = true;
+            }
+            QString err;
+            const QString outPath = uniqueStemPath(
+                QStringLiteral("bus_%1").arg(target.name.isEmpty() ? target.id : target.name),
+                QStringLiteral("bus_%1").arg(target.id));
+            if (!writeWavFromProject(iso, outPath, &err)) {
+                result.insert(QStringLiteral("error"), err);
+                result.insert(QStringLiteral("files"), files);
+                result.insert(QStringLiteral("count"), int(files.size()));
+                return result;
+            }
+            files.append(outPath);
+        }
+    }
+
+    if (includeMaster) {
+        QString err;
+        const QString outPath = uniqueStemPath(QStringLiteral("master"), QStringLiteral("master"));
+        if (!writeWavFromProject(baseProject, outPath, &err)) {
+            result.insert(QStringLiteral("error"), err);
+            result.insert(QStringLiteral("files"), files);
+            result.insert(QStringLiteral("count"), int(files.size()));
+            return result;
+        }
+        files.append(outPath);
+    }
+
+    result.insert(QStringLiteral("ok"), true);
+    result.insert(QStringLiteral("files"), files);
+    result.insert(QStringLiteral("count"), int(files.size()));
+    return result;
+}
+
+QVariantList AppController::analyzeSmartRenderSegments(const QVariantMap &settings) const
+{
+    const ExportSettings parsed = Exporter::settingsFromMap(settings);
+    const QList<Exporter::SmartRenderSegment> segments =
+        Exporter::findSmartRenderSegments(m_project, parsed);
+    QVariantList out;
+    for (const Exporter::SmartRenderSegment &seg : segments) {
+        out.append(QVariantMap{
+            {QStringLiteral("clipId"), seg.clipId},
+            {QStringLiteral("sourcePath"), seg.sourcePath},
+            {QStringLiteral("timelineStartUs"), qint64(seg.timelineStartUs)},
+            {QStringLiteral("timelineDurationUs"), qint64(seg.timelineDurationUs)},
+            {QStringLiteral("srcInUs"), qint64(seg.srcInUs)},
+            {QStringLiteral("srcOutUs"), qint64(seg.srcOutUs)},
+        });
+    }
+    return out;
+}
+
+// --- Tier 4D: Bidirectional Interchange Export -----------------------------
+
+bool AppController::exportTimelineInterchange(const QUrl &url, const QString &format)
+{
+    const QString path = (url.isLocalFile() ? url.toLocalFile() : url.toString()).trimmed();
+    if (path.isEmpty()) {
+        setLastMessage(tr("Choose an export file path"), QStringLiteral("warning"));
+        return false;
+    }
+    QString err;
+    if (!drift::interchange::exportProjectInterchange(m_project, path, format, &err)) {
+        setLastMessage(err.isEmpty() ? tr("Timeline export failed") : err, QStringLiteral("error"));
+        return false;
+    }
+    setLastMessage(tr("Timeline exported to %1").arg(QFileInfo(path).fileName()));
+    return true;
 }

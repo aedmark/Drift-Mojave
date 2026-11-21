@@ -140,6 +140,10 @@ QHash<QString, QString> defaultShortcuts()
         {QStringLiteral("clearInOut"), QStringLiteral("Alt+X")},
         {QStringLiteral("toggleLoop"), QStringLiteral("Ctrl+Shift+L")},
         {QStringLiteral("toggleAutoRipple"), QStringLiteral("Ctrl+L")},
+        {QStringLiteral("toggleQuantizeToFrames"), QStringLiteral("Alt+F8")},
+        {QStringLiteral("toggleExpandedEdit"), QStringLiteral("F5")},
+        {QStringLiteral("toggleClipLocked"), QStringLiteral("Alt+Shift+L")},
+        {QStringLiteral("toggleClipMuted"), QStringLiteral("Alt+Shift+Q")},
         {QStringLiteral("rippleDelete"), QStringLiteral("Shift+Delete")},
         // The timeline tool modes live in QML, so Main.qml intercepts these rather
         // than triggerAction dispatching them. They are registered all the same, so
@@ -776,6 +780,7 @@ QVariantList AppController::audioBuses() const
             {QStringLiteral("pan"), bus.pan},
             {QStringLiteral("muted"), bus.muted},
             {QStringLiteral("solo"), bus.solo},
+            {QStringLiteral("outputBusId"), bus.outputBusId},
             {QStringLiteral("audioEffects"), busAudioEffects(bus.id)},
         });
     }
@@ -812,6 +817,10 @@ void AppController::removeAudioBus(const QString &busId)
 
     const drift::Project before = m_project;
     m_project.audioBuses().removeAt(idx);
+    for (drift::AudioBus &bus : m_project.audioBuses()) {
+        if (bus.outputBusId == busId)
+            bus.outputBusId.clear();
+    }
     bool touchedTracks = false;
     for (drift::Track &track : m_project.tracks()) {
         if (track.outputBusId == busId) {
@@ -963,6 +972,57 @@ void AppController::setAudioBusSolo(const QString &busId, bool solo)
             return;
         }
     }
+}
+
+bool AppController::setAudioBusOutputBus(const QString &busId, const QString &targetBusId)
+{
+    if (busId.isEmpty() || busId == targetBusId)
+        return false;
+    int busIdx = -1;
+    const QList<drift::AudioBus> &buses = m_project.audioBuses();
+    for (int i = 0; i < buses.size(); ++i) {
+        if (buses.at(i).id == busId) {
+            busIdx = i;
+            break;
+        }
+    }
+    if (busIdx < 0)
+        return false;
+
+    if (!targetBusId.isEmpty()) {
+        bool targetExists = false;
+        QHash<QString, QString> routing;
+        for (const drift::AudioBus &b : buses) {
+            if (b.id == targetBusId)
+                targetExists = true;
+            routing.insert(b.id, b.outputBusId);
+        }
+        if (!targetExists)
+            return false;
+        // Cycle guard: ensure targetBusId -> ... does not reach busId.
+        QString cursor = targetBusId;
+        QSet<QString> seen;
+        while (!cursor.isEmpty()) {
+            if (cursor == busId) {
+                setLastMessage(tr("Cannot route audio bus into a feedback loop"), QStringLiteral("warning"));
+                return false;
+            }
+            if (seen.contains(cursor))
+                break;
+            seen.insert(cursor);
+            cursor = routing.value(cursor);
+        }
+    }
+
+    if (m_project.audioBuses().at(busIdx).outputBusId == targetBusId)
+        return true;
+
+    const drift::Project before = m_project;
+    m_project.audioBuses()[busIdx].outputBusId = targetBusId;
+    pushProjectEdit(before, tr("Route audio bus"));
+    finishEdit(tr("Audio bus routing updated"));
+    emit audioBusesChanged();
+    return true;
 }
 
 QString AppController::trackOutputBus(int trackIndex) const
@@ -2735,6 +2795,10 @@ void AppController::triggerAction(const QString &actionId)
         rippleDelete();
     else if (actionId == QStringLiteral("toggleAutoRipple"))
         toggleAutoRipple();
+    else if (actionId == QStringLiteral("toggleQuantizeToFrames"))
+        toggleQuantizeToFrames();
+    else if (actionId == QStringLiteral("toggleExpandedEdit"))
+        toggleExpandedEditMode();
     else if (actionId == QStringLiteral("nextTake"))
         nextTake();
     else if (actionId == QStringLiteral("previousTake"))
@@ -2763,6 +2827,10 @@ void AppController::triggerAction(const QString &actionId)
         splitAtPlayhead();
     else if (actionId == QStringLiteral("toggleClipEnabled"))
         toggleSelectedClipsEnabled();
+    else if (actionId == QStringLiteral("toggleClipMuted"))
+        toggleSelectedClipsMuted();
+    else if (actionId == QStringLiteral("toggleClipLocked"))
+        toggleSelectedClipsLocked();
     else if (actionId == QStringLiteral("splitSelection"))
         splitSelectionAtPlayhead();
     else if (actionId == QStringLiteral("addTransitionAtPlayhead"))
@@ -3416,12 +3484,20 @@ void AppController::rebuildBeatSnapTargets()
 
 QList<drift::TimeUs> AppController::extraSnapTargets() const
 {
-    QList<drift::TimeUs> targets = m_beatSnapTargets;
-    for (const drift::Bookmark &bookmark : m_project.bookmarks())
-        targets.append(bookmark.timeUs);
-    if (m_project.hasWorkArea()) {
-        targets.append(m_project.workAreaInUs());
-        targets.append(m_project.workAreaOutUs());
+    QList<drift::TimeUs> targets;
+    if (m_snapToGrid)
+        targets = m_beatSnapTargets;
+    if (m_snapToMarkers) {
+        for (const drift::Bookmark &bookmark : m_project.bookmarks())
+            targets.append(bookmark.timeUs);
+        for (const drift::Region &region : m_project.regions()) {
+            targets.append(region.startUs);
+            targets.append(region.endUs);
+        }
+        if (m_project.hasWorkArea()) {
+            targets.append(m_project.workAreaInUs());
+            targets.append(m_project.workAreaOutUs());
+        }
     }
     return targets;
 }

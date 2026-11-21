@@ -243,6 +243,14 @@ class AppController : public QObject
     Q_PROPERTY(bool scrubbing READ scrubbing NOTIFY scrubbingChanged)
     Q_PROPERTY(bool previewDragActive READ previewDragActive NOTIFY previewDragActiveChanged)
     Q_PROPERTY(bool snapEnabled READ snapEnabled WRITE setSnapEnabled NOTIFY snapEnabledChanged)
+    Q_PROPERTY(bool quantizeToFrames READ quantizeToFrames WRITE setQuantizeToFrames NOTIFY quantizeToFramesChanged)
+    Q_PROPERTY(bool snapToGrid READ snapToGrid WRITE setSnapToGrid NOTIFY snapOptionsChanged)
+    Q_PROPERTY(bool snapToMarkers READ snapToMarkers WRITE setSnapToMarkers NOTIFY snapOptionsChanged)
+    Q_PROPERTY(bool snapToEvents READ snapToEvents WRITE setSnapToEvents NOTIFY snapOptionsChanged)
+    Q_PROPERTY(bool expandedEditActive READ expandedEditActive NOTIFY expandedEditChanged)
+    Q_PROPERTY(int expandedEditTrack READ expandedEditTrack NOTIFY expandedEditChanged)
+    Q_PROPERTY(int expandedEditLeftClip READ expandedEditLeftClip NOTIFY expandedEditChanged)
+    Q_PROPERTY(QVariantMap expandedEditState READ expandedEditState NOTIFY expandedEditChanged)
     Q_PROPERTY(bool rippleEnabled READ rippleEnabled WRITE setRippleEnabled NOTIFY rippleEnabledChanged)
     Q_PROPERTY(QString rippleMode READ rippleModeString WRITE setRippleModeString NOTIFY rippleModeChanged)
     Q_PROPERTY(int rippleModeIndex READ rippleModeIndex WRITE setRippleModeIndex NOTIFY rippleModeChanged)
@@ -484,6 +492,23 @@ public:
     bool playing() const { return m_playing; }
     bool previewDragActive() const { return m_previewDragActive; }
     bool snapEnabled() const { return m_snapEnabled; }
+    bool quantizeToFrames() const { return m_quantizeToFrames; }
+    void setQuantizeToFrames(bool enabled);
+    Q_INVOKABLE void toggleQuantizeToFrames();
+    Q_INVOKABLE double quantizeTimeSeconds(double seconds, bool isAudioOnly = false) const;
+    bool snapToGrid() const { return m_snapToGrid; }
+    void setSnapToGrid(bool enabled);
+    bool snapToMarkers() const { return m_snapToMarkers; }
+    void setSnapToMarkers(bool enabled);
+    bool snapToEvents() const { return m_snapToEvents; }
+    void setSnapToEvents(bool enabled);
+    bool expandedEditActive() const { return m_expandedEditActive; }
+    int expandedEditTrack() const { return m_expandedEditTrack; }
+    int expandedEditLeftClip() const { return m_expandedEditLeftClip; }
+    QVariantMap expandedEditState() const;
+    Q_INVOKABLE bool beginExpandedEdit(int trackIndex, int leftClipIndex);
+    Q_INVOKABLE void endExpandedEdit();
+    Q_INVOKABLE void toggleExpandedEditMode();
     bool rippleEnabled() const { return m_rippleEnabled; }
     drift::RippleMode rippleMode() const { return m_rippleMode; }
     QString rippleModeString() const { return drift::rippleModeToString(m_rippleMode); }
@@ -1274,6 +1299,9 @@ public:
     Q_INVOKABLE void setClipEnabled(int trackIndex, int clipIndex, bool enabled);
     // Disables the selected clips, or enables them all when none of them is enabled.
     Q_INVOKABLE void toggleSelectedClipsEnabled();
+    Q_INVOKABLE void toggleSelectedClipsMuted();
+    Q_INVOKABLE void setClipLocked(int trackIndex, int clipIndex, bool locked);
+    Q_INVOKABLE void toggleSelectedClipsLocked();
     // Per-clip "3D layer" switch: the tilt/depth/perspective values render (and get grips) only
     // while it is on. Off keeps the values.
     Q_INVOKABLE void setClipLayer3d(int trackIndex, int clipIndex, bool enabled);
@@ -1298,6 +1326,13 @@ public:
     Q_INVOKABLE bool normalizeClipAudio(int trackIndex, int clipIndex, double targetPeakDb = -0.1);
     Q_INVOKABLE bool normalizeSelectedClipAudio(double targetPeakDb = -0.1);
     Q_INVOKABLE void resetClipNormalize(int trackIndex, int clipIndex);
+    // Clip-level audio gain envelope keyframing (Tier 4C).
+    Q_INVOKABLE QVariantList clipVolumeEnvelopePoints(int trackIndex, int clipIndex) const;
+    Q_INVOKABLE void addClipVolumeEnvelopePoint(int trackIndex, int clipIndex, double localSeconds, double gain);
+    Q_INVOKABLE void moveClipVolumeEnvelopePoint(int trackIndex, int clipIndex, int pointIndex,
+                                                 double newLocalSeconds, double newGain);
+    Q_INVOKABLE void removeClipVolumeEnvelopePoint(int trackIndex, int clipIndex, int pointIndex);
+    Q_INVOKABLE void clearClipVolumeEnvelope(int trackIndex, int clipIndex);
     Q_INVOKABLE void setClipRotationSnap(int trackIndex, int clipIndex, double degrees);
     // Discrete, lossless orientation fix (absolute 0/90/180/270, as the inspector shows it) —
     // distinct from the free decorative "Angle" above. Re-fits the clip's box for the new
@@ -1812,6 +1847,7 @@ public:
     Q_INVOKABLE void previewAudioBusPan(const QString &busId, double pan);
     Q_INVOKABLE void setAudioBusMuted(const QString &busId, bool muted);
     Q_INVOKABLE void setAudioBusSolo(const QString &busId, bool solo);
+    Q_INVOKABLE bool setAudioBusOutputBus(const QString &busId, const QString &targetBusId);
     Q_INVOKABLE QVariantList busAudioEffects(const QString &busId) const;
     Q_INVOKABLE void addBusAudioEffect(const QString &busId, const QString &effectId);
     Q_INVOKABLE void removeBusAudioEffect(const QString &busId, int effectIndex);
@@ -1942,6 +1978,19 @@ public:
     Q_INVOKABLE bool insertSubclipFromTrimmer(int assetIndex, double inSeconds, double outSeconds,
                                               bool overwrite,
                                               const QString &streamMode = QStringLiteral("both"));
+    Q_INVOKABLE QString createSubclipInBin(int assetIndex, double inSeconds, double outSeconds,
+                                           const QString &customName = QString());
+    Q_INVOKABLE QString createSubclipFromTimelineClip(int trackIndex, int clipIndex,
+                                                      const QString &customName = QString());
+    // Smart Bin Filters, Media Usage Audit & VEGAS Media Generators (Tier 4B)
+    Q_INVOKABLE int assetUseCount(const QString &assetId) const;
+    Q_INVOKABLE bool isSubclipAsset(const QString &assetId) const;
+    Q_INVOKABLE int selectClipsUsingAsset(const QString &assetId);
+    Q_INVOKABLE QVariantList filterMediaAssets(const QString &filterMode) const;
+    Q_INVOKABLE QVariantList mediaGeneratorCatalog() const;
+    Q_INVOKABLE QString insertMediaGenerator(const QString &generatorId, double atSeconds = -1.0,
+                                             double durationSeconds = 5.0,
+                                             const QVariantMap &params = {});
     Q_INVOKABLE bool triggerDynamicRamPreview();
     Q_INVOKABLE void freezeFrameAtPlayhead();
     // The project's own media folder (created if needed): files here are bundled on save.
@@ -2086,6 +2135,10 @@ public:
     // neither reaches into the other's.
     Q_INVOKABLE void exportWithSettings(const QUrl &outputUrl, const QVariantMap &settings,
                                         bool rememberChoice = true);
+    Q_INVOKABLE QVariantMap exportAudioStems(const QUrl &outputDirUrl, bool includeTracks = true,
+                                             bool includeBuses = true, bool includeMaster = true);
+    Q_INVOKABLE QVariantList analyzeSmartRenderSegments(const QVariantMap &settings = {}) const;
+    Q_INVOKABLE bool exportTimelineInterchange(const QUrl &url, const QString &format = QString());
     Q_INVOKABLE void cancelExport();
     // Copies the finished export into the shared media collection and hands it to the system share
     // sheet. Deferred to this point rather than done as part of the export because it is a second
@@ -2148,6 +2201,9 @@ signals:
     void availableMicrophonesChanged();
     void currentMicrophoneChanged();
     void snapEnabledChanged();
+    void quantizeToFramesChanged();
+    void snapOptionsChanged();
+    void expandedEditChanged();
     void rippleEnabledChanged();
     void rippleModeChanged();
     void allowClipOverlapChanged();
@@ -2743,6 +2799,13 @@ protected:
     bool m_playing = false;
     bool m_scrubbing = false;
     bool m_snapEnabled = true;
+    bool m_quantizeToFrames = false;
+    bool m_snapToGrid = true;
+    bool m_snapToMarkers = true;
+    bool m_snapToEvents = true;
+    bool m_expandedEditActive = false;
+    int m_expandedEditTrack = -1;
+    int m_expandedEditLeftClip = -1;
     bool m_rippleEnabled = false;
     drift::RippleMode m_rippleMode = drift::RippleMode::AffectedTracks;
     drift::TimeUs m_snapThresholdUs = drift::kSnapThresholdUs;

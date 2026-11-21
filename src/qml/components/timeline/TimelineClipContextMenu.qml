@@ -295,9 +295,26 @@ ThemedContextMenu {
         onTriggered: EditorState.separateAllAudioTracks(owner.trackIndex, owner.clipIndex)
     }
     ThemedMenuItem {
-        text: owner.clipData.enabled === false ? qsTr("Enable clip") : qsTr("Disable clip")
-        icon.name: owner.clipData.enabled === false ? Theme.icons.eye : Theme.icons.eyeOff
+        text: owner.clipData.enabled === false
+              ? qsTr("Unmute / Enable event (Alt+Shift+Q)")
+              : qsTr("Mute / Disable event (Alt+Shift+Q)")
+        icon.name: owner.clipData.enabled === false ? Theme.icons.volumeHigh : Theme.icons.volumeOff
         onTriggered: EditorState.setClipEnabled(owner.trackIndex, owner.clipIndex, owner.clipData.enabled === false)
+    }
+    ThemedMenuItem {
+        text: owner.clipData.locked ? qsTr("Unlock event (Alt+Shift+L)") : qsTr("Lock event (Alt+Shift+L)")
+        icon.name: owner.clipData.locked ? Theme.icons.lockOpen : Theme.icons.lock
+        onTriggered: EditorState.setClipLocked(owner.trackIndex, owner.clipIndex, !owner.clipData.locked)
+    }
+    ThemedMenuItem {
+        text: qsTr("Create subclip in Media Bin")
+        icon.name: Theme.icons.copyPlus
+        visible: (owner.clipData.kind === "video" || owner.clipData.kind === "audio") && !owner.isTransformClip
+        onTriggered: {
+            const subId = EditorState.createSubclipFromTimelineClip(owner.trackIndex, owner.clipIndex)
+            if (subId.length > 0)
+                Toasts.success(qsTr("Subclip added to Media Bin"))
+        }
     }
     ThemedMenuItem {
         text: owner.clipData.loop ? qsTr("Stop looping") : qsTr("Loop")

@@ -54,6 +54,7 @@ struct ExportSettings
     int audioBitrateKbps = 192;
     bool audioOnly = false;
     bool gifExport = false;
+    bool smartRender = true;
     QString metadataTitle;
     QString metadataArtist;
     QString metadataAlbum;
@@ -142,6 +143,21 @@ public:
         // hold is taken, so it never carries into the next job. Always false off Android.
         static bool cancelRequested();
     };
+
+    struct SmartRenderSegment
+    {
+        drift::TimeUs timelineStartUs = 0;
+        drift::TimeUs timelineDurationUs = 0;
+        QString clipId;
+        QString sourcePath;
+        drift::TimeUs srcInUs = 0;
+        drift::TimeUs srcOutUs = 0;
+    };
+
+    // Detects unmodified single-layer Apple ProRes 422 (.mov) timeline segments matching the target
+    // export dimensions and frame rate that qualify for zero-recompress stream-copy pass-through.
+    static QList<SmartRenderSegment> findSmartRenderSegments(const drift::Project &project,
+                                                             const ExportSettings &settings);
 
     // `outputPath` is a filesystem path, or — on Android — the fully encoded content:// URI of a
     // document the save picker created (AndroidUri::filePath of what FileDialogs returned).

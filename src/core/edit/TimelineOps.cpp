@@ -29,18 +29,21 @@ void setImageClipDurationUs(TimeUs duration)
 }
 
 void SnapTargets::build(const Project &project, TimeUs playheadUs,
-                        const QList<TimeUs> &extraTargets, const QString &excludeClipId)
+                        const QList<TimeUs> &extraTargets, const QString &excludeClipId,
+                        bool includeClipEvents)
 {
     sorted.clear();
     sorted.reserve(2 + extraTargets.size() + 2 * project.tracks().size());
     sorted.push_back(0);
     sorted.push_back(playheadUs);
-    for (const Track &track : project.tracks()) {
-        for (const Clip &clip : track.clips) {
-            if (!excludeClipId.isEmpty() && clip.id == excludeClipId)
-                continue;
-            sorted.push_back(clip.timelineStart);
-            sorted.push_back(clip.timelineEnd());
+    if (includeClipEvents) {
+        for (const Track &track : project.tracks()) {
+            for (const Clip &clip : track.clips) {
+                if (!excludeClipId.isEmpty() && clip.id == excludeClipId)
+                    continue;
+                sorted.push_back(clip.timelineStart);
+                sorted.push_back(clip.timelineEnd());
+            }
         }
     }
     for (TimeUs extra : extraTargets)
@@ -82,13 +85,14 @@ TimeUs snapTimeTo(const SnapTargets &targets, TimeUs time, bool snapEnabled, Tim
 }
 
 TimeUs snapTime(const Project &project, TimeUs time, bool snapEnabled, TimeUs playheadUs,
-                const QList<TimeUs> &extraTargets, const QString &excludeClipId, TimeUs thresholdUs)
+                const QList<TimeUs> &extraTargets, const QString &excludeClipId, TimeUs thresholdUs,
+                bool includeClipEvents)
 {
     if (!snapEnabled)
         return qMax<TimeUs>(0, time);
 
     SnapTargets targets;
-    targets.build(project, playheadUs, extraTargets, excludeClipId);
+    targets.build(project, playheadUs, extraTargets, excludeClipId, includeClipEvents);
     return snapTimeTo(targets, time, snapEnabled, thresholdUs);
 }
 

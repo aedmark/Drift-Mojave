@@ -17,6 +17,7 @@ Popup {
     signal packageRequested()
     signal saveJsonRequested()
     signal openJsonRequested()
+    signal exportInterchangeRequested()
     // Disabled: external project imports need more fixing before shipping. Re-enable the signals
     // and ActionRows below together with the loadProject() routing in AppController.
     // signal importPremiereRequested()
@@ -248,6 +249,13 @@ Popup {
             glyph: Theme.icons.upload
             text: qsTr("Open JSON…")
             onTriggered: root.openJsonRequested()
+        }
+
+        RecentProjectsActionRow {
+            popup: root
+            glyph: Theme.icons.upload
+            text: qsTr("Export timeline (.fcpxml / .edl / .otio / .txt)…")
+            onTriggered: root.exportInterchangeRequested()
         }
 
         // Disabled: external project imports (Premiere Pro, DaVinci Resolve/FCPXML,

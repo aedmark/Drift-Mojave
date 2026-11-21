@@ -2658,6 +2658,22 @@
         <translation>নির্বাচিত ক্লিপগুলো সক্ষম বা নিষ্ক্রিয় করুন</translation>
     </message>
     <message>
+        <source>Mute or unmute selected clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lock or unlock selected clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle Quantize to Frames</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle Expanded Edit Mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Clear selection</source>
         <translation>নির্বাচন বাতিল করুন</translation>
     </message>
@@ -2854,12 +2870,24 @@
         <translation>নর্মালাইজ করার জন্য একটি ক্লিপ নির্বাচন করুন</translation>
     </message>
     <message>
+        <source>Quantize to Frames enabled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Quantize to Frames disabled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Clip added</source>
         <translation>ক্লিপ যোগ করা হয়েছে</translation>
     </message>
     <message>
         <source>Clip added on new track</source>
         <translation>ক্লিপ নতুন ট্র্যাকে যোগ করা হয়েছে।</translation>
+    </message>
+    <message>
+        <source>Clip is locked</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Clip deleted</source>
@@ -2959,6 +2987,14 @@
     </message>
     <message>
         <source>Insert from Trimmer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Place two adjacent clips on a track to open Expanded Edit Mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (subclip)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3831,6 +3867,22 @@
         <translation>ক্লিপগুলো নিষ্ক্রিয় করা হয়েছে</translation>
     </message>
     <message>
+        <source>Lock clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unlock clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clips locked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clips unlocked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Pan changed</source>
         <translation>প্যান পরিবর্তন করা হয়েছে</translation>
     </message>
@@ -3856,6 +3908,30 @@
     </message>
     <message>
         <source>Clip gain %1 dB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add clip gain envelope point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip gain envelope updated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move clip gain envelope point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove clip gain envelope point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset clip gain envelope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip gain envelope reset</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5474,6 +5550,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Cannot route audio bus into a feedback loop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Route audio bus</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio bus routing updated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Route track output bus</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5707,6 +5795,74 @@
     <message>
         <source>Nothing on this device can play that file</source>
         <translation>এই ডিভাইসে থাকা কিছুই সেই ফাইলটি চালাতে পারবে না।</translation>
+    </message>
+    <message>
+        <source>SMPTE Color Bars</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Broadcast 75% SMPTE RP 219 color bars test pattern</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solid Color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Full-frame solid matte color generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Color Gradient</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Linear or radial two-stop color ramp generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Credit Roll</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End-credits title card generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timecode Burn-In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Burnt-in SMPTE timecode overlay graphic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generator (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Media generator inserted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Output directory is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create output directory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose an export file path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timeline export failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timeline exported to %1</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Getting your video ready to share…</source>
@@ -9371,6 +9527,26 @@
     <message>
         <source>%1 copy</source>
         <translation>%1 অনুলিপি</translation>
+    </message>
+    <message>
+        <source>Export Timeline Interchange</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FCPXML timeline (*.fcpxml)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CMX 3600 EDL (*.edl)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OpenTimelineIO (*.otio)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>VEGAS Markers/Regions TSV (*.txt)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Save Shareable Copy</source>
@@ -15007,6 +15183,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>টাইমলাইনে যোগ করুন</translation>
     </message>
     <message>
+        <source>Select timeline events using media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Trim, crop and upscale…</source>
         <translation>ট্রিম, ক্রপ এবং আপস্কেল…</translation>
     </message>
@@ -17073,6 +17253,30 @@ If playback stutters, try another.</source>
 <context>
     <name>PreviewPanel</name>
     <message>
+        <source>Out</source>
+        <translation type="unfinished">আউট</translation>
+    </message>
+    <message>
+        <source>In</source>
+        <translation type="unfinished">ইন</translation>
+    </message>
+    <message>
+        <source>Expanded Edit (F5): %1 | %2  [%3s]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>-1f</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>+1f</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished">সম্পন্ন</translation>
+    </message>
+    <message>
         <source>Original</source>
         <translation>আসল</translation>
     </message>
@@ -18943,6 +19147,10 @@ If playback stutters, try another.</source>
     <message>
         <source>Open JSON…</source>
         <translation>JSON খুলুন…</translation>
+    </message>
+    <message>
+        <source>Export timeline (.fcpxml / .edl / .otio / .txt)…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Project properties…</source>
@@ -25953,12 +26161,28 @@ If playback stutters, try another.</source>
         <translation>সব অডিও ট্র্যাক আলাদা করুন</translation>
     </message>
     <message>
-        <source>Enable clip</source>
-        <translation>ক্লিপ সক্ষম করুন</translation>
+        <source>Unlock event (Alt+Shift+L)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Disable clip</source>
-        <translation>ক্লিপ নিষ্ক্রিয় করুন</translation>
+        <source>Lock event (Alt+Shift+L)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute / Enable event (Alt+Shift+Q)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mute / Disable event (Alt+Shift+Q)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create subclip in Media Bin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Subclip added to Media Bin</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Stop looping</source>
@@ -28895,6 +29119,10 @@ If playback stutters, try another.</source>
 <context>
     <name>TrimmerWindow</name>
     <message>
+        <source>Subclip added to Media Bin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Subclip overwritten to timeline</source>
         <translation type="unfinished"></translation>
     </message>
@@ -28996,6 +29224,14 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Loop I/O</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create Subclip (U)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create trimmed subclip in Media Bin without inserting on timeline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

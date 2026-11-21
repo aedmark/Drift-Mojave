@@ -556,6 +556,10 @@ private slots:
     void inlineMulticamCreateFromSelectionAndPunchTakesUndo();
     void regionsCrudTemplateFormattingAndBatchExportUndoRoundTrip();
     void trimmerInsertOverwriteAndDynamicRamPreview();
+    void tier4aLockMuteQuantizeSnapAndExpandedEdit();
+    void tier4bSubclipsUsageAuditFiltersAndMediaGenerators();
+    void tier4cClipVolumeEnvelopeBusRoutingStemsAndSmartRender();
+    void tier4dBidirectionalTimelineInterchangeExport();
 };
 
 // A file dragged in from the file manager has no bin row yet, so the timeline's drop preview
@@ -19509,6 +19513,241 @@ void EditorStateTest::trimmerInsertOverwriteAndDynamicRamPreview()
     QVERIFY(qAbs(state.workAreaInSeconds() - 2.0) < 0.05);
     QVERIFY(qAbs(state.workAreaOutSeconds() - 4.0) < 0.05);
     state.bakes()->cancelBake();
+}
+
+void EditorStateTest::tier4aLockMuteQuantizeSnapAndExpandedEdit()
+{
+    AssetLibrary library;
+    AppController state(&library);
+    state.project()->tracks().clear();
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("v1"), .type = drift::TrackType::Video});
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("a1"), .type = drift::TrackType::Audio});
+    state.project()->setFps(25); // 1 frame = 40ms
+
+    drift::Clip c1;
+    c1.id = QStringLiteral("c1");
+    c1.type = drift::ClipType::Video;
+    c1.path = QStringLiteral("/tmp/a.mp4");
+    c1.name = QStringLiteral("Cut A");
+    c1.timelineStart = 0;
+    c1.timelineDuration = drift::secondsToUs(4.0);
+    c1.srcIn = 0;
+    c1.srcOut = drift::secondsToUs(4.0);
+
+    drift::Clip c2 = c1;
+    c2.id = QStringLiteral("c2");
+    c2.name = QStringLiteral("Cut B");
+    c2.timelineStart = drift::secondsToUs(4.0);
+    c2.timelineDuration = drift::secondsToUs(4.0);
+    c2.srcIn = drift::secondsToUs(1.0);
+    c2.srcOut = drift::secondsToUs(5.0);
+
+    state.project()->tracks()[0].clips.append(c1);
+    state.project()->tracks()[0].clips.append(c2);
+    state.syncClipModels();
+
+    // 1. Event Lock & Lock guards
+    state.setClipLocked(0, 0, true);
+    QVERIFY(state.project()->tracks().at(0).clips.at(0).locked);
+    state.moveClip(0, 0, 1.0);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineStart, drift::TimeUs{0});
+    state.splitClipAt(0, 0, 2.0);
+    QCOMPARE(state.project()->tracks().at(0).clips.size(), 2);
+    state.selectClip(0, 0);
+    state.deleteSelection(false);
+    QCOMPARE(state.project()->tracks().at(0).clips.size(), 2);
+
+    state.toggleSelectedClipsLocked();
+    QVERIFY(!state.project()->tracks().at(0).clips.at(0).locked);
+
+    // 2. Event Mute shortcut toggle (maps to enabled flag on clip)
+    state.selectClip(0, 0);
+    QVERIFY(state.project()->tracks().at(0).clips.at(0).enabled);
+    state.toggleSelectedClipsMuted();
+    QVERIFY(!state.project()->tracks().at(0).clips.at(0).enabled);
+    state.toggleSelectedClipsMuted();
+    QVERIFY(state.project()->tracks().at(0).clips.at(0).enabled);
+
+    // 3. Quantize to Frames & Snapping Granularity
+    QVERIFY(!state.quantizeToFrames());
+    state.setQuantizeToFrames(true);
+    QVERIFY(state.quantizeToFrames());
+    // At 25fps (0.04s/frame), 1.018s rounds to 1.00s.
+    QVERIFY(qAbs(state.quantizeTimeSeconds(1.018) - 1.00) < 1e-6);
+
+    state.setSnapToEvents(false);
+    state.setSnapToMarkers(false);
+    state.setSnapToGrid(false);
+    QVERIFY(!state.snapToEvents());
+    QVERIFY(!state.snapToMarkers());
+    QVERIFY(!state.snapToGrid());
+
+    // 4. Expanded Edit Mode (F5)
+    QVERIFY(state.beginExpandedEdit(0, 0));
+    QVERIFY(state.expandedEditActive());
+    QCOMPARE(state.expandedEditTrack(), 0);
+    QCOMPARE(state.expandedEditLeftClip(), 0);
+    const QVariantMap st = state.expandedEditState();
+    QCOMPARE(st.value(QStringLiteral("active")).toBool(), true);
+    QCOMPARE(st.value(QStringLiteral("outgoingName")).toString(), QStringLiteral("Cut A"));
+    QCOMPARE(st.value(QStringLiteral("incomingName")).toString(), QStringLiteral("Cut B"));
+    state.endExpandedEdit();
+    QVERIFY(!state.expandedEditActive());
+}
+
+void EditorStateTest::tier4bSubclipsUsageAuditFiltersAndMediaGenerators()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString fakeMedia = QFileInfo(dir.filePath(QStringLiteral("reel.mp4"))).absoluteFilePath();
+    QFile f(fakeMedia);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write("dummy");
+    f.close();
+
+    AssetLibrary library;
+    AppController state(&library);
+    state.project()->tracks().clear();
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("v1"), .type = drift::TrackType::Video});
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("a1"), .type = drift::TrackType::Audio});
+
+    drift::MediaAsset master;
+    master.id = QStringLiteral("asset-reel");
+    master.name = QStringLiteral("reel.mp4");
+    master.path = fakeMedia;
+    master.kind = drift::MediaKind::Video;
+    master.durationUs = drift::secondsToUs(10.0);
+    master.editFriendly = false;
+    state.project()->assets().insert(master.id, master);
+    state.project()->assetOrder().append(master.id);
+    library.syncToProject();
+
+    // 1. Unused filter & subclip creation in bin
+    QCOMPARE(state.assetUseCount(master.id), 0);
+    QVERIFY(!state.isSubclipAsset(master.id));
+    QCOMPARE(state.filterMediaAssets(QStringLiteral("unused")).size(), 1);
+    QCOMPARE(state.filterMediaAssets(QStringLiteral("subclips")).size(), 0);
+
+    const QString subId = state.createSubclipInBin(0, 2.0, 5.0, QStringLiteral("Best Take"));
+    QVERIFY(!subId.isEmpty());
+    QVERIFY(state.isSubclipAsset(subId));
+    QCOMPARE(state.filterMediaAssets(QStringLiteral("subclips")).size(), 1);
+
+    // 2. Timeline usage audit + selectClipsUsingAsset
+    drift::Clip placed;
+    placed.id = QStringLiteral("clip-1");
+    placed.assetId = master.id;
+    placed.path = fakeMedia;
+    placed.type = drift::ClipType::Video;
+    placed.name = QStringLiteral("Reel Shot");
+    placed.timelineStart = 0;
+    placed.timelineDuration = drift::secondsToUs(4.0);
+    placed.srcIn = drift::secondsToUs(1.0);
+    placed.srcOut = drift::secondsToUs(3.0);
+    state.project()->tracks()[0].clips.append(placed);
+    state.syncClipModels();
+
+    QCOMPARE(state.assetUseCount(master.id), 1);
+    QCOMPARE(state.selectClipsUsingAsset(master.id), 1);
+    QCOMPARE(state.selectedTrack(), 0);
+    QCOMPARE(state.selectedClip(), 0);
+
+    // 3. Create subclip directly from timeline clip
+    const QString fromClipSub = state.createSubclipFromTimelineClip(0, 0, QStringLiteral("Clip Sub"));
+    QVERIFY(!fromClipSub.isEmpty());
+    QVERIFY(state.isSubclipAsset(fromClipSub));
+
+    // 4. VEGAS Media Generator catalog + insertion
+    const QVariantList catalog = state.mediaGeneratorCatalog();
+    QVERIFY(catalog.size() >= 5);
+    const QString genClipId = state.insertMediaGenerator(QStringLiteral("smpteBars"), 5.0, 3.0);
+    QVERIFY(!genClipId.isEmpty());
+}
+
+void EditorStateTest::tier4cClipVolumeEnvelopeBusRoutingStemsAndSmartRender()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    AssetLibrary library;
+    AppController state(&library);
+    state.project()->tracks().clear();
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("v1"), .type = drift::TrackType::Video});
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("a1"), .type = drift::TrackType::Audio});
+
+    drift::Clip aClip;
+    aClip.id = QStringLiteral("env-clip");
+    aClip.type = drift::ClipType::Audio;
+    aClip.path = dir.filePath(QStringLiteral("none.wav"));
+    aClip.timelineStart = 0;
+    aClip.timelineDuration = drift::secondsToUs(3.0);
+    aClip.srcIn = 0;
+    aClip.srcOut = drift::secondsToUs(3.0);
+    state.project()->tracks()[1].clips.append(aClip);
+    state.syncClipModels();
+
+    // 1. Per-clip volume envelope CRUD (first point seeds t=0 @ 1.0 + requested point)
+    QCOMPARE(state.clipVolumeEnvelopePoints(0, -1).size(), 0);
+    state.addClipVolumeEnvelopePoint(1, 0, 1.0, 0.5);
+    QCOMPARE(state.clipVolumeEnvelopePoints(1, 0).size(), 2);
+    state.moveClipVolumeEnvelopePoint(1, 0, 1, 1.5, 0.25);
+    const QVariantList pts = state.clipVolumeEnvelopePoints(1, 0);
+    QCOMPARE(pts.size(), 2);
+    QVERIFY(qAbs(pts.at(1).toMap().value(QStringLiteral("value")).toDouble() - 0.25) < 1e-4);
+    state.removeClipVolumeEnvelopePoint(1, 0, 1);
+    QCOMPARE(state.clipVolumeEnvelopePoints(1, 0).size(), 1);
+    state.clearClipVolumeEnvelope(1, 0);
+    QVERIFY(state.project()->tracks().at(1).clips.at(0).volume.isEmpty());
+    QCOMPARE(state.clipVolumeEnvelopePoints(1, 0).size(), 1);
+
+    // 2. Cycle-guarded bus-to-bus routing
+    const QString busA = state.addAudioBus(QStringLiteral("Dialog"));
+    const QString busB = state.addAudioBus(QStringLiteral("AllAudio"));
+    QVERIFY(!busA.isEmpty() && !busB.isEmpty());
+    QVERIFY(state.setAudioBusOutputBus(busA, busB));
+    QVERIFY(!state.setAudioBusOutputBus(busB, busA)); // Cycle rejected
+    QVERIFY(!state.setAudioBusOutputBus(busA, busA)); // Self-cycle rejected
+
+    // 3. Stem WAV export (tracks + buses + master)
+    const QVariantMap stemRes = state.exportAudioStems(QUrl::fromLocalFile(dir.path()), true, true, true);
+    QVERIFY2(stemRes.value(QStringLiteral("ok")).toBool(),
+             qPrintable(stemRes.value(QStringLiteral("error")).toString()));
+    QVERIFY(stemRes.value(QStringLiteral("count")).toInt() >= 3);
+    for (const QString &wavPath : stemRes.value(QStringLiteral("files")).toStringList())
+        QVERIFY(QFileInfo::exists(wavPath));
+
+    // 4. Smart Render segment analysis wrapper
+    QCOMPARE(state.analyzeSmartRenderSegments().size(), 0);
+}
+
+void EditorStateTest::tier4dBidirectionalTimelineInterchangeExport()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    AssetLibrary library;
+    AppController state(&library);
+    state.project()->tracks().clear();
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("v1"), .type = drift::TrackType::Video});
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("a1"), .type = drift::TrackType::Audio});
+
+    drift::Clip c;
+    c.id = QStringLiteral("c-exp");
+    c.name = QStringLiteral("Export Clip");
+    c.type = drift::ClipType::Video;
+    c.path = QStringLiteral("/tmp/export_clip.mov");
+    c.timelineStart = 0;
+    c.timelineDuration = drift::secondsToUs(2.0);
+    c.srcIn = 0;
+    c.srcOut = drift::secondsToUs(2.0);
+    state.project()->tracks()[0].clips.append(c);
+
+    for (const QString &ext : {QStringLiteral("fcpxml"), QStringLiteral("edl"),
+                               QStringLiteral("otio"), QStringLiteral("txt")}) {
+        const QString outPath = dir.filePath(QStringLiteral("out.%1").arg(ext));
+        QVERIFY2(state.exportTimelineInterchange(QUrl::fromLocalFile(outPath)), qPrintable(outPath));
+        QVERIFY(QFileInfo(outPath).size() > 0);
+    }
 }
 
 QTEST_MAIN(EditorStateTest)

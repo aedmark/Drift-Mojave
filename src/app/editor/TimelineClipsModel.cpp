@@ -53,6 +53,7 @@ QList<int> changedRoles(const TimelineClipsModel::Row &a, const TimelineClipsMod
     diff(a.loopPeriod != b.loopPeriod, TimelineClipsModel::LoopPeriodRole);
     diff(a.loopPhase != b.loopPhase, TimelineClipsModel::LoopPhaseRole);
     diff(a.enabled != b.enabled, TimelineClipsModel::EnabledRole);
+    diff(a.locked != b.locked, TimelineClipsModel::LockedRole);
     diff(a.hasVelocityEnvelope != b.hasVelocityEnvelope, TimelineClipsModel::HasVelocityEnvelopeRole);
     diff(a.velocityEnvelopeEnabled != b.velocityEnvelopeEnabled, TimelineClipsModel::VelocityEnvelopeEnabledRole);
     diff(a.velocityPoints != b.velocityPoints, TimelineClipsModel::VelocityPointsRole);
@@ -244,6 +245,7 @@ QVariant TimelineClipsModel::data(const QModelIndex &index, int role) const
     case LoopPeriodRole: return row.loopPeriod;
     case LoopPhaseRole: return row.loopPhase;
     case EnabledRole: return row.enabled;
+    case LockedRole: return row.locked;
     case HasVelocityEnvelopeRole: return row.hasVelocityEnvelope;
     case VelocityEnvelopeEnabledRole: return row.velocityEnvelopeEnabled;
     case VelocityPointsRole: return row.velocityPoints;
@@ -299,6 +301,7 @@ QHash<int, QByteArray> TimelineClipsModel::roleNames() const
         {LoopPeriodRole, "loopPeriod"},
         {LoopPhaseRole, "loopPhase"},
         {EnabledRole, "enabled"},
+        {LockedRole, "locked"},
         {HasVelocityEnvelopeRole, "hasVelocityEnvelope"},
         {VelocityEnvelopeEnabledRole, "velocityEnvelopeEnabled"},
         {VelocityPointsRole, "velocityPoints"},

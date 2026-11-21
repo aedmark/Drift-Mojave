@@ -540,6 +540,10 @@ void AppController::setClipStart(int trackIndex, int clipIndex, double start)
     drift::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
+    if (track.clips.at(clipIndex).locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return;
+    }
 
     const drift::Project before = m_project;
     drift::Clip &clip = track.clips[clipIndex];
@@ -560,6 +564,10 @@ void AppController::setClipDuration(int trackIndex, int clipIndex, double durati
     drift::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
+    if (track.clips.at(clipIndex).locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return;
+    }
 
     const drift::Project before = m_project;
     drift::Clip &clip = track.clips[clipIndex];
@@ -1976,6 +1984,50 @@ void AppController::toggleSelectedClipsEnabled()
     setClipEnabled(pairs.first().first, pairs.first().second, !anyEnabled);
 }
 
+void AppController::toggleSelectedClipsMuted()
+{
+    toggleSelectedClipsEnabled();
+}
+
+void AppController::setClipLocked(int trackIndex, int clipIndex, bool locked)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return;
+    const QPair<int, int> self(trackIndex, clipIndex);
+    const QList<QPair<int, int>> targets = withPartners(m_project, m_selection.contains(self) ? m_selection : QList{self});
+
+    const drift::Project before = m_project;
+    bool changed = false;
+    for (const QPair<int, int> &pair : targets) {
+        if (!isValidClipIndex(pair.first, pair.second))
+            continue;
+        drift::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
+        if (clip.locked == locked)
+            continue;
+        clip.locked = locked;
+        changed = true;
+    }
+    if (!changed)
+        return;
+    pushProjectEdit(before, locked ? tr("Lock clips") : tr("Unlock clips"));
+    finishEdit(locked ? tr("Clips locked") : tr("Clips unlocked"));
+}
+
+void AppController::toggleSelectedClipsLocked()
+{
+    QList<QPair<int, int>> pairs = m_selection;
+    if (pairs.isEmpty() && m_selectedTrack >= 0 && m_selectedClip >= 0)
+        pairs.append(qMakePair(m_selectedTrack, m_selectedClip));
+    pairs = withPartners(m_project, pairs);
+    if (pairs.isEmpty())
+        return;
+
+    bool anyUnlocked = false;
+    for (const QPair<int, int> &pair : std::as_const(pairs))
+        anyUnlocked = anyUnlocked || !m_project.tracks().at(pair.first).clips.at(pair.second).locked;
+    setClipLocked(pairs.first().first, pairs.first().second, anyUnlocked);
+}
+
 // Snapshot first, then index: Project's tracks deep-detach on copy (see drift::TrackList), so
 // aliasing a snapshot is no longer possible either way, but taking the reference after the copy
 // keeps that independent of the container's copy semantics.
@@ -2173,6 +2225,112 @@ void AppController::commitClipBaseVolume(int trackIndex, int clipIndex, double g
     finishEdit(clamped <= 0.0 ? tr("Clip gain -inf dB")
                               : tr("Clip gain %1 dB")
                                     .arg(20.0 * std::log10(clamped), 0, 'f', 1));
+}
+
+QVariantList AppController::clipVolumeEnvelopePoints(int trackIndex, int clipIndex) const
+{
+    QVariantList out;
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return out;
+    const drift::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    if (clip.volume.isEmpty()) {
+        out.append(QVariantMap{{QStringLiteral("time"), 0.0}, {QStringLiteral("value"), 1.0}});
+        return out;
+    }
+    const auto &kfs = clip.volume.keyframes();
+    for (auto it = kfs.constBegin(); it != kfs.constEnd(); ++it) {
+        out.append(QVariantMap{
+            {QStringLiteral("time"), drift::usToSeconds(it.key())},
+            {QStringLiteral("value"), it.value().value},
+        });
+    }
+    return out;
+}
+
+void AppController::addClipVolumeEnvelopePoint(int trackIndex, int clipIndex, double localSeconds, double gain)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex) || m_project.tracks().at(trackIndex).locked)
+        return;
+    drift::Clip &probe = m_project.tracks()[trackIndex].clips[clipIndex];
+    if (probe.locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return;
+    }
+    const drift::Project before = m_project;
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    const drift::TimeUs tUs = qBound<drift::TimeUs>(0, drift::secondsToUs(localSeconds), clip.timelineDuration);
+    const double clamped = std::clamp(gain, 0.0, 2.0);
+    if (clip.volume.isEmpty())
+        clip.volume.setKeyframe(0, 1.0);
+    clip.volume.setEnabled(true);
+    clip.volume.setKeyframe(tUs, clamped);
+    pushProjectEdit(before, tr("Add clip gain envelope point"));
+    finishEdit(tr("Clip gain envelope updated"));
+}
+
+void AppController::moveClipVolumeEnvelopePoint(int trackIndex, int clipIndex, int pointIndex,
+                                                double newLocalSeconds, double newGain)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex) || m_project.tracks().at(trackIndex).locked)
+        return;
+    const drift::Clip &probe = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    if (probe.locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return;
+    }
+    const QList<drift::TimeUs> keys = probe.volume.keyframes().keys();
+    if (pointIndex < 0 || pointIndex >= keys.size())
+        return;
+
+    const drift::Project before = m_project;
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    const drift::TimeUs oldKey = keys.at(pointIndex);
+    const drift::TimeUs newKey = qBound<drift::TimeUs>(0, drift::secondsToUs(newLocalSeconds), clip.timelineDuration);
+    const double clamped = std::clamp(newGain, 0.0, 2.0);
+    if (oldKey != newKey)
+        clip.volume.removeKeyframe(oldKey);
+    clip.volume.setEnabled(true);
+    clip.volume.setKeyframe(newKey, clamped);
+    pushProjectEdit(before, tr("Move clip gain envelope point"));
+    finishEdit(tr("Clip gain envelope updated"));
+}
+
+void AppController::removeClipVolumeEnvelopePoint(int trackIndex, int clipIndex, int pointIndex)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex) || m_project.tracks().at(trackIndex).locked)
+        return;
+    const drift::Clip &probe = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    if (probe.locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return;
+    }
+    const QList<drift::TimeUs> keys = probe.volume.keyframes().keys();
+    if (pointIndex < 0 || pointIndex >= keys.size() || keys.size() <= 1)
+        return;
+
+    const drift::Project before = m_project;
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    clip.volume.removeKeyframe(keys.at(pointIndex));
+    pushProjectEdit(before, tr("Remove clip gain envelope point"));
+    finishEdit(tr("Clip gain envelope updated"));
+}
+
+void AppController::clearClipVolumeEnvelope(int trackIndex, int clipIndex)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex) || m_project.tracks().at(trackIndex).locked)
+        return;
+    const drift::Clip &probe = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    if (probe.locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return;
+    }
+    if (probe.volume.isEmpty())
+        return;
+    const drift::Project before = m_project;
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    clip.volume = drift::KeyframeTrack<double>{};
+    pushProjectEdit(before, tr("Reset clip gain envelope"));
+    finishEdit(tr("Clip gain envelope reset"));
 }
 
 void AppController::setClipPitchSemitones(int trackIndex, int clipIndex, double semitones)

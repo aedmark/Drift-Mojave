@@ -4,6 +4,10 @@
 #include <QFile>
 #include <QFileInfo>
 
+#include "core/interchange/EdlReader.h"
+#include "core/interchange/OtioReader.h"
+#include "core/interchange/ResolveReader.h"
+#include "core/interchange/TimelineExporter.h"
 #include "core/interchange/VegasReader.h"
 #include "core/project/Project.h"
 #include "core/project/Track.h"
@@ -44,6 +48,8 @@ private slots:
     void readsEventPanCropAndKeyframes();
     void readsProjectSummaryRiffInfoChunks();
     void readsRegionsEnvelopesBezierMasksAndTrackAudioFx();
+    void exportsFcpxmlEdlOtioAndVegasTsv();
+    void readsDeeperVegasEventTagsAndCompositeBlend();
 };
 
 void TestInterchangeVegas::detectsVegasProject()
@@ -1460,6 +1466,171 @@ void TestInterchangeVegas::readsRegionsEnvelopesBezierMasksAndTrackAudioFx()
     QCOMPARE(loaded->regions().at(0).label, QStringLiteral("Chorus"));
     QCOMPARE(loaded->regions().at(0).startUs, drift::secondsToUs(0.5));
     QCOMPARE(loaded->regions().at(0).endUs, drift::secondsToUs(2.5));
+}
+
+void TestInterchangeVegas::exportsFcpxmlEdlOtioAndVegasTsv()
+{
+    drift::Project p;
+    p.setName(QStringLiteral("Tier4 Export Sequence"));
+    p.setFps(24);
+    p.setResolution(1920, 1080);
+    if (p.tracks().isEmpty())
+        p.tracks().append(drift::Track{.id = QStringLiteral("v1"), .type = drift::TrackType::Video});
+    p.tracks().append(drift::Track{.id = QStringLiteral("a1"), .type = drift::TrackType::Audio});
+
+    drift::Clip vClip;
+    vClip.id = QStringLiteral("v1");
+    vClip.name = QStringLiteral("Shot A");
+    vClip.path = QStringLiteral("/tmp/shot_a.mov");
+    vClip.type = drift::ClipType::Video;
+    vClip.timelineStart = 0;
+    vClip.timelineDuration = drift::secondsToUs(3.0);
+    vClip.srcIn = drift::secondsToUs(1.0);
+    vClip.srcOut = drift::secondsToUs(4.0);
+    p.tracks()[0].clips.append(vClip);
+
+    drift::Clip aClip;
+    aClip.id = QStringLiteral("a1");
+    aClip.name = QStringLiteral("Dialogue");
+    aClip.path = QStringLiteral("/tmp/dialogue.wav");
+    aClip.type = drift::ClipType::Audio;
+    aClip.timelineStart = drift::secondsToUs(0.5);
+    aClip.timelineDuration = drift::secondsToUs(2.0);
+    aClip.srcIn = 0;
+    aClip.srcOut = drift::secondsToUs(2.0);
+    p.tracks()[1].clips.append(aClip);
+
+    drift::Bookmark bm;
+    bm.timeUs = drift::secondsToUs(1.0);
+    bm.label = QStringLiteral("Beat 1");
+    p.bookmarks().append(bm);
+
+    drift::Region rg;
+    rg.id = QStringLiteral("r1");
+    rg.startUs = drift::secondsToUs(0.5);
+    rg.endUs = drift::secondsToUs(2.5);
+    rg.label = QStringLiteral("Verse");
+    p.regions().append(rg);
+
+    QString err;
+    // 1. FCPXML round-trip via ResolveReader.
+    const QByteArray fcpxml = drift::interchange::exportToFcpxml(p, &err);
+    QVERIFY2(!fcpxml.isEmpty(), qPrintable(err));
+    QVERIFY(fcpxml.contains("<marker "));
+    QVERIFY(fcpxml.contains("<chapter-marker "));
+    const auto parsedFcpxml = drift::resolve::readFcpxmlData(fcpxml, QString(), &err);
+    QVERIFY2(parsedFcpxml.has_value(), qPrintable(err));
+    QVERIFY(!parsedFcpxml->tracks().isEmpty());
+    QVERIFY(!parsedFcpxml->tracks().at(0).clips.isEmpty());
+
+    // 2. CMX 3600 EDL round-trip via EdlReader.
+    const QByteArray edl = drift::interchange::exportToEdl(p, &err);
+    QVERIFY2(!edl.isEmpty(), qPrintable(err));
+    const auto parsedEdl = drift::edl::readProjectData(edl, QString(), &err);
+    QVERIFY2(parsedEdl.has_value(), qPrintable(err));
+    QVERIFY(!parsedEdl->tracks().isEmpty());
+    QVERIFY(!parsedEdl->tracks().at(0).clips.isEmpty());
+
+    // 3. OpenTimelineIO JSON round-trip via OtioReader.
+    const QByteArray otio = drift::interchange::exportToOtio(p, &err);
+    QVERIFY2(!otio.isEmpty(), qPrintable(err));
+    const auto parsedOtio = drift::otio::readProjectData(otio, QString(), &err);
+    QVERIFY2(parsedOtio.has_value(), qPrintable(err));
+    QCOMPARE(parsedOtio->tracks().size(), 2);
+    QCOMPARE(parsedOtio->tracks().at(0).clips.size(), 1);
+    QCOMPARE(parsedOtio->tracks().at(1).clips.size(), 1);
+
+    // 4. VEGAS Markers/Regions TSV.
+    const QByteArray tsv = drift::interchange::exportToVegasMarkersTsv(p, &err);
+    QVERIFY2(!tsv.isEmpty(), qPrintable(err));
+    const QString tsvStr = QString::fromUtf8(tsv);
+    QVERIFY(tsvStr.contains(QStringLiteral("Beat 1")));
+    QVERIFY(tsvStr.contains(QStringLiteral("Verse")));
+
+    // 5. File writer helper.
+    QTemporaryDir tmpDir;
+    QVERIFY(tmpDir.isValid());
+    const QString outOtio = tmpDir.filePath(QStringLiteral("timeline.otio"));
+    QVERIFY(drift::interchange::exportProjectInterchange(p, outOtio, QString(), &err));
+    QVERIFY(QFileInfo::exists(outOtio));
+}
+
+void TestInterchangeVegas::readsDeeperVegasEventTagsAndCompositeBlend()
+{
+    auto appendU32 = [](QByteArray &b, quint32 v) {
+        char buf[4] = {char(v & 0xFF), char((v >> 8) & 0xFF), char((v >> 16) & 0xFF), char((v >> 24) & 0xFF)};
+        b.append(buf, 4);
+    };
+    auto appendU64 = [](QByteArray &b, quint64 v) {
+        for (int i = 0; i < 8; ++i)
+            b.append(char((v >> (i * 8)) & 0xFF));
+    };
+    auto appendUtf16 = [&](QByteArray &b, const QString &s) {
+        for (QChar ch : s) {
+            const quint16 u = ch.unicode();
+            b.append(char(u & 0xFF));
+            b.append(char((u >> 8) & 0xFF));
+        }
+        b.append('\0');
+        b.append('\0');
+    };
+    auto makeChunk = [&](const uint8_t guid[16], const QByteArray &payload) -> QByteArray {
+        QByteArray out;
+        out.append(reinterpret_cast<const char *>(guid), 16);
+        appendU64(out, 24 + quint64(payload.size()));
+        out.append(payload);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto makeList = [&](const uint8_t outer[16], const uint8_t type[16], const QByteArray &body) -> QByteArray {
+        QByteArray out;
+        out.append(reinterpret_cast<const char *>(outer), 16);
+        appendU64(out, 40 + quint64(body.size()));
+        out.append(reinterpret_cast<const char *>(type), 16);
+        out.append(body);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+
+    static const uint8_t kW64Riff[16] = {0x72,0x69,0x66,0x66,0x2e,0x91,0xcf,0x11,0xa5,0xd6,0x28,0xdb,0x04,0xc1,0x00,0x00};
+    static const uint8_t kW64List[16] = {0x6c,0x69,0x73,0x74,0x2f,0x91,0xcf,0x11,0xa5,0xd6,0x28,0xdb,0x04,0xc1,0x00,0x00};
+    static const uint8_t kTimeline[16] = {0x47,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kTrack[16] = {0x48,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvCont[16] = {0x49,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvent[16] = {0x4a,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvTime[16] = {0x6a,0x20,0x8d,0x16,0x21,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kTrkHdr[16] = {0xe5,0x2a,0x6c,0x5a,0x11,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kDummyForm[16] = {0x53,0x46,0x43,0x46,0,0,0,0,0,0,0,0,0,0,0,0};
+
+    QByteArray trkHdr(64, '\0');
+    trkHdr[32] = char(2); // Video (offset 32 inside track header payload)
+    appendUtf16(trkHdr, QStringLiteral("CompositeMultiply"));
+
+    QByteArray evTimePayload(72, '\0');
+    auto putU64At = [&](int off, quint64 val) {
+        for (int i = 0; i < 8; ++i)
+            evTimePayload[off + i] = char((val >> (i * 8)) & 0xFF);
+    };
+    putU64At(16, 0);
+    putU64At(24, 30000000); // 3.0s
+    putU64At(48, 2);        // flags = muted (bit 1) + locked etc., and append UTF-16 tokens below
+    appendUtf16(evTimePayload, QStringLiteral("EventMute EventLocked"));
+
+    const QByteArray evChunk = makeList(kW64List, kEvent, makeChunk(kEvTime, evTimePayload));
+    const QByteArray trackBody = makeChunk(kTrkHdr, trkHdr) + makeList(kW64List, kEvCont, evChunk);
+    const QByteArray timelineBody = makeList(kW64List, kTrack, trackBody);
+    const QByteArray vegBytes = makeList(kW64Riff, kDummyForm, makeList(kW64List, kTimeline, timelineBody));
+
+    QString err;
+    const auto loaded = drift::vegas::readProjectData(vegBytes, QString(), &err);
+    QVERIFY2(loaded.has_value(), qPrintable(err));
+    QCOMPARE(loaded->tracks().size(), 1);
+    QCOMPARE(loaded->tracks().at(0).compositeBlendMode, drift::BlendMode::Multiply);
+    QCOMPARE(loaded->tracks().at(0).clips.size(), 1);
+    QVERIFY(!loaded->tracks().at(0).clips.at(0).enabled);
+    QVERIFY(loaded->tracks().at(0).clips.at(0).locked);
 }
 
 QTEST_MAIN(TestInterchangeVegas)

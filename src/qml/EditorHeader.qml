@@ -150,6 +150,18 @@ Item {
             EditorState.projectFile.saveProjectJson(url)
     }
 
+    function exportTimelineInterchange() {
+        var url = FileDialogs.saveFile(qsTr("Export Timeline Interchange"),
+                                       [qsTr("FCPXML timeline (*.fcpxml)"),
+                                        qsTr("CMX 3600 EDL (*.edl)"),
+                                        qsTr("OpenTimelineIO (*.otio)"),
+                                        qsTr("VEGAS Markers/Regions TSV (*.txt)")],
+                                       EditorState.projectFile.projectName, "fcpxml", "",
+                                       ["application/xml", "text/plain", "application/json"])
+        if (url != "")
+            EditorState.exportTimelineInterchange(url)
+    }
+
     // Inverse of saveProjectJson. Confirms unsaved work like Open, because it replaces the
     // timeline. The JSON does not become the current project path.
     //
@@ -396,6 +408,7 @@ Item {
                 onPackageRequested: root.packageProject()
                 onSaveJsonRequested: root.saveProjectJson()
                 onOpenJsonRequested: root.openProjectJson()
+                onExportInterchangeRequested: root.exportTimelineInterchange()
                 onPropertiesRequested: projectPropertiesDialogLoader.ensure().openDialog()
             }
 

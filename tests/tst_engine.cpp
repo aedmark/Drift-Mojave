@@ -602,6 +602,8 @@ private slots:
     void audioEventSwitchesAndPitchShiftInMixer();
     void audioSubBusesAuxSendsAndRealtimeLufs();
     void videoTrackFxMasterFxAndTrackMotionCompositing();
+    void audioMixerBusToBusRoutingAndCycleGuard();
+    void smartRenderIdentifiesUnmodifiedProRes422();
 
 private:
     static QString makeColorSegmentsVideo(QTemporaryDir &dir);
@@ -19816,6 +19818,111 @@ void EngineTest::compositorServesBakedFramesAndReportsTheBake()
     const GpuFrameTexture tex = compositor.compositeToTextureAt(inside, options);
     QVERIFY(tex.isValid());
     QCOMPARE(tex.bakeId, bakeId);
+}
+
+void EngineTest::audioMixerBusToBusRoutingAndCycleGuard()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString tonePath = makeToneAudio(dir);
+    QVERIFY(QFileInfo::exists(tonePath));
+
+    drift::Project project;
+    drift::Track track;
+    track.id = QStringLiteral("t1");
+    track.type = drift::TrackType::Audio;
+    track.outputBusId = QStringLiteral("bus-a");
+
+    drift::Clip clip;
+    clip.id = QStringLiteral("c1");
+    clip.type = drift::ClipType::Audio;
+    clip.path = tonePath;
+    clip.timelineStart = 0;
+    clip.timelineDuration = drift::secondsToUs(1.0);
+    clip.srcIn = 0;
+    clip.srcOut = drift::secondsToUs(1.0);
+    track.clips.append(clip);
+    project.tracks().append(track);
+
+    drift::AudioBus busA;
+    busA.id = QStringLiteral("bus-a");
+    busA.name = QStringLiteral("SFX");
+    busA.volume = 0.5;
+    busA.outputBusId = QStringLiteral("bus-b");
+
+    drift::AudioBus busB;
+    busB.id = QStringLiteral("bus-b");
+    busB.name = QStringLiteral("StemMix");
+    busB.volume = 1.0;
+
+    project.audioBuses().append(busA);
+    project.audioBuses().append(busB);
+
+    AudioMixer mixer;
+    mixer.setProject(&project);
+    QVector<float> out(4096 * 2, 0.0f);
+    mixer.mix(0, 4096, 48000, out.data());
+
+    float peak = 0.0f;
+    for (float s : out)
+        peak = qMax(peak, qAbs(s));
+    QVERIFY2(peak > 0.01f, "Audio routed via sub-bus A -> sub-bus B must reach Master");
+    QVERIFY2(mixer.busLevels(QStringLiteral("bus-b")).first > 0.001f
+                 || mixer.busLevels(QStringLiteral("bus-b")).second > 0.001f,
+             "Upstream sub-bus B must report metered audio");
+
+    // Mutate into a direct cycle (busB -> busA) and verify AudioMixer stays finite and non-recursive.
+    project.audioBuses()[1].outputBusId = QStringLiteral("bus-a");
+    std::fill(out.begin(), out.end(), 0.0f);
+    mixer.mix(0, 4096, 48000, out.data());
+    for (float s : out)
+        QVERIFY(std::isfinite(s));
+}
+
+void EngineTest::smartRenderIdentifiesUnmodifiedProRes422()
+{
+    drift::Project project;
+    project.setResolution(1920, 1080);
+    project.setFps(24);
+
+    drift::MediaAsset prores;
+    prores.id = QStringLiteral("asset-prores");
+    prores.kind = drift::MediaKind::Video;
+    prores.path = QStringLiteral("/tmp/master_422.mov");
+    prores.codecName = QStringLiteral("prores");
+    prores.width = 1920;
+    prores.height = 1080;
+    prores.fps = 24;
+    project.assets().insert(prores.id, prores);
+
+    drift::Clip c1;
+    c1.id = QStringLiteral("c1");
+    c1.assetId = prores.id;
+    c1.path = prores.path;
+    c1.type = drift::ClipType::Video;
+    c1.timelineStart = 0;
+    c1.timelineDuration = drift::secondsToUs(3.0);
+    c1.srcIn = 0;
+    c1.srcOut = drift::secondsToUs(3.0);
+
+    // Scaled / color-graded clip should NOT qualify for pass-through smart render.
+    drift::Clip c2 = c1;
+    c2.id = QStringLiteral("c2");
+    c2.timelineStart = drift::secondsToUs(3.0);
+    c2.scaleX.setKeyframe(0, 1.25);
+
+    project.tracks()[0].clips.append(c1);
+    project.tracks()[0].clips.append(c2);
+
+    ExportSettings settings = Exporter::defaultSettings();
+    settings.videoCodecId = QStringLiteral("prores");
+    settings.targetHeight = 0;
+    settings.fpsNum = 0;
+    settings.smartRender = true;
+
+    const auto segs = Exporter::findSmartRenderSegments(project, settings);
+    QCOMPARE(segs.size(), 1);
+    QCOMPARE(segs.at(0).clipId, QStringLiteral("c1"));
 }
 
 QTEST_MAIN(EngineTest)

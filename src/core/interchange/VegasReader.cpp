@@ -1808,6 +1808,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
         double textScale = 1.0;
         QPointF textLocation{0.5, 0.5};
         QColor solidColor{0, 0, 0, 255};
+        QString generatorKind;
         QList<Effect> mediaEffects;
     };
     QMap<quint32, MediaEntry> mediaPool;
@@ -1840,6 +1841,16 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                     const bool isSolid = winPath.contains(QLatin1String("solidcolor"), Qt::CaseInsensitive)
                                          || winPath.contains(QLatin1String("02FD3B60-986B-11D4"), Qt::CaseInsensitive)
                                          || findUtf16(payload, payloadSize, "solidcolor") >= 0;
+                    const bool isSmpte = winPath.contains(QLatin1String("colorbars"), Qt::CaseInsensitive)
+                                         || winPath.contains(QLatin1String("smptebars"), Qt::CaseInsensitive)
+                                         || findUtf16(payload, payloadSize, "colorbars") >= 0
+                                         || findUtf16(payload, payloadSize, "smptebars") >= 0;
+                    const bool isGradient = winPath.contains(QLatin1String("colorgradient"), Qt::CaseInsensitive)
+                                            || findUtf16(payload, payloadSize, "colorgradient") >= 0;
+                    const bool isCreditRoll = winPath.contains(QLatin1String("creditroll"), Qt::CaseInsensitive)
+                                              || findUtf16(payload, payloadSize, "creditroll") >= 0;
+                    const bool isTimecodeGen = winPath.contains(QLatin1String("timecode"), Qt::CaseInsensitive)
+                                               || findUtf16(payload, payloadSize, "timecode") >= 0;
 
                     if (isTitles) {
                         MediaEntry entry;
@@ -1862,6 +1873,36 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                         entry.isSolidColorGenerator = true;
                         extractSolidColor(payload, payloadSize, &entry.solidColor);
                         entry.rawFilename = QStringLiteral("Solid Color");
+                        entry.mediaEffects = extractVideoEffects(payload, payloadSize);
+                        mediaPool.insert(mid, entry);
+                        cpos += (csize + 7) & ~7;
+                        continue;
+                    }
+
+                    if (isSmpte || isGradient) {
+                        MediaEntry entry;
+                        entry.isSolidColorGenerator = true;
+                        entry.generatorKind = isSmpte ? QStringLiteral("smpteBars") : QStringLiteral("colorGradient");
+                        entry.solidColor = isSmpte ? QColor(191, 191, 191, 255) : QColor(30, 80, 160, 255);
+                        entry.rawFilename = isSmpte ? QStringLiteral("SMPTE Bars") : QStringLiteral("Color Gradient");
+                        entry.mediaEffects = extractVideoEffects(payload, payloadSize);
+                        mediaPool.insert(mid, entry);
+                        cpos += (csize + 7) & ~7;
+                        continue;
+                    }
+
+                    if (isCreditRoll || isTimecodeGen) {
+                        MediaEntry entry;
+                        entry.isTextGenerator = true;
+                        entry.generatorKind = isCreditRoll ? QStringLiteral("creditRoll") : QStringLiteral("timecode");
+                        extractTitlesAndText(payload, payloadSize, &entry.textContent, &entry.textStyle,
+                                             &entry.textScale, &entry.textLocation);
+                        if (entry.textContent.isEmpty()) {
+                            entry.textContent = isCreditRoll ? QStringLiteral("Credits")
+                                                             : QStringLiteral("00:00:00:00");
+                        }
+                        entry.rawFilename = isCreditRoll ? QStringLiteral("Credit Roll")
+                                                         : QStringLiteral("Timecode");
                         entry.mediaEffects = extractVideoEffects(payload, payloadSize);
                         mediaPool.insert(mid, entry);
                         cpos += (csize + 7) & ~7;
@@ -2125,6 +2166,24 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                     track.number = trackNumber++;
                     track.muted = trackMuted;
                     track.solo = trackSolo;
+                    if (trackType == TrackType::Video) {
+                        const uint8_t *tPtr = bytes + tpos;
+                        const qsizetype tScan = static_cast<qsizetype>(std::min<quint64>(tsize, 1024));
+                        if (findUtf16(tPtr, tScan, "CompositeMultiply") >= 0)
+                            track.compositeBlendMode = BlendMode::Multiply;
+                        else if (findUtf16(tPtr, tScan, "CompositeScreen") >= 0)
+                            track.compositeBlendMode = BlendMode::Screen;
+                        else if (findUtf16(tPtr, tScan, "CompositeOverlay") >= 0)
+                            track.compositeBlendMode = BlendMode::Overlay;
+                        else if (findUtf16(tPtr, tScan, "CompositeAdd") >= 0)
+                            track.compositeBlendMode = BlendMode::Add;
+                        else if (findUtf16(tPtr, tScan, "CompositeDifference") >= 0)
+                            track.compositeBlendMode = BlendMode::Difference;
+                        else if (findUtf16(tPtr, tScan, "CompositeDarken") >= 0)
+                            track.compositeBlendMode = BlendMode::Darken;
+                        else if (findUtf16(tPtr, tScan, "CompositeLighten") >= 0)
+                            track.compositeBlendMode = BlendMode::Lighten;
+                    }
                     if (!trackCustomName.isEmpty()) {
                         track.name = trackCustomName;
                     } else {
@@ -2161,6 +2220,9 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     quint64 srcInTicks = 0;
                                     quint32 mid = 0;
                                     quint32 eventId = 0;
+                                    bool eventMuted = false;
+                                    bool eventLocked = false;
+                                    VelocityEnvelope eventVelocity;
                                     QList<Effect> takeEffects;
                                     PanCropData panCropData;
                                     struct VegasParsedTake {
@@ -2190,6 +2252,35 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                             if (cpayloadSize >= 152) {
                                                 fadeInTicks = readU64LE(cpayload + 136);
                                                 fadeOutTicks = readU64LE(cpayload + 144);
+                                            }
+                                            if (findUtf16(cpayload, cpayloadSize, "EventMute") >= 0)
+                                                eventMuted = true;
+                                            if (findUtf16(cpayload, cpayloadSize, "EventLocked") >= 0)
+                                                eventLocked = true;
+                                            const qsizetype velPos = findUtf16(cpayload, cpayloadSize, "EventVelocity");
+                                            if (velPos >= 0) {
+                                                const qsizetype vStart = velPos + static_cast<qsizetype>(std::strlen("EventVelocity") * 2) + 2;
+                                                if (vStart + 4 <= cpayloadSize) {
+                                                    const quint32 count = readU32LE(cpayload + vStart);
+                                                    if (count > 0 && count <= 1024
+                                                        && vStart + 4 + static_cast<qsizetype>(count) * 16 <= cpayloadSize) {
+                                                        QList<VelocityPoint> vPts;
+                                                        for (quint32 vi = 0; vi < count; ++vi) {
+                                                            const double vp = readDoubleLE(cpayload + vStart + 4 + vi * 16);
+                                                            const double vv = readDoubleLE(cpayload + vStart + 4 + vi * 16 + 8);
+                                                            if (!std::isnan(vp) && !std::isnan(vv)) {
+                                                                VelocityPoint pt;
+                                                                pt.pos = qBound(0.0, vp, 1.0);
+                                                                pt.velocity = qBound(-1.0, vv, 10.0);
+                                                                vPts.append(pt);
+                                                            }
+                                                        }
+                                                        if (!vPts.isEmpty()) {
+                                                            eventVelocity.setPoints(vPts);
+                                                            eventVelocity.setEnabled(true);
+                                                        }
+                                                    }
+                                                }
                                             }
                                         } else if (std::memcmp(cptr, kChunkEventTake, 16) == 0) {
                                             if (cpayloadSize >= 40) {
@@ -2252,7 +2343,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                                 }
                                             } else if (m.isSolidColorGenerator) {
                                                 clip.type = ClipType::Shape;
-                                                clip.name = QStringLiteral("Solid Color");
+                                                clip.name = m.rawFilename.isEmpty() ? QStringLiteral("Solid Color") : m.rawFilename;
                                                 clip.shapeStyle.kind = ShapeKind::Rectangle;
                                                 clip.shapeStyle.setSolidFill(m.solidColor);
                                                 clip.shapeStyle.setStroke(0.0);
@@ -2296,6 +2387,10 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                         clip.srcOut = static_cast<TimeUs>((srcInTicks + durTicks) / 10);
                                         clip.fadeInUs = static_cast<TimeUs>(fadeInTicks / 10);
                                         clip.fadeOutUs = static_cast<TimeUs>(fadeOutTicks / 10);
+                                        clip.enabled = !eventMuted;
+                                        clip.locked = eventLocked;
+                                        if (eventVelocity.enabled() && !eventVelocity.isEmpty())
+                                            clip.velocityEnvelope = eventVelocity;
 
                                         if (trackType == TrackType::Video) {
                                             if ((panCropData.sourceWidth == 0 || panCropData.sourceHeight == 0)

@@ -39,7 +39,7 @@ struct AudioSend
     bool operator==(const AudioSend &) const = default;
 };
 
-// Project-level audio submix / FX bus routed to Master.
+// Project-level audio submix / FX bus routed to Master (or another bus via outputBusId).
 struct AudioBus
 {
     QString id;
@@ -48,6 +48,7 @@ struct AudioBus
     double pan = 0.0;    // -1.0 (left) .. 1.0 (right).
     bool muted = false;
     bool solo = false;
+    QString outputBusId; // Empty = Master; non-empty = another AudioBus::id (cycle-guarded).
     QList<Effect> audioEffects;
 };
 

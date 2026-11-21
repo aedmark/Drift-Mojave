@@ -1,5 +1,6 @@
 #include "app/editor/appcontroller/AppControllerInternal.h"
 #include "app/bin/AssetPreviewController.h"
+#include "app/bin/MediaBinController.h"
 #include "app/mcp/McpController.h"
 #include "core/project/SubtitleCue.h"
 #include "app/editor/sessions/SpeedCurveController.h"
@@ -568,7 +569,57 @@ double AppController::snapTime(double seconds, const QString &excludeClipId) con
 {
     return drift::usToSeconds(drift::snapTime(m_project, drift::secondsToUs(seconds), m_snapEnabled,
                                               m_playheadUs, extraSnapTargetsCached(), excludeClipId,
-                                              m_snapThresholdUs));
+                                              m_snapThresholdUs, m_snapToEvents));
+}
+
+void AppController::setQuantizeToFrames(bool enabled)
+{
+    if (m_quantizeToFrames == enabled)
+        return;
+    m_quantizeToFrames = enabled;
+    emit quantizeToFramesChanged();
+}
+
+void AppController::toggleQuantizeToFrames()
+{
+    setQuantizeToFrames(!m_quantizeToFrames);
+    setLastMessage(m_quantizeToFrames ? tr("Quantize to Frames enabled")
+                                      : tr("Quantize to Frames disabled"),
+                   QStringLiteral("info"));
+}
+
+double AppController::quantizeTimeSeconds(double seconds, bool isAudioOnly) const
+{
+    if (!m_quantizeToFrames || isAudioOnly)
+        return qMax(0.0, seconds);
+    const double fps = m_project.fps() > 0.0 ? m_project.fps() : 30.0;
+    return qMax(0.0, static_cast<double>(llround(seconds * fps)) / fps);
+}
+
+void AppController::setSnapToGrid(bool enabled)
+{
+    if (m_snapToGrid == enabled)
+        return;
+    m_snapToGrid = enabled;
+    invalidateExtraSnapTargets();
+    emit snapOptionsChanged();
+}
+
+void AppController::setSnapToMarkers(bool enabled)
+{
+    if (m_snapToMarkers == enabled)
+        return;
+    m_snapToMarkers = enabled;
+    invalidateExtraSnapTargets();
+    emit snapOptionsChanged();
+}
+
+void AppController::setSnapToEvents(bool enabled)
+{
+    if (m_snapToEvents == enabled)
+        return;
+    m_snapToEvents = enabled;
+    emit snapOptionsChanged();
 }
 
 void AppController::setSnapRadius(double pixels, double pxPerSecond)
@@ -857,6 +908,8 @@ void AppController::finishEdit(const QString &message)
     } else {
         setLastMessage(QString());
     }
+    if (m_expandedEditActive)
+        emit expandedEditChanged();
     m_mcpController->bumpEditRevision();
 }
 
@@ -1781,6 +1834,16 @@ bool AppController::deleteSelection(bool withPinnedAdjustments, std::optional<bo
             return a.first > b.first;
         return a.second > b.second;
     });
+    for (const QPair<int, int> &pair : std::as_const(pairs)) {
+        if (isValidClipIndex(pair.first, pair.second)
+            && !pinnedAdjustments.contains(pair)
+            && m_project.tracks().at(pair.first).clips.at(pair.second).locked) {
+            if (error)
+                *error = QStringLiteral("Clip is locked");
+            setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+            return false;
+        }
+    }
     for (const QPair<int, int> &pair : pairs) {
         if (!isValidClipIndex(pair.first, pair.second) || m_project.tracks().at(pair.first).locked)
             continue;
@@ -2042,9 +2105,18 @@ void AppController::moveClip(int trackIndex, int clipIndex, double newStart)
     // unless Ignore Event Grouping is active.
     if (!m_ignoreGrouping)
         expandSelectionWithLinkedPartners(m_project, targets);
+    for (const QPair<int, int> &pair : std::as_const(targets)) {
+        if (isValidClipIndex(pair.first, pair.second)
+            && m_project.tracks().at(pair.first).clips.at(pair.second).locked) {
+            setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+            return;
+        }
+    }
     const drift::Project before = m_project;
-    const drift::TimeUs desiredUs = drift::secondsToUs(newStart);
-    const drift::TimeUs baseUs = m_project.tracks().at(trackIndex).clips.at(clipIndex).timelineStart;
+    const drift::Clip &leader = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    const double qStart = quantizeTimeSeconds(newStart, leader.type == drift::ClipType::Audio);
+    const drift::TimeUs desiredUs = drift::secondsToUs(qStart);
+    const drift::TimeUs baseUs = leader.timelineStart;
     const drift::TimeUs delta = desiredUs - baseUs;
 
     // When moving multiple clips, clamp leftward movement so the earliest clip in the selection
@@ -2244,6 +2316,8 @@ void AppController::splitClipsAtPlayhead(const QSet<QString> *onlyClipIds)
             continue;
         for (int clipIndex = 0; clipIndex < track.clips.size(); ++clipIndex) {
             drift::Clip &clip = track.clips[clipIndex];
+            if (clip.locked)
+                continue;
             if (!clip.containsTime(m_playheadUs))
                 continue;
             if (m_playheadUs == clip.timelineStart)
@@ -2303,7 +2377,12 @@ void AppController::splitClipAt(int trackIndex, int clipIndex, double seconds)
         return;
 
     drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs atUs = drift::secondsToUs(seconds);
+    if (clip.locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return;
+    }
+    const double qSec = quantizeTimeSeconds(seconds, clip.type == drift::ClipType::Audio);
+    const drift::TimeUs atUs = drift::secondsToUs(qSec);
     if (!clip.containsTime(atUs) || atUs == clip.timelineStart)
         return;
 
@@ -2587,7 +2666,7 @@ drift::TimeUs AppController::snapTimeForGesture(drift::TimeUs rawUs) const
     if (m_trimGestureActive)
         return drift::snapTimeTo(m_gestureSnapTargets, rawUs, m_snapEnabled, m_snapThresholdUs);
     return drift::snapTime(m_project, rawUs, m_snapEnabled, m_playheadUs,
-                           extraSnapTargetsCached(), {}, m_snapThresholdUs);
+                           extraSnapTargetsCached(), {}, m_snapThresholdUs, m_snapToEvents);
 }
 
 void AppController::beginTrimGesture(int trackIndex, int clipIndex, int side)
@@ -2595,7 +2674,7 @@ void AppController::beginTrimGesture(int trackIndex, int clipIndex, int side)
     Q_UNUSED(trackIndex)
     Q_UNUSED(clipIndex)
     Q_UNUSED(side)
-    m_gestureSnapTargets.build(m_project, m_playheadUs, extraSnapTargetsCached());
+    m_gestureSnapTargets.build(m_project, m_playheadUs, extraSnapTargetsCached(), {}, m_snapToEvents);
     m_trimGestureActive = true;
     m_trimGestureChanged = false;
     m_trimGestureLastInputUs = -1;
@@ -2626,8 +2705,13 @@ AppController::TrimComputation AppController::computeTrimLeft(int trackIndex, in
     // Worked on a copy: the caller decides whether this ever reaches the project.
     drift::Clip clip = track.clips.at(clipIndex);
     out.clip = clip;
+    if (clip.locked) {
+        out.outcome = TrimBlocked;
+        return out;
+    }
 
-    const drift::TimeUs rawUs = drift::secondsToUs(newStart);
+    const double qStart = quantizeTimeSeconds(newStart, clip.type == drift::ClipType::Audio);
+    const drift::TimeUs rawUs = drift::secondsToUs(qStart);
     drift::TimeUs snappedStart = snap ? snapTimeForGesture(rawUs) : rawUs;
     // Whether the edge landed where the pointer asked or was pulled onto a snap target is the
     // difference between the two feelings Haptics offers.
@@ -2791,8 +2875,13 @@ AppController::TrimComputation AppController::computeTrimRight(int trackIndex, i
     out.outcome = TrimNone;
     drift::Clip clip = track.clips.at(clipIndex);
     out.clip = clip;
+    if (clip.locked) {
+        out.outcome = TrimBlocked;
+        return out;
+    }
 
-    const drift::TimeUs rawUs = drift::secondsToUs(newEnd);
+    const double qEnd = quantizeTimeSeconds(newEnd, clip.type == drift::ClipType::Audio);
+    const drift::TimeUs rawUs = drift::secondsToUs(qEnd);
     drift::TimeUs snappedEnd = snap ? snapTimeForGesture(rawUs) : rawUs;
     // With ripple on, extending pushes the followers along rather than stopping at them.
     const bool allowOverlapOnTrack = m_allowClipOverlap
@@ -2929,6 +3018,8 @@ AppController::StretchComputation AppController::computeStretchClip(int trackInd
         return out;
 
     const drift::Clip &clip = track.clips.at(clipIndex);
+    if (clip.locked)
+        return out;
     if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Audio
         && clip.type != drift::ClipType::Composite)
         return out;
@@ -3157,6 +3248,8 @@ AppController::SlipComputation AppController::computeSlipClip(int trackIndex, in
         return out;
 
     const drift::Clip &clip = track.clips.at(clipIndex);
+    if (clip.locked)
+        return out;
     if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Audio
         && clip.type != drift::ClipType::Composite)
         return out;
@@ -3457,12 +3550,14 @@ AppController::RollComputation AppController::computeRollEdit(int trackIndex, in
 
     const drift::Clip &left = track.clips.at(leftClipIndex);
     const drift::Clip &right = track.clips.at(rightClipIndex);
-    if (left.loops() || right.loops())
+    if (left.locked || right.locked || left.loops() || right.loops())
         return out;
 
     const drift::TimeUs minDur = drift::minClipDurationUs(m_project.fps());
     const drift::TimeUs oldCutUs = left.timelineEnd();
-    const drift::TimeUs rawTargetUs = qMax<drift::TimeUs>(0, drift::secondsToUs(targetCutSeconds));
+    const double qTarget = quantizeTimeSeconds(targetCutSeconds, left.type == drift::ClipType::Audio
+                                                                     && right.type == drift::ClipType::Audio);
+    const drift::TimeUs rawTargetUs = qMax<drift::TimeUs>(0, drift::secondsToUs(qTarget));
     const drift::TimeUs targetUs = snap ? snapTimeForGesture(rawTargetUs) : rawTargetUs;
     drift::TimeUs delta = targetUs - oldCutUs;
 
@@ -3599,6 +3694,8 @@ AppController::SlideComputation AppController::computeSlideEdit(int trackIndex, 
         return out;
 
     const drift::Clip &clip = track.clips.at(clipIndex);
+    if (clip.locked)
+        return out;
     const drift::TimeUs minDur = drift::minClipDurationUs(m_project.fps());
     const drift::TimeUs rawStartUs = qMax<drift::TimeUs>(0, drift::secondsToUs(targetStartSeconds));
     const drift::TimeUs snappedStartUs = snap ? snapTimeForGesture(rawStartUs) : rawStartUs;
@@ -3981,6 +4078,10 @@ void AppController::setClipTrim(int trackIndex, int clipIndex, double inPoint, d
     drift::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
+    if (track.clips.at(clipIndex).locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return;
+    }
 
     const drift::Project before = m_project;
     applyClipTrim(track.clips[clipIndex], inPoint, outPoint);
@@ -4954,9 +5055,19 @@ void AppController::moveClipToTrack(int trackIndex, int clipIndex, int newTrackI
         }
     }
 
+    for (const QPair<int, int> &pair : std::as_const(targets)) {
+        if (isValidClipIndex(pair.first, pair.second)
+            && m_project.tracks().at(pair.first).clips.at(pair.second).locked) {
+            setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+            return;
+        }
+    }
+
     const drift::Project before = m_project;
-    const drift::TimeUs desiredUs = drift::secondsToUs(newStart);
-    const drift::TimeUs baseUs = m_project.tracks().at(trackIndex).clips.at(clipIndex).timelineStart;
+    const drift::Clip &leaderProbe = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    const double qStart = quantizeTimeSeconds(newStart, leaderProbe.type == drift::ClipType::Audio);
+    const drift::TimeUs desiredUs = drift::secondsToUs(qStart);
+    const drift::TimeUs baseUs = leaderProbe.timelineStart;
     const drift::TimeUs timeDelta = desiredUs - baseUs;
 
     // Verify the leader clip can land on the destination track
@@ -5336,4 +5447,163 @@ bool AppController::insertSubclipFromTrimmer(int assetIndex, double inSeconds, d
     selectClip(targetTrack, insertIdx);
     setPlayheadSeconds(drift::usToSeconds(insertAt + subDur));
     return true;
+}
+
+// --- Expanded Edit Mode (Tier 4A: A/B Roll Split-Track & Cut Monitor) --------
+
+QVariantMap AppController::expandedEditState() const
+{
+    if (!m_expandedEditActive || m_expandedEditTrack < 0
+        || m_expandedEditTrack >= m_project.tracks().size()) {
+        return {{QStringLiteral("active"), false}};
+    }
+    const drift::Track &track = m_project.tracks().at(m_expandedEditTrack);
+    if (m_expandedEditLeftClip < 0 || m_expandedEditLeftClip >= track.clips.size()) {
+        return {{QStringLiteral("active"), false}};
+    }
+    const int rightIdx = findRightTouchingClip(track, m_expandedEditLeftClip);
+    if (rightIdx < 0 || rightIdx >= track.clips.size()) {
+        return {{QStringLiteral("active"), false}};
+    }
+
+    const drift::Clip &left = track.clips.at(m_expandedEditLeftClip);
+    const drift::Clip &right = track.clips.at(rightIdx);
+    const drift::TimeUs cutUs = left.timelineEnd();
+    const drift::TimeUs leftBudgetUs = timelineExtendBudget(m_project, left, false);
+    const drift::TimeUs rightBudgetUs = timelineExtendBudget(m_project, right, true);
+
+    return QVariantMap{
+        {QStringLiteral("active"), true},
+        {QStringLiteral("trackIndex"), m_expandedEditTrack},
+        {QStringLiteral("leftClipIndex"), m_expandedEditLeftClip},
+        {QStringLiteral("rightClipIndex"), rightIdx},
+        {QStringLiteral("cutSeconds"), drift::usToSeconds(cutUs)},
+        {QStringLiteral("outgoingName"), left.name},
+        {QStringLiteral("incomingName"), right.name},
+        {QStringLiteral("outgoingSourceTime"), drift::usToSeconds(left.srcOut)},
+        {QStringLiteral("incomingSourceTime"), drift::usToSeconds(right.srcIn)},
+        {QStringLiteral("outgoingIn"), drift::usToSeconds(left.srcIn)},
+        {QStringLiteral("outgoingOut"), drift::usToSeconds(left.srcOut)},
+        {QStringLiteral("incomingIn"), drift::usToSeconds(right.srcIn)},
+        {QStringLiteral("incomingOut"), drift::usToSeconds(right.srcOut)},
+        {QStringLiteral("availableLeftHandle"), drift::usToSeconds(leftBudgetUs)},
+        {QStringLiteral("availableRightHandle"), drift::usToSeconds(rightBudgetUs)},
+    };
+}
+
+bool AppController::beginExpandedEdit(int trackIndex, int leftClipIndex)
+{
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return false;
+    const drift::Track &track = m_project.tracks().at(trackIndex);
+    if (leftClipIndex < 0 || leftClipIndex >= track.clips.size())
+        return false;
+    if (findRightTouchingClip(track, leftClipIndex) < 0)
+        return false;
+
+    m_expandedEditActive = true;
+    m_expandedEditTrack = trackIndex;
+    m_expandedEditLeftClip = leftClipIndex;
+    emit expandedEditChanged();
+    return true;
+}
+
+void AppController::endExpandedEdit()
+{
+    if (!m_expandedEditActive && m_expandedEditTrack < 0 && m_expandedEditLeftClip < 0)
+        return;
+    m_expandedEditActive = false;
+    m_expandedEditTrack = -1;
+    m_expandedEditLeftClip = -1;
+    emit expandedEditChanged();
+}
+
+void AppController::toggleExpandedEditMode()
+{
+    if (m_expandedEditActive) {
+        endExpandedEdit();
+        return;
+    }
+
+    int bestTrack = -1;
+    int bestLeft = -1;
+    drift::TimeUs bestDist = std::numeric_limits<drift::TimeUs>::max();
+
+    auto scanTrack = [&](int tIdx) {
+        if (tIdx < 0 || tIdx >= m_project.tracks().size())
+            return;
+        const drift::Track &track = m_project.tracks().at(tIdx);
+        for (int c = 0; c < track.clips.size(); ++c) {
+            if (findRightTouchingClip(track, c) < 0)
+                continue;
+            const drift::TimeUs d = qAbs(track.clips.at(c).timelineEnd() - m_playheadUs);
+            if (d < bestDist) {
+                bestDist = d;
+                bestTrack = tIdx;
+                bestLeft = c;
+            }
+        }
+    };
+
+    if (m_selectedTrack >= 0)
+        scanTrack(m_selectedTrack);
+    if (bestTrack < 0) {
+        for (int t = 0; t < m_project.tracks().size(); ++t) {
+            if (!m_project.tracks().at(t).isAdjustment())
+                scanTrack(t);
+        }
+    }
+    if (bestTrack >= 0 && bestLeft >= 0) {
+        beginExpandedEdit(bestTrack, bestLeft);
+    } else {
+        setLastMessage(tr("Place two adjacent clips on a track to open Expanded Edit Mode"),
+                       QStringLiteral("info"));
+    }
+}
+
+// --- Media Bin Subclips (Tier 4B) --------------------------------------------
+
+QString AppController::createSubclipInBin(int assetIndex, double inSeconds, double outSeconds,
+                                          const QString &customName)
+{
+    if (!m_bin || !m_assetLibrary || assetIndex < 0 || assetIndex >= m_assetLibrary->rowCount())
+        return {};
+    const QString assetId = m_assetLibrary->assetIdAt(assetIndex);
+    if (assetId.isEmpty())
+        return {};
+    const QString subclipId = m_bin->addSubclip(assetId, inSeconds, outSeconds);
+    if (subclipId.isEmpty())
+        return {};
+
+    const QString trimmed = customName.trimmed();
+    if (!trimmed.isEmpty()) {
+        const int idx = m_project.assetIndex(subclipId);
+        if (idx >= 0)
+            renameAsset(idx, trimmed);
+    }
+    return subclipId;
+}
+
+QString AppController::createSubclipFromTimelineClip(int trackIndex, int clipIndex,
+                                                     const QString &customName)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return {};
+    const drift::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Audio)
+        return {};
+    int assetIdx = assetIndexForClip(clip);
+    if (assetIdx < 0 && m_assetLibrary && !clip.path.isEmpty()) {
+        const QString byPath = m_assetLibrary->assetIdForPath(clip.path);
+        if (!byPath.isEmpty())
+            assetIdx = m_project.assetIndex(byPath);
+    }
+    if (assetIdx < 0)
+        return {};
+
+    const QString baseName = customName.trimmed().isEmpty()
+                                 ? (clip.name.isEmpty() ? QString() : tr("%1 (subclip)").arg(clip.name))
+                                 : customName.trimmed();
+    return createSubclipInBin(assetIdx, drift::usToSeconds(clip.srcIn),
+                              drift::usToSeconds(clip.srcOut), baseName);
 }

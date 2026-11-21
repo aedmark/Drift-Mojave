@@ -53,6 +53,16 @@ Window {
             inSeconds = 0.0
     }
 
+    function createSubclipInBin() {
+        if (assetIndex < 0 || assetIndex >= AssetLibrary.count)
+            return
+        const effOut = outSeconds > inSeconds ? outSeconds : duration
+        if (effOut <= inSeconds)
+            return
+        if (EditorState.createSubclipInBin(assetIndex, inSeconds, effOut).length > 0)
+            Toasts.success(qsTr("Subclip added to Media Bin"))
+    }
+
     function commitToTimeline(overwrite) {
         if (assetIndex < 0 || assetIndex >= AssetLibrary.count)
             return
@@ -157,6 +167,9 @@ Window {
                 event.accepted = true
             } else if (event.key === Qt.Key_A) {
                 root.commitToTimeline((event.modifiers & Qt.ShiftModifier) !== 0)
+                event.accepted = true
+            } else if (event.key === Qt.Key_U) {
+                root.createSubclipInBin()
                 event.accepted = true
             } else if (event.key === Qt.Key_Escape) {
                 root.close()
@@ -389,6 +402,12 @@ Window {
 
                 Item { Layout.fillWidth: true }
 
+                ThemedButton {
+                    text: qsTr("Create Subclip (U)")
+                    enabled: AssetLibrary.count > 0 && (root.outSeconds > root.inSeconds || root.duration > root.inSeconds)
+                    tooltip: qsTr("Create trimmed subclip in Media Bin without inserting on timeline")
+                    onClicked: root.createSubclipInBin()
+                }
                 ThemedButton {
                     text: qsTr("Insert (A)")
                     enabled: AssetLibrary.count > 0 && root.outSeconds > root.inSeconds

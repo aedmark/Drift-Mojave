@@ -88,6 +88,63 @@ PanelFrame {
             z: 10
         }
 
+        // Compact A/B roll cut inspection banner when Expanded Edit Mode (F5) is active.
+        Rectangle {
+            id: expandedEditBanner
+            visible: EditorState.expandedEditActive && EditorState.expandedEditState.active === true
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.topMargin: Theme.spacingSm
+            z: 11
+            height: expandedEditRow.implicitHeight + Theme.spacingXs * 2
+            width: Math.min(parent.width - Theme.spacingLg * 2, expandedEditRow.implicitWidth + Theme.spacingMd * 2)
+            radius: Theme.radiusSm
+            color: Qt.rgba(0.08, 0.09, 0.12, 0.88)
+            border.width: 1
+            border.color: Theme.c.accent
+
+            RowLayout {
+                id: expandedEditRow
+                anchors.centerIn: parent
+                spacing: Theme.spacingSm
+
+                Label {
+                    color: Theme.c.textPrimary
+                    font.pixelSize: Theme.fontSm
+                    font.bold: true
+                    text: {
+                        const st = EditorState.expandedEditState
+                        const outName = st.outgoingName || qsTr("Out")
+                        const inName = st.incomingName || qsTr("In")
+                        return qsTr("Expanded Edit (F5): %1 | %2  [%3s]")
+                            .arg(outName)
+                            .arg(inName)
+                            .arg(Number(st.cutSeconds || 0).toFixed(2))
+                    }
+                }
+                ThemedButton {
+                    text: qsTr("-1f")
+                    onClicked: {
+                        const st = EditorState.expandedEditState
+                        const step = 1.0 / Math.max(1, EditorState.fps)
+                        EditorState.commitRollEdit(st.trackIndex, st.leftClipIndex, Number(st.cutSeconds || 0) - step)
+                    }
+                }
+                ThemedButton {
+                    text: qsTr("+1f")
+                    onClicked: {
+                        const st = EditorState.expandedEditState
+                        const step = 1.0 / Math.max(1, EditorState.fps)
+                        EditorState.commitRollEdit(st.trackIndex, st.leftClipIndex, Number(st.cutSeconds || 0) + step)
+                    }
+                }
+                ThemedButton {
+                    text: qsTr("Done")
+                    onClicked: EditorState.endExpandedEdit()
+                }
+            }
+        }
+
         PreviewOsd {
             id: osd
             anchors.fill: parent
