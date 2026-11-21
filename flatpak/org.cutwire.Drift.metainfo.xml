@@ -89,6 +89,24 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.1.0" date="2026-11-21">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.1.0</url>
+      <description>
+        <p>Drift Mojave 1.1.0 delivers VEGAS Parity Tiers 1–3 across editing ergonomics, mixing and compositing, multicamera workflow, batch region rendering, dedicated Trimmer auditioning, Dynamic RAM Preview, and deeper .veg project interchange.</p>
+        <ul>
+          <li>Top-edge clip opacity and gain handles with Shift-drag fine trim and double-click reset</li>
+          <li>Track automation envelopes for Volume (Shift+V), Pan (Shift+P), Composite Level (Alt+Shift+V), and Mute (Alt+Shift+M)</li>
+          <li>Audio event switches (Invert Phase, Mono Mixdown, Left/Right Only, Channel Swap), Pitch Shift (Alt+Shift+=/-), and Peak Normalize (Shift+N)</li>
+          <li>Roll (Shift+R) and Slide (Shift+Y) timeline trim tools with linked audio/video group awareness</li>
+          <li>Audio sub-buses, pre/post-fader aux sends, and real-time ITU-R BS.1770 / EBU R128 LUFS and True Peak metering</li>
+          <li>Video Track FX racks, Master Video Output FX, 2D/3D Track Motion, and cycle-guarded Parent/Child Track Compositing with blend modes</li>
+          <li>Inline Multicamera take-switching mode (Alt+Shift+C, keys 1-9 or grid tile clicks) directly in the preview monitor</li>
+          <li>Timeline Regions (Alt+Shift+R) and Batch Render by Regions with configurable filename templates</li>
+          <li>Dedicated Trimmer window (Alt+Shift+T, I/O marks, J/K/L shuttle, Insert/Overwrite subclips) and Dynamic RAM Preview (Shift+B)</li>
+          <li>Deeper .veg binary interchange for Regions, Track Envelopes, Bezier Masks, and Track Audio FX</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-11-20">
       <url type="details">https://github.com/aedmark/Drift/releases/tag/v1.0.0</url>
       <description>

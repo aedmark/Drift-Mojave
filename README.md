@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0--mojave-feb504?style=flat&labelColor=28272f" alt="Version 1.0.0 Mojave">
+  <img src="https://img.shields.io/badge/version-1.1.0--mojave-feb504?style=flat&labelColor=28272f" alt="Version 1.1.0 Mojave">
   <img src="https://img.shields.io/badge/license-GPL--3.0-feb504?style=flat&labelColor=28272f" alt="License: GPL-3.0">
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android-feb504?style=flat&labelColor=28272f" alt="Platform: Linux | Windows | macOS | Android">
   <img src="https://img.shields.io/badge/interchange-Sony%20%2F%20MAGIX%20VEGAS%20(.veg)-feb504?style=flat&labelColor=28272f" alt="VEGAS Pro Interchange">
@@ -57,6 +57,15 @@ Edit at the speed of thought with classic NLE timeline mechanics:
 - **Interactive Multi-Take Switching (`T` / `Shift+T`)**: Cycle through takes on grouped event takes seamlessly.
 - **A/B Split-Screen Video Compare**: Compare live footage against FX bypass, clipboard snapshots, reference frames, or adjacent video tracks with draggable vertical/horizontal wipe splitters.
 - **Media Pool FX**: Apply non-destructive GPU effect chains directly to source media assets before they reach the timeline.
+
+### 5. New in v1.1.0 (VEGAS Parity Tiers 1–3)
+- **Top-Edge Handles & Track Envelopes**: Drag top-edge opacity/gain handles (`Shift+drag` fine trim, double-click reset) and automate track Volume (`Shift+V`), Pan (`Shift+P`), Composite Level (`Alt+Shift+V`), and Mute (`Alt+Shift+M`).
+- **Audio Switches, Pitch & Peak Normalize**: Per-clip Invert Phase, Mono Mixdown, Left/Right Only, Channel Swap, Pitch Shift (`Alt+Shift+=`/`-`), and Peak Normalize (`Shift+N`).
+- **Roll & Slide Trim Tools**: Precision dual-roller Roll (`Shift+R`) and Slide (`Shift+Y`) editing with linked group synchronization.
+- **Sub-Buses, Aux Sends & Live LUFS Metering**: Dedicated audio sub-buses with FX racks, pre/post-fader aux sends, and real-time ITU-R BS.1770 / EBU R128 LUFS + True Peak hold.
+- **Track Compositing, Track FX & Track Motion**: Video Track FX, Master Video Output FX, 2D/3D Track Motion, and cycle-guarded Parent/Child Track Compositing blend trees.
+- **Inline Multicamera (`Alt+Shift+C`)**: Split-grid angle preview right in the monitor with keys `1–9` or click-to-cut in a single undo step.
+- **Timeline Regions, Trimmer & Dynamic RAM Preview**: Named span Regions (`Alt+Shift+R`) with Batch Region Render templates, dedicated Trimmer window (`Alt+Shift+T`, `I`/`O`, `J`/`K`/`L`), Dynamic RAM Preview (`Shift+B`), and deeper `.veg` import (Regions, Track Envelopes, Bezier Masks, and Track Audio FX).
 
 > See the **[Drift Mojave Roadmap](docs/ROADMAP.md)** for upcoming VEGAS Pro parity tiers (`v1.1+` through `v1.3+`).
 
