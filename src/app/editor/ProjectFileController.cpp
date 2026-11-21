@@ -32,6 +32,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QDirIterator>
+#include <QElapsedTimer>
 #include <QImage>
 #include <QFile>
 #include <QFileInfo>
@@ -653,6 +654,26 @@ drift::bundle::WriteRequest ProjectFileController::completeRequest(const SaveCap
     return request;
 }
 
+bool ProjectFileController::writeBundle(const QString &path, const SaveCapture &capture,
+                                        const drift::bundle::ProgressFn &progress,
+                                        QList<drift::bundle::MediaEntry> *media, QString *error)
+{
+    // An exception here used to escape into QtConcurrent and drop the completion, which left the
+    // save in flight forever: later saves queued behind it without a word, and waitForSave spun.
+    try {
+        const drift::bundle::WriteRequest request = completeRequest(capture);
+        *media = request.media;
+        return drift::bundle::write(path, request, progress, error);
+    } catch (const std::bad_alloc &) {
+        *error = tr("Not enough memory to save the project");
+    } catch (const std::exception &e) {
+        *error = tr("Couldn’t save the project: %1").arg(QString::fromLocal8Bit(e.what()));
+    } catch (...) {
+        *error = tr("Couldn’t save the project");
+    }
+    return false;
+}
+
 void ProjectFileController::rememberEmbeddedSources(const QList<drift::bundle::MediaEntry> &media)
 {
     m_embeddedSources.clear();
@@ -777,8 +798,11 @@ void ProjectFileController::runBundleSave(const QUrl &url, const std::optional<P
     // has to outlive this call to reach the completion that applies it.
     m_saveWrite = QtConcurrent::run([this, path, url, capture, adopt, modal]() {
         Exporter::BackgroundHold hold(QStringLiteral("Saving project"));
+        QElapsedTimer timer;
+        timer.start();
+        qInfo("Saving project to %s (%lld undo steps)", qPrintable(path),
+              qlonglong(capture->history.steps.size()));
         QString error;
-        const drift::bundle::WriteRequest request = completeRequest(*capture);
         drift::bundle::ProgressFn progress;
         if (modal) {
             progress = [this](qint64 done, qint64 total) {
@@ -795,7 +819,21 @@ void ProjectFileController::runBundleSave(const QUrl &url, const std::optional<P
                 return true;
             };
         }
-        const bool written = drift::bundle::write(path, request, progress, &error);
+        bool historyDropped = false;
+        QList<drift::bundle::MediaEntry> media;
+        bool written = writeBundle(path, *capture, progress, &media, &error);
+        // A long history can push the document past what a bundle holds (or what memory allows
+        // while serializing it). The edit itself still has to reach the disk, so it goes
+        // without the history rather than not at all.
+        if (!written && !capture->history.steps.isEmpty() && !(modal && m_packageCancel.loadRelaxed())) {
+            qWarning("Saving %s with its undo history failed (%s); retrying without it",
+                     qPrintable(path), qPrintable(error));
+            SaveCapture lean = *capture;
+            lean.history = {};
+            error.clear();
+            written = writeBundle(path, lean, progress, &media, &error);
+            historyDropped = written;
+        }
         bool ok = written;
         if (ok) {
             // Reports progress but never returns false. commitWriteTarget opens the
@@ -817,10 +855,19 @@ void ProjectFileController::runBundleSave(const QUrl &url, const std::optional<P
         // the user's existing project, and a failed write is no reason to take it away.
         if (!ok)
             discardWriteTarget(path, url);
+        if (ok)
+            qInfo("Saved project to %s in %lld ms (%lld bytes)", qPrintable(path),
+                  qlonglong(timer.elapsed()), qlonglong(QFileInfo(path).size()));
+        else
+            qWarning("Saving project to %s failed after %lld ms: %s", qPrintable(path),
+                     qlonglong(timer.elapsed()), qPrintable(error));
         QMetaObject::invokeMethod(
             this,
-            [this, ok, written, error, url, capture, media = request.media, adopt, modal]() {
+            [this, ok, written, error, url, capture, media, adopt, modal, historyDropped]() {
                 m_saveInFlight = false;
+                m_lastSaveOk = ok;
+                m_lastSaveError = ok ? QString() : error;
+                m_lastSaveDroppedHistory = ok && historyDropped;
                 if (modal) {
                     m_packaging = false;
                     emit packagingChanged();
@@ -835,6 +882,7 @@ void ProjectFileController::runBundleSave(const QUrl &url, const std::optional<P
                     if (written && !adopt && m_app->m_project.id() == capture->projectId)
                         setCurrentProjectPath(QString());
                     m_app->setLastMessage(error, QStringLiteral("error"));
+                    emit saveFailed(error);
                     emit projectSaved(false);
                     startNextQueuedSave();
                     return;
@@ -858,8 +906,12 @@ void ProjectFileController::runBundleSave(const QUrl &url, const std::optional<P
                     landWrite(*capture, adopt);
                     emit projectMetadataChanged();
                 }
-                m_app->setLastMessage(adopt ? tr("Saved a copy") : tr("Project saved"),
-                                      QStringLiteral("success"));
+                if (historyDropped)
+                    m_app->setLastMessage(tr("Project saved without its undo history: the history was too large to save"),
+                                          QStringLiteral("warning"));
+                else
+                    m_app->setLastMessage(adopt ? tr("Saved a copy") : tr("Project saved"),
+                                          QStringLiteral("success"));
                 emit projectSaved(true);
                 startNextQueuedSave();
             },
@@ -1281,8 +1333,7 @@ void ProjectFileController::packageProject(const QUrl &url)
     (void)QtConcurrent::run([this, path, url, capture, disposable]() {
         Exporter::BackgroundHold hold(QStringLiteral("Saving project"));
         QString error;
-        const drift::bundle::WriteRequest request = completeRequest(*capture);
-        const auto progress = [this](qint64 done, qint64 total) {
+        const drift::bundle::ProgressFn progress = [this](qint64 done, qint64 total) {
             if (m_packageCancel.loadRelaxed())
                 return false;
             const double fraction = total > 0 ? double(done) / double(total) : 0.0;
@@ -1295,7 +1346,8 @@ void ProjectFileController::packageProject(const QUrl &url)
                 Qt::QueuedConnection);
             return true;
         };
-        bool ok = drift::bundle::write(path, request, progress, &error);
+        QList<drift::bundle::MediaEntry> media;
+        bool ok = writeBundle(path, *capture, progress, &media, &error);
         if (ok) {
             // See saveProject: commitWriteTarget has already truncated the destination by the time
             // it reports anything, so Cancel reaches the bundle writer above and no further.
@@ -1311,7 +1363,7 @@ void ProjectFileController::packageProject(const QUrl &url)
             discardWriteTarget(path, url, disposable);
         QMetaObject::invokeMethod(
             this,
-            [this, ok, error, url, media = request.media, capture]() {
+            [this, ok, error, url, media, capture]() {
                 m_packaging = false;
                 emit packagingChanged();
                 if (!ok) {
@@ -1719,6 +1771,13 @@ void ProjectFileController::finishLoad(int generation, const QUrl &url,
     const drift::bundle::BundleInfo &bundle = result->bundle;
     const QHash<QString, QString> &remap = result->remap;
     m_pendingPathRemap = remap;
+    // A project saved without a title would open as "Untitled Project", which reads as if the
+    // file had opened empty. The file name is what the user knows it by.
+    const QString storedName = result->parsed->project.name().trimmed();
+    if (storedName.isEmpty() || storedName == QLatin1String("Untitled Project")) {
+        if (const QString fileName = projectNameForUrl(url); !fileName.isEmpty())
+            result->parsed->project.setName(fileName);
+    }
     m_app->applyParsedProject(std::move(*result->parsed));
 
     // Automatically replace raw camera / MTS files with converted ProRes .mov files if they exist
@@ -2271,6 +2330,24 @@ QString writeRecoveryTemp(const drift::Project &project, QJsonObject session,
     return tmpPath;
 }
 
+// A snapshot without the history beats none: a history too large to serialize must not leave
+// the session with no crash recovery at all.
+QString writeRecoverySnapshot(const drift::Project &project, const QJsonObject &session,
+                              const drift::HistoryCapture &history, const QJsonObject &meta,
+                              const QString &path)
+{
+    QString tmpPath;
+    try {
+        tmpPath = writeRecoveryTemp(project, session, history, meta, path);
+    } catch (...) {
+    }
+    if (tmpPath.isEmpty() && !history.steps.isEmpty()) {
+        qWarning("Recovery snapshot with undo history failed; writing it without the history");
+        tmpPath = writeRecoveryTemp(project, session, {}, meta, path);
+    }
+    return tmpPath;
+}
+
 // True once `path` holds the new snapshot: callers record what it holds only then, so a failed
 // write is retried rather than taken as current.
 bool promoteRecoveryTemp(const QString &tmpPath, const QString &path)
@@ -2310,7 +2387,7 @@ void ProjectFileController::writeRecoveryFile(bool synchronous)
         // Waits on the worker only: its continuation needs this thread's event loop.
         m_recoveryWrite.waitForFinished();
         ++m_recoveryGeneration;
-        const QString tmpPath = writeRecoveryTemp(m_app->m_project, session,
+        const QString tmpPath = writeRecoverySnapshot(m_app->m_project, session,
                                                   drift::captureHistory(m_app->m_undoStack), meta, path);
         if (promoteRecoveryTemp(tmpPath, path))
             m_recoveryRevision = m_dirtyRevision;
@@ -2335,7 +2412,7 @@ void ProjectFileController::writeRecoveryFile(bool synchronous)
         // An exception would skip the continuation below and leave the pending flag set, which
         // would stop every later snapshot: report it as a failed write instead.
         try {
-            return writeRecoveryTemp(*snapshot, session, history, meta, path);
+            return writeRecoverySnapshot(*snapshot, session, history, meta, path);
         } catch (...) {
             return {};
         }

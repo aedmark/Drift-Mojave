@@ -2872,8 +2872,14 @@ QJsonObject McpDispatcher::opSaveProject(const QJsonObject &args)
         m_controller->projectFile()->saveProjectAs(QUrl::fromLocalFile(path));
     else
         m_controller->projectFile()->saveProject(QUrl::fromLocalFile(path));
-    m_controller->projectFile()->waitForSave();
-    return ok({{QStringLiteral("path"), path}});
+    ProjectFileController *project = m_controller->projectFile();
+    project->waitForSave();
+    if (!project->lastSaveOk())
+        return err("save_failed", project->lastSaveError());
+    QJsonObject result{{QStringLiteral("path"), path}};
+    if (project->lastSaveDroppedHistory())
+        result.insert(QStringLiteral("history_dropped"), true);
+    return ok(result);
 }
 
 QJsonObject McpDispatcher::opQuitInstance(const QJsonObject &args)

@@ -385,7 +385,7 @@ private:
     QString m_agentNotifications = QStringLiteral("problems");
     QString m_proxySuggestion = QStringLiteral("ask");
     QString m_undoHistoryMode = QStringLiteral("session");
-    int m_undoHistoryLimit = 0;
+    int m_undoHistoryLimit = 200;
     bool m_vaapiZeroCopy = false;
     bool m_mediaCodecZeroCopy = false;
     QString m_preferredGpu = QStringLiteral("auto");
