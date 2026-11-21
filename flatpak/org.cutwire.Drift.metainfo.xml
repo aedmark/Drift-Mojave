@@ -89,6 +89,22 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.2.0" date="2026-11-21">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.2.0</url>
+      <description>
+        <p>Drift Mojave 1.2.0 completes VEGAS Parity Tier 4 across precision timeline editing, media generators and bin management, audio stem mixing and Smart Render analysis, and bidirectional project interchange.</p>
+        <ul>
+          <li>Expanded Edit Mode (F5) with A/B roll cut inspection banner and single-frame cut nudging</li>
+          <li>Per-clip Event Lock (Alt+Shift+L), Event Mute toggle (Alt+Shift+Q), lock badges, and full edit guards</li>
+          <li>Quantize to Frames (Alt+F8) and granular snapping controls (grid, markers, events)</li>
+          <li>VEGAS-style Media Generators (SMPTE Color Bars, Solid Color, Color Gradient, Credit Roll, Timecode Burn-In)</li>
+          <li>Reusable Media Bin subclips from Trimmer (U) and timeline clips, Smart Bin Filters, usage counts, and Select Timeline Events Using Media</li>
+          <li>Per-clip audio gain envelopes, cycle-guarded sub-bus output routing, and multi-track/bus/master WAV stem export</li>
+          <li>Smart Render segment analysis for unmodified Apple ProRes 422 pass-through export</li>
+          <li>Bidirectional timeline export (.fcpxml, .edl, .otio, and VEGAS .txt marker/region TSV) plus deeper .veg import parity (event mute/lock, velocity envelopes, track composite blend modes, and generators)</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-11-21">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.1.0</url>
       <description>
