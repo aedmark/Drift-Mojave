@@ -69,7 +69,7 @@ Status: **Shipped in `v1.1.0`**
 
 ## Tier 4 — Pro Finishing, Media Generators, Subclips & Bidirectional Interchange (`v1.2.0`)
 
-Status: **In Progress (`main`)**
+Status: **Shipped in `v1.2.0`**
 
 1. **Tier 4A — Expanded Timeline & Editing Power Tools**
    - **Expanded Edit Mode (`F5`)**: A/B roll split-track & dual-frame cut inspection overlay with `-1f / +1f` cut trimming.

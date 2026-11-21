@@ -34,6 +34,14 @@ Rectangle {
         return !root.isFolder && root.assetIndex >= 0
                && EditorState.clipCountForAsset(root.assetIndex) > 0
     }
+    readonly property int timelineUseCount: {
+        void EditorState.tracksRevision
+        return !root.isFolder && root.assetId.length > 0 ? EditorState.assetUseCount(root.assetId) : 0
+    }
+    readonly property bool isSubclip: {
+        void root.host._refreshTick
+        return !root.isFolder && root.assetId.length > 0 && EditorState.isSubclipAsset(root.assetId)
+    }
 
     function closeMenus() {
         cardMenu.close()
@@ -163,7 +171,7 @@ Rectangle {
     // than only the last click. The + stays available to insert another instance.
     Rectangle {
         z: 4
-        visible: root.alreadyOnTimeline
+        visible: root.alreadyOnTimeline || root.isSubclip
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.margins: 4
@@ -175,7 +183,16 @@ Rectangle {
         Text {
             id: addedLabel
             anchors.centerIn: parent
-            text: qsTr("Added")
+            text: {
+                const countLabel = root.timelineUseCount > 1
+                                   ? qsTr("Added ×%1").arg(root.timelineUseCount)
+                                   : qsTr("Added")
+                if (root.alreadyOnTimeline && root.isSubclip)
+                    return countLabel + " · " + qsTr("Subclip")
+                if (root.isSubclip)
+                    return qsTr("Subclip")
+                return countLabel
+            }
             color: Theme.c.mediaAssetsAddedBadge.foreground
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSizeTiny

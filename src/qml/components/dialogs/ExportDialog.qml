@@ -37,6 +37,7 @@ ThemedDialog {
     property bool advancedOpen: false
     property bool exportWorkAreaOnly: false
     property bool useBakes: true
+    property bool smartRender: true
     property var staleBakes: []
 
     // Export frame rate. fpsNum 0 means "follow the project fps". Rational so the
@@ -248,6 +249,7 @@ ThemedDialog {
             applyGifDefaults()
 
         advancedOpen = false
+        smartRender = (src.smartRender !== undefined) ? (src.smartRender === true) : true
         exportWorkAreaOnly = EditorState.workAreaActive
                 && (remembered.exportWorkAreaOnly === true)
 
@@ -338,7 +340,8 @@ ThemedDialog {
             "audioOnly": isAudioOnly,
             "gifExport": isGifExport,
             "exportWorkAreaOnly": exportWorkAreaOnly && EditorState.workAreaActive,
-            "bakes": useBakes ? "all" : "none"
+            "bakes": useBakes ? "all" : "none",
+            "smartRender": smartRender
         }
         if (s.exportWorkAreaOnly) {
             s.startUs = Math.round(EditorState.workAreaInSeconds * 1000000)
@@ -570,6 +573,44 @@ ThemedDialog {
                 checked: root.useBakes
                 tooltip: qsTr("Read pre-rendered ranges instead of compositing them again")
                 onToggled: root.useBakes = checked
+            }
+
+            ThemedCheckBox {
+                width: parent.width
+                visible: root.exportMode === "video" && root.videoCodecId === "prores"
+                readonly property int eligibleCount: visible
+                    ? EditorState.analyzeSmartRenderSegments({
+                          "videoCodecId": root.videoCodecId,
+                          "targetHeight": root.targetHeight,
+                          "fpsNum": root.fpsNum,
+                          "fpsDen": root.fpsDen,
+                          "smartRender": true
+                      }).length
+                    : 0
+                text: qsTr("Smart Render (ProRes 422 pass-through — %1 eligible segment(s))").arg(eligibleCount)
+                checked: root.smartRender
+                tooltip: qsTr("Copy unmodified Apple ProRes 422 segments without re-encoding")
+                onToggled: root.smartRender = checked
+            }
+
+            ThemedButton {
+                visible: root.exportMode === "audio"
+                text: qsTr("Export Multi-Track & Bus WAV Stems…")
+                tooltip: qsTr("Render separate stereo WAV stems for every track, sub-bus, and master")
+                onClicked: {
+                    if (!FileDialogs.supportsDirectoryPicker()) {
+                        Toasts.warning(qsTr("Folder picker is unavailable on this platform."))
+                        return
+                    }
+                    var dirUrl = FileDialogs.openDirectory(qsTr("Choose folder for Audio Stems (.wav)"))
+                    if (dirUrl != "") {
+                        const res = EditorState.exportAudioStems(dirUrl, true, true, true)
+                        if (res && res.ok)
+                            Toasts.success(qsTr("Exported %1 WAV stem(s)").arg(res.count || 0))
+                        else
+                            Toasts.error((res && res.error) ? res.error : qsTr("Stem export failed"))
+                    }
+                }
             }
 
             ExportDialogVideoSection {

@@ -8,10 +8,78 @@ Row {
     property string viewMode: "grid"
     property bool treeMode: false
     property bool sortByKind: false
+    property string smartFilter: "all"
 
     signal sortToggled()
+    signal smartFilterSelected(string mode)
+    signal generatorRequested(string generatorId)
 
     spacing: Theme.spacingSm
+
+    IconButton {
+        id: filterBtn
+        glyph: Theme.icons.sliders
+        variant: "ghost"
+        tooltip: qsTr("Filter media bin")
+        active: root.smartFilter !== "all"
+        onClicked: smartFilterMenu.popup()
+
+        ThemedContextMenu {
+            id: smartFilterMenu
+
+            ThemedMenuItem {
+                text: qsTr("All media")
+                checkable: true
+                checked: root.smartFilter === "all"
+                onTriggered: root.smartFilterSelected("all")
+            }
+            ThemedMenuItem {
+                text: qsTr("Unused on timeline")
+                checkable: true
+                checked: root.smartFilter === "unused"
+                onTriggered: root.smartFilterSelected("unused")
+            }
+            ThemedMenuItem {
+                text: qsTr("Unconverted (Long-GOP)")
+                checkable: true
+                checked: root.smartFilter === "unconverted"
+                onTriggered: root.smartFilterSelected("unconverted")
+            }
+            ThemedMenuItem {
+                text: qsTr("Missing files")
+                checkable: true
+                checked: root.smartFilter === "missing"
+                onTriggered: root.smartFilterSelected("missing")
+            }
+            ThemedMenuItem {
+                text: qsTr("Subclips")
+                checkable: true
+                checked: root.smartFilter === "subclips"
+                onTriggered: root.smartFilterSelected("subclips")
+            }
+        }
+    }
+
+    IconButton {
+        id: generatorBtn
+        glyph: Theme.icons.sparkles
+        variant: "ghost"
+        tooltip: qsTr("Insert VEGAS Media Generator")
+        onClicked: generatorMenu.popup()
+
+        ThemedContextMenu {
+            id: generatorMenu
+
+            Repeater {
+                model: EditorState.mediaGeneratorCatalog()
+                delegate: ThemedMenuItem {
+                    required property var modelData
+                    text: modelData.name || modelData.id
+                    onTriggered: root.generatorRequested(modelData.id)
+                }
+            }
+        }
+    }
 
     IconButton {
         glyph: Theme.icons.layoutGrid

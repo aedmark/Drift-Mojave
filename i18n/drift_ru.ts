@@ -7100,6 +7100,26 @@
         <translation>Закрыть аудиомикшер</translation>
     </message>
     <message>
+        <source>Folder picker is unavailable on this platform.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose folder for Audio Stems (.wav)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exported %1 WAV stem(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stem export failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export audio stems (.wav)…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Add audio sub-bus</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10534,6 +10554,34 @@
     <message>
         <source>Read pre-rendered ranges instead of compositing them again</source>
         <translation>Считывать предварительно отрендеренные диапазоны вместо повторного сведения</translation>
+    </message>
+    <message>
+        <source>Smart Render (ProRes 422 pass-through — %1 eligible segment(s))</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy unmodified Apple ProRes 422 segments without re-encoding</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Multi-Track &amp; Bus WAV Stems…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render separate stereo WAV stems for every track, sub-bus, and master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose folder for Audio Stems (.wav)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exported %1 WAV stem(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stem export failed</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -15170,8 +15218,16 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Медиафайл не найден. Используйте «Заменить медиафайл…» для этого элемента, чтобы указать путь к файлу.</translation>
     </message>
     <message>
+        <source>Added ×%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Added</source>
         <translation>Добавлено</translation>
+    </message>
+    <message>
+        <source>Subclip</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Add to timeline</source>
@@ -15412,6 +15468,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Поиск медиафайлов</translation>
     </message>
     <message>
+        <source>Media generator inserted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Expand all</source>
         <translation>Развернуть всё</translation>
     </message>
@@ -15458,6 +15518,34 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
 </context>
 <context>
     <name>MediaAssetsViewToolbar</name>
+    <message>
+        <source>Filter media bin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unused on timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unconverted (Long-GOP)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Missing files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Subclips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Insert VEGAS Media Generator</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>Grid view</source>
         <translation>Плитки</translation>
@@ -26283,6 +26371,14 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Normalize (Shift+N)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add gain envelope point at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset clip gain envelope</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

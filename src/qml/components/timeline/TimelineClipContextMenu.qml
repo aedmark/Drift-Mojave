@@ -335,6 +335,17 @@ ThemedContextMenu {
             onTriggered: EditorState.normalizeClipAudio(owner.trackIndex, owner.clipIndex, -0.1)
         }
         ThemedMenuItem {
+            text: qsTr("Add gain envelope point at playhead")
+            icon.name: Theme.icons.trendingUp
+            onTriggered: EditorState.addClipVolumeEnvelopePoint(
+                owner.trackIndex, owner.clipIndex,
+                Math.max(0, EditorState.playheadSeconds - (owner.clipData.start || 0)), 1.0)
+        }
+        ThemedMenuItem {
+            text: qsTr("Reset clip gain envelope")
+            onTriggered: EditorState.clearClipVolumeEnvelope(owner.trackIndex, owner.clipIndex)
+        }
+        ThemedMenuItem {
             text: qsTr("Reset Normalization")
             visible: Math.abs((owner.clipData.normalizeGain !== undefined ? owner.clipData.normalizeGain : 1.0) - 1.0) > 0.005
             onTriggered: EditorState.resetClipNormalize(owner.trackIndex, owner.clipIndex)

@@ -58,8 +58,23 @@ Item {
     property bool importing: false
     // Kind visibility filter supplied by the parent (depends on the active tab).
     property var assetVisibleFn: function(kind) { return true }
+    property string smartFilter: "all"
     property alias searchText: search.text
     readonly property string query: search.text.trim().toLowerCase()
+
+    function matchesSmartFilter(assetId, kind) {
+        if (root.smartFilter === "all" || !assetId)
+            return true
+        if (root.smartFilter === "unused")
+            return EditorState.assetUseCount(assetId) === 0
+        if (root.smartFilter === "unconverted")
+            return kind === "video" && !AssetLibrary.isEditFriendly(assetId)
+        if (root.smartFilter === "missing")
+            return AssetLibrary.isMissing(assetId)
+        if (root.smartFilter === "subclips")
+            return EditorState.isSubclipAsset(assetId)
+        return true
+    }
 
     // Emitted from the card/row context menu — adds the selected asset(s) to the timeline in
     // selection order. The parent routes a single id to the existing single-asset add so that
@@ -329,6 +344,8 @@ Item {
             const asset = AssetLibrary.assetAt(i)
             if (!root.assetVisibleFn(asset.kind))
                 continue
+            if (!root.matchesSmartFilter(asset.id, asset.kind))
+                continue
             if (!childAssets[asset.folderId])
                 childAssets[asset.folderId] = []
             childAssets[asset.folderId].push(asset)
@@ -427,6 +444,8 @@ Item {
     // versa) so one delegate below can bind every field as `required` without runtime errors.
     readonly property var combinedItems: {
         void root._refreshTick
+        void root.smartFilter
+        void EditorState.tracksRevision
         const q = root.query
         const currentFolder = EditorState.bin.currentFolderId
         const items = []
@@ -465,6 +484,8 @@ Item {
             if (asset.folderId !== currentFolder)
                 continue
             if (!root.assetVisibleFn(asset.kind))
+                continue
+            if (!root.matchesSmartFilter(asset.id, asset.kind))
                 continue
             if (q.length > 0 && asset.name.toLowerCase().indexOf(q) < 0)
                 continue
@@ -520,12 +541,18 @@ Item {
         viewMode: root.viewMode
         treeMode: root.treeMode
         sortByKind: root.sortByKind
+        smartFilter: root.smartFilter
         onSortToggled: {
             if (root.sortByKind)
                 AssetLibrary.sortByName()
             else
                 AssetLibrary.sortByKind()
             root.sortByKind = !root.sortByKind
+        }
+        onSmartFilterSelected: (mode) => root.smartFilter = mode
+        onGeneratorRequested: (generatorId) => {
+            if (EditorState.insertMediaGenerator(generatorId).length > 0)
+                Toasts.success(qsTr("Media generator inserted"))
         }
     }
 

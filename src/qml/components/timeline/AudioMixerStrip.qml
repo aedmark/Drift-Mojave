@@ -32,6 +32,21 @@ Rectangle {
     // the edge resize (which writes the timeline's audioMixerWidth preference) are dropped.
     property bool embedded: false
 
+    function exportStemsPrompt() {
+        if (!FileDialogs.supportsDirectoryPicker()) {
+            Toasts.warning(qsTr("Folder picker is unavailable on this platform."))
+            return
+        }
+        var dirUrl = FileDialogs.openDirectory(qsTr("Choose folder for Audio Stems (.wav)"))
+        if (dirUrl != "") {
+            const res = EditorState.exportAudioStems(dirUrl, true, true, true)
+            if (res && res.ok)
+                Toasts.success(qsTr("Exported %1 WAV stem(s)").arg(res.count || 0))
+            else
+                Toasts.error((res && res.error) ? res.error : qsTr("Stem export failed"))
+        }
+    }
+
     Behavior on width {
         enabled: !root.resizing
         NumberAnimation { duration: Theme.durationSlow; easing.type: Theme.easing }
@@ -254,7 +269,7 @@ Rectangle {
                     Row {
                         anchors.left: parent.left
                         anchors.leftMargin: Theme.spacingLg + 2
-                        anchors.right: headerCloseBtn.left
+                        anchors.right: exportStemsHeaderBtn.left
                         anchors.rightMargin: Theme.spacingSm
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: Theme.spacingMd
@@ -277,6 +292,19 @@ Rectangle {
                             width: Math.max(0, parent.width - Theme.iconSizeMd - parent.spacing)
                             anchors.verticalCenter: parent.verticalCenter
                         }
+                    }
+
+                    IconButton {
+                        id: exportStemsHeaderBtn
+                        anchors.right: addBusHeaderBtn.left
+                        anchors.rightMargin: Theme.spacingXs
+                        anchors.verticalCenter: parent.verticalCenter
+                        buttonSize: 24
+                        iconSize: Theme.iconSizeSm
+                        glyph: Theme.icons.download
+                        variant: "text"
+                        tooltip: qsTr("Export audio stems (.wav)…")
+                        onClicked: root.exportStemsPrompt()
                     }
 
                     IconButton {
@@ -723,9 +751,20 @@ Rectangle {
                                     pan: busData.pan !== undefined ? busData.pan : 0.0
                                     hasFx: (busData.audioEffects || []).length > 0
                                     fxCount: (busData.audioEffects || []).length
+                                    routeLabel: {
+                                        const outId = busData.outputBusId || ""
+                                        if (!outId)
+                                            return ""
+                                        const buses = EditorState.audioBuses
+                                        for (let bi = 0; bi < buses.length; bi++) {
+                                            if (buses[bi].id === outId)
+                                                return buses[bi].name.slice(0, 4)
+                                        }
+                                        return "Bus"
+                                    }
 
                                     onFxClicked: fxContextMenu.openForBus(busId, name, busData.audioEffects || [])
-                                    onRouteClicked: routeContextMenu.openForBus(busId, name)
+                                    onRouteClicked: routeContextMenu.openForBus(busId, name, busData.outputBusId || "")
                                     onMuteToggled: EditorState.setAudioBusMuted(busId, !muted)
                                     onSoloToggled: EditorState.setAudioBusSolo(busId, !solo)
                                     onVolumePreviewed: (gain) => EditorState.previewAudioBusVolume(busId, gain)
@@ -956,12 +995,12 @@ Rectangle {
             open()
         }
 
-        function openForBus(busId, busName) {
+        function openForBus(busId, busName, outputBusId) {
             isBus = true
             targetTrackIndex = -1
             targetBusId = busId
             targetName = busName
-            targetOutputBusId = ""
+            targetOutputBusId = outputBusId || ""
             targetSends = []
             open()
         }
@@ -986,12 +1025,16 @@ Rectangle {
 
         ThemedContextMenu {
             title: qsTr("Output bus")
-            visible: !routeContextMenu.isBus
 
             ThemedMenuItem {
                 text: qsTr("Master")
                 icon.name: routeContextMenu.targetOutputBusId === "" ? Theme.icons.check : ""
-                onTriggered: EditorState.setTrackOutputBus(routeContextMenu.targetTrackIndex, "")
+                onTriggered: {
+                    if (routeContextMenu.isBus)
+                        EditorState.setAudioBusOutputBus(routeContextMenu.targetBusId, "")
+                    else
+                        EditorState.setTrackOutputBus(routeContextMenu.targetTrackIndex, "")
+                }
             }
 
             Repeater {
@@ -999,9 +1042,15 @@ Rectangle {
                 delegate: ThemedMenuItem {
                     required property int index
                     readonly property var bus: EditorState.audioBuses[index] || ({})
+                    visible: !routeContextMenu.isBus || bus.id !== routeContextMenu.targetBusId
                     text: bus.name || qsTr("Bus")
                     icon.name: routeContextMenu.targetOutputBusId === bus.id ? Theme.icons.check : ""
-                    onTriggered: EditorState.setTrackOutputBus(routeContextMenu.targetTrackIndex, bus.id)
+                    onTriggered: {
+                        if (routeContextMenu.isBus)
+                            EditorState.setAudioBusOutputBus(routeContextMenu.targetBusId, bus.id)
+                        else
+                            EditorState.setTrackOutputBus(routeContextMenu.targetTrackIndex, bus.id)
+                    }
                 }
             }
         }
@@ -1036,6 +1085,12 @@ Rectangle {
             text: qsTr("Add audio sub-bus")
             icon.name: Theme.icons.plus
             onTriggered: EditorState.addAudioBus()
+        }
+
+        ThemedMenuItem {
+            text: qsTr("Export audio stems (.wav)…")
+            icon.name: Theme.icons.download
+            onTriggered: root.exportStemsPrompt()
         }
 
         ThemedMenuItem {

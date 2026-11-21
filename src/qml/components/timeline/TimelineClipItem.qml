@@ -389,4 +389,23 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
     }
+
+    Rectangle {
+        z: 8
+        visible: clipItem.clipData.locked === true
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 4
+        width: 18
+        height: 18
+        radius: 4
+        color: Qt.rgba(0.08, 0.09, 0.12, 0.85)
+
+        IconGlyph {
+            anchors.centerIn: parent
+            glyph: Theme.icons.lock
+            iconSize: 11
+            iconColor: Theme.c.accent
+        }
+    }
 }
