@@ -1,0 +1,763 @@
+# Azure Pipelines contingency / redundancy build pipeline for Drift Mojave.
+# Mirrors .github/workflows/package.yml across Windows (x64), Linux (x86_64), and macOS
+# so full desktop test suites and release installers can be produced independently of GitHub Actions.
+#
+# Manual / failover only by default so pushes do not double-build alongside GitHub Actions.
+# To enable automatic tag builds during a GitHub Actions outage, replace `trigger: none` with:
+#   trigger:
+#     tags:
+#       include:
+#         - 'v*.*.*'
+
+trigger: none
+pr: none
+
+parameters:
+  - name: platforms
+    displayName: 'Target desktop platforms'
+    type: string
+    default: 'desktop'
+    values:
+      - desktop
+      - windows
+      - linux
+      - macos
+  - name: version
+    displayName: 'Override version label (blank reads CMakeLists.txt)'
+    type: string
+    default: ''
+  - name: runTests
+    displayName: 'Run CTest suite before packaging'
+    type: boolean
+    default: true
+
+variables:
+  CI: 'true'
+  QT_VERSION: '6.10.3'
+  QT_MODULES: 'qtmultimedia qtimageformats'
+  FFMPEG_REPO: 'CutWire-Studios/FFmpeg-Builds'
+  FFMPEG_TAG: 'n7.1'
+  CCACHE_VERSION: '4.14.2'
+  MESA_WIN_VERSION: '26.2.4'
+  ADDONS_REPO: 'https://github.com/CutWire-Studios/Drift-Addons.git'
+  ADDONS_PKG_URL: 'https://github.com/CutWire-Studios/Drift-Addons/releases/download/packages'
+  FETCHCONTENT_BASE_DIR: '$(Build.SourcesDirectory)/.deps'
+  CCACHE_COMPRESS: '1'
+  CCACHE_SLOPPINESS: 'pch_defines,time_macros,include_file_mtime,include_file_ctime'
+
+stages:
+  - stage: BuildDesktop
+    displayName: 'Build Desktop Packages'
+    jobs:
+      # -----------------------------------------------------------------------
+      # Windows (x64 MSVC + vcpkg static-md Skia + Inno Setup + Portable Zip)
+      # -----------------------------------------------------------------------
+      - job: Windows_x64
+        displayName: 'Windows installer (x64)'
+        condition: or(eq('${{ parameters.platforms }}', 'desktop'), eq('${{ parameters.platforms }}', 'windows'))
+        timeoutInMinutes: 360
+        pool:
+          vmImage: 'windows-2022'
+        variables:
+          QT_BASE_DIR: '$(Pipeline.Workspace)/Qt'
+          CCACHE_DIR: '$(Pipeline.Workspace)/ccache'
+          CCACHE_MAXSIZE: '1G'
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              $ver = '${{ parameters.version }}'.Trim()
+              if ([string]::IsNullOrWhiteSpace($ver)) {
+                $match = Select-String -Path 'CMakeLists.txt' -Pattern '^project\(Drift VERSION ([0-9]+\.[0-9]+\.[0-9]+)'
+                if (-not $match) { throw 'Failed to parse project version from CMakeLists.txt' }
+                $ver = $match.Matches[0].Groups[1].Value
+              }
+              Write-Host "Building Drift Mojave Windows x64 version: $ver"
+              Write-Host "##vso[task.setvariable variable=ASSET_VERSION]$ver"
+            displayName: 'Resolve build version'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              git clone --filter=blob:none --sparse --depth 1 '$(ADDONS_REPO)' drift-addons
+              git -C drift-addons sparse-checkout set `
+                staging/fonts-essentials/fonts `
+                staging/stickers-harmonyos/emoji-font `
+                staging/stickers-harmonyos/stickers `
+                staging/effects-core/effects
+              Copy-Item 'drift-addons\staging\fonts-essentials\fonts' 'fonts' -Recurse -Force
+              Copy-Item 'drift-addons\staging\stickers-harmonyos\emoji-font' 'emoji-fonts' -Recurse -Force
+              Copy-Item 'drift-addons' '..\drift-addons' -Recurse -Force
+              if (-not (Test-Path 'fonts\anton\Anton-400.ttf')) { throw 'Missing Anton font' }
+              if (-not (Test-Path 'emoji-fonts\HarmonyOS_4.0.ttf')) { throw 'Missing HarmonyOS emoji font' }
+              if (-not (Test-Path '..\drift-addons\staging\effects-core\effects\turbulent_displace\effect.json')) { throw 'Missing core effects' }
+            displayName: 'Checkout and stage Drift-Addons content'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              if (-not (Get-Command zstd -ErrorAction SilentlyContinue)) {
+                if (Test-Path 'C:\Program Files\Git\usr\bin\zstd.exe') {
+                  Write-Host '##vso[task.prependpath]C:\Program Files\Git\usr\bin'
+                  $env:PATH = "C:\Program Files\Git\usr\bin;$env:PATH"
+                } else {
+                  choco install zstandard -y --no-progress
+                  $env:PATH = "C:\ProgramData\chocolatey\bin;$env:PATH"
+                }
+              }
+              $dl = Join-Path '$(Agent.TempDirectory)' 'driftpkg'
+              New-Item -ItemType Directory -Force -Path $dl | Out-Null
+              foreach ($pkg in @('deepfilternet.v3-1.0.0.driftpkg', 'silero.vad-1.0.0.driftpkg', 'onnxruntime.cpu.win-x64-1.0.0.driftpkg')) {
+                Invoke-WebRequest -Uri "$(ADDONS_PKG_URL)/$pkg" -OutFile (Join-Path $dl $pkg)
+              }
+              python scripts\unpack-driftpkg.py (Join-Path $dl 'deepfilternet.v3-1.0.0.driftpkg') '$(Build.SourcesDirectory)'
+              python scripts\unpack-driftpkg.py (Join-Path $dl 'silero.vad-1.0.0.driftpkg') '$(Build.SourcesDirectory)\drift-addons\staging\silero-vad'
+              python scripts\unpack-driftpkg.py (Join-Path $dl 'onnxruntime.cpu.win-x64-1.0.0.driftpkg') '$(Build.SourcesDirectory)\.ort'
+              if (-not (Test-Path 'models\deepfilternet3')) { throw 'DeepFilterNet3 missing' }
+              if (-not (Test-Path 'drift-addons\staging\silero-vad\models\silero-vad\silero_vad.onnx')) { throw 'Silero VAD missing' }
+              if (-not (Test-Path '.ort\runtime\lib\onnxruntime.dll')) { throw 'ONNX Runtime DLL missing' }
+            displayName: 'Fetch test models and ONNX Runtime'
+
+          - task: Cache@2
+            inputs:
+              key: 'qt-win-x64 | "$(QT_VERSION)" | "$(QT_MODULES)"'
+              path: '$(QT_BASE_DIR)'
+              cacheHitVar: 'QT_CACHE_HIT'
+            displayName: 'Cache Qt $(QT_VERSION)'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              if ('$(QT_CACHE_HIT)' -ne 'true') {
+                python -m pip install --upgrade pip
+                python -m pip install aqtinstall
+                python -m aqt install-qt windows desktop '$(QT_VERSION)' win64_msvc2022_64 -m qtmultimedia qtimageformats -O '$(QT_BASE_DIR)'
+              }
+              $qtRoot = Join-Path '$(QT_BASE_DIR)' '$(QT_VERSION)\msvc2022_64'
+              if (-not (Test-Path (Join-Path $qtRoot 'bin\qmake.exe'))) {
+                $qmake = Get-ChildItem '$(QT_BASE_DIR)' -Recurse -Filter 'qmake.exe' | Select-Object -First 1
+                if (-not $qmake) { throw 'qmake.exe not found after Qt install' }
+                $qtRoot = Split-Path $qmake.DirectoryName -Parent
+              }
+              Write-Host "Using QT_ROOT_DIR=$qtRoot"
+              Write-Host "##vso[task.setvariable variable=QT_ROOT_DIR]$qtRoot"
+              Write-Host "##vso[task.prependpath]$qtRoot\bin"
+            displayName: 'Install and register Qt $(QT_VERSION)'
+
+          - task: Cache@2
+            inputs:
+              key: 'vcpkg-bincache-win-x64 | CMakeLists.txt | azure-pipelines.yml'
+              restoreKeys: |
+                vcpkg-bincache-win-x64 |
+              path: '$(Build.SourcesDirectory)\vcpkg_bincache'
+            displayName: 'Restore vcpkg binary cache'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              $env:VCPKG_DEFAULT_BINARY_CACHE = '$(Build.SourcesDirectory)\vcpkg_bincache'
+              New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+              if (-not (Test-Path 'vcpkg\vcpkg.exe')) {
+                git clone --depth 1 https://github.com/microsoft/vcpkg.git vcpkg
+                .\vcpkg\bootstrap-vcpkg.bat
+              }
+              .\vcpkg\vcpkg.exe install zstd openssl soundtouch --triplet x64-windows
+              .\vcpkg\vcpkg.exe install zlib "skia[gl,harfbuzz,icu,freetype,png]" --triplet x64-windows-static-md
+            displayName: 'Install vcpkg dependencies'
+
+          - task: Cache@2
+            inputs:
+              key: 'v2-deps-win | CMakeLists.txt'
+              path: '$(Build.SourcesDirectory)\.deps'
+            displayName: 'Cache FetchContent dependencies'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              Remove-Item -Recurse -Force '.deps\ffmpeg', '.deps\ffmpeg_extracted' -ErrorAction SilentlyContinue
+              New-Item -ItemType Directory -Force -Path '.deps\ffmpeg' | Out-Null
+              Invoke-WebRequest -Uri "https://github.com/$(FFMPEG_REPO)/releases/download/$(FFMPEG_TAG)/ffmpeg-$(FFMPEG_TAG)-win64-gpl-shared.zip" -OutFile 'ffmpeg.zip'
+              Expand-Archive -Path 'ffmpeg.zip' -DestinationPath '.deps\ffmpeg_extracted' -Force
+              $extractedRoot = (Get-ChildItem '.deps\ffmpeg_extracted')[0].FullName
+              Copy-Item -Path "$extractedRoot\*" -Destination '.deps\ffmpeg' -Recurse -Force
+              Remove-Item 'ffmpeg.zip' -Force
+            displayName: 'Fetch pinned FFmpeg $(FFMPEG_TAG)'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              $ccacheDir = Join-Path '$(Agent.TempDirectory)' 'ccache-bin'
+              $name = "ccache-$(CCACHE_VERSION)-windows-x86_64"
+              Invoke-WebRequest -Uri "https://github.com/ccache/ccache/releases/download/v$(CCACHE_VERSION)/$name.zip" -OutFile 'ccache.zip'
+              Expand-Archive -Path 'ccache.zip' -DestinationPath $ccacheDir -Force
+              Remove-Item 'ccache.zip' -Force
+              $ccacheBin = Join-Path $ccacheDir $name
+              Write-Host "##vso[task.prependpath]$ccacheBin"
+              & (Join-Path $ccacheBin 'ccache.exe') --version
+            displayName: 'Install ccache $(CCACHE_VERSION)'
+
+          - task: Cache@2
+            inputs:
+              key: 'ccache-windows-x64 | "$(Build.SourceVersion)"'
+              restoreKeys: |
+                ccache-windows-x64 |
+              path: '$(CCACHE_DIR)'
+            displayName: 'Restore ccache'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              New-Item -ItemType Directory -Force -Path '$(CCACHE_DIR)' | Out-Null
+              ccache -z
+              $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+              Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+              Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+              $zlibLib = @('libzs.lib', 'zs.lib') |
+                ForEach-Object { "$(Build.SourcesDirectory)\vcpkg\installed\x64-windows-static-md\lib\$_" } |
+                Where-Object { Test-Path $_ } | Select-Object -First 1
+              if (-not $zlibLib) { throw 'static-md zlib library not found' }
+              $prefixPath = "$(QT_ROOT_DIR);$(Build.SourcesDirectory)\.deps\ffmpeg;$(Build.SourcesDirectory)\vcpkg\installed\x64-windows-static-md"
+              cmake -B build -G Ninja `
+                -DCMAKE_BUILD_TYPE=Release `
+                -DCMAKE_TOOLCHAIN_FILE="$(Build.SourcesDirectory)\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+                -DCMAKE_PREFIX_PATH="$prefixPath" `
+                -DFETCHCONTENT_BASE_DIR="$(FETCHCONTENT_BASE_DIR)" `
+                -DZLIB_INCLUDE_DIR="$(Build.SourcesDirectory)\vcpkg\installed\x64-windows-static-md\include" `
+                -DZLIB_LIBRARY="$zlibLib" `
+                -DDRIFT_BUNDLE_ONNXRUNTIME=OFF `
+                -DDRIFT_BUNDLE_CORE_PACKAGES_ONLY=ON `
+                -DDRIFT_WITH_SKIA=ON `
+                -DDRIFT_DISTRIBUTION=windows `
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache `
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+                -DDRIFT_PCH=OFF `
+                -DCMAKE_POLICY_DEFAULT_CMP0141=NEW `
+                -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded `
+                -DDRIFT_CHANNEL=stable `
+                -DDRIFT_AUTO_UPDATE_TRANSLATIONS=OFF
+            displayName: 'Configure (CMake + Ninja)'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+              Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+              Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+              cmake --build build --parallel 3
+              ccache -s
+            displayName: 'Build (MSVC x64)'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              Invoke-WebRequest -Uri "https://github.com/pal1000/mesa-dist-win/releases/download/$(MESA_WIN_VERSION)/mesa3d-$(MESA_WIN_VERSION)-release-msvc.7z" -OutFile 'mesa.7z'
+              & "$env:ProgramFiles\7-Zip\7z.exe" x 'mesa.7z' -omesa -y | Out-Null
+              $dlls = Get-Item 'mesa\x64\opengl32.dll', 'mesa\x64\libgallium_wgl.dll'
+              $testDirs = Get-ChildItem 'build' -Recurse -Filter 'tst_*.exe' | ForEach-Object { $_.DirectoryName } | Sort-Object -Unique
+              if (-not $testDirs) { throw 'No tst_*.exe binaries found under build' }
+              foreach ($dir in $testDirs) {
+                Copy-Item $dlls.FullName $dir -Force
+              }
+            condition: and(succeeded(), ${{ parameters.runTests }})
+            displayName: 'Stage Mesa llvmpipe for GPU tests'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              $env:QT_FORCE_STDERR_LOGGING = '1'
+              $env:GALLIUM_DRIVER = 'llvmpipe'
+              $env:DRIFT_ONNXRUNTIME_DIR = '$(Build.SourcesDirectory)\.ort\runtime'
+              $env:DRIFT_STICKERS_DIR = '$(Build.SourcesDirectory)\drift-addons\staging\stickers-harmonyos\stickers'
+              $env:PATH = "$(Build.SourcesDirectory)\.deps\ffmpeg\bin;$(QT_ROOT_DIR)\bin;$env:PATH"
+              ctest --test-dir build --output-on-failure --output-log build\ctest.log `
+                --output-junit ctest-junit.xml --test-output-size-passed 20000000 --test-output-size-failed 20000000
+            condition: and(succeeded(), ${{ parameters.runTests }})
+            displayName: 'Run CTest suite'
+
+          - task: PublishTestResults@2
+            condition: and(succeededOrFailed(), ${{ parameters.runTests }})
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'build/ctest-junit.xml'
+              testRunTitle: 'Windows x64 CTest'
+              failTaskOnFailedTests: false
+            displayName: 'Publish Windows test results'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              New-Item -ItemType Directory -Force -Path 'dist\bin' | Out-Null
+              Copy-Item 'build\drift.exe' 'dist\bin' -Force
+              & "$(QT_ROOT_DIR)\bin\windeployqt.exe" --release --no-translations `
+                --no-opengl-sw --qmldir src\qml 'dist\bin\drift.exe'
+              Copy-Item 'vcpkg\installed\x64-windows\bin\*.dll' 'dist\bin' -Force
+              Copy-Item '.deps\ffmpeg\bin\*.dll' 'dist\bin' -Force
+              foreach ($dir in 'effects', 'transitions', 'effect-templates', 'audio-effects') {
+                if (Test-Path "build\$dir") {
+                  Copy-Item "build\$dir" 'dist\bin' -Recurse -Force
+                }
+              }
+              Remove-Item 'dist\bin\vc_redist*.exe' -Force -ErrorAction SilentlyContinue
+              $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+              $redist = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory |
+                Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                Sort-Object { [version]$_.Name } | Select-Object -Last 1
+              $crt = Get-ChildItem "$($redist.FullName)\x64" -Directory -Filter 'Microsoft.VC*.CRT' | Select-Object -First 1
+              if (-not $crt) { throw "No Microsoft.VC*.CRT under $($redist.FullName)\x64" }
+              Copy-Item "$($crt.FullName)\*.dll" 'dist\bin' -Force
+
+              # Verify multimedia plugin loads cleanly against the bundled FFmpeg DLLs
+              $env:QT_DEBUG_PLUGINS = '1'
+              $pluginRel = 'dist\bin\multimedia\ffmpegmediaplugin.dll'
+              if (-not (Test-Path $pluginRel)) { throw "$pluginRel not deployed" }
+              $plugin = (Resolve-Path $pluginRel).Path
+              Copy-Item 'build\audiobackendcheck.exe' 'dist\bin' -Force
+              Push-Location 'dist\bin'
+              try {
+                & .\audiobackendcheck.exe $plugin
+                $status = $LASTEXITCODE
+              } finally {
+                Pop-Location
+              }
+              Remove-Item 'dist\bin\audiobackendcheck.exe' -Force
+              if ($status -ne 0) { throw 'ffmpegmediaplugin.dll failed to load against staged DLLs' }
+            displayName: 'Stage runtime files, MSVC CRT, and verify audio plugin'
+
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              $iscc = Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1
+              if (-not $iscc -and (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+                $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+              }
+              if (-not $iscc) {
+                choco install innosetup -y --no-progress
+                $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+              }
+              if (-not (Test-Path $iscc)) { throw 'ISCC.exe not available' }
+              & $iscc "/DMyAppVersion=$(ASSET_VERSION)" "/DMyAppSource=$(Build.SourcesDirectory)\dist\bin" 'installer\windows\Drift.iss'
+              $built = Get-ChildItem 'installer\windows\output\*.exe' | Select-Object -First 1
+              if (-not $built) { throw 'Inno Setup produced no installer exe' }
+              Copy-Item $built.FullName "dist\Drift-Setup-$(ASSET_VERSION)-x64.exe" -Force
+
+              New-Item -ItemType Directory -Force -Path 'portable\Drift Mojave', 'dist\portable' | Out-Null
+              Copy-Item 'dist\bin\*' 'portable\Drift Mojave' -Recurse -Force
+              & "$env:ProgramFiles\7-Zip\7z.exe" a -tzip -mx=9 `
+                "dist\portable\Drift-Portable-$(ASSET_VERSION)-x64.zip" '.\portable\Drift Mojave'
+            displayName: 'Build Inno Setup installer and portable zip'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.SourcesDirectory)/dist/Drift-Setup-$(ASSET_VERSION)-x64.exe'
+              artifact: 'windows-installer-x64'
+            displayName: 'Publish Windows installer artifact'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.SourcesDirectory)/dist/portable'
+              artifact: 'windows-portable-x64'
+            displayName: 'Publish Windows portable zip artifact'
+
+      # -----------------------------------------------------------------------
+      # Linux (ubuntu-22.04 x86_64 + Skia + Xvfb CTest + AppImage)
+      # -----------------------------------------------------------------------
+      - job: Linux_x86_64
+        displayName: 'Linux AppImage (x86_64)'
+        condition: or(eq('${{ parameters.platforms }}', 'desktop'), eq('${{ parameters.platforms }}', 'linux'))
+        timeoutInMinutes: 360
+        pool:
+          vmImage: 'ubuntu-22.04'
+        variables:
+          QT_BASE_DIR: '$(Pipeline.Workspace)/Qt'
+          CCACHE_DIR: '$(Pipeline.Workspace)/ccache'
+          CCACHE_MAXSIZE: '700M'
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - bash: |
+              set -euo pipefail
+              ver="$(printf '%s' '${{ parameters.version }}' | xargs)"
+              if [ -z "$ver" ]; then
+                ver="$(grep -oP '^project\(Drift VERSION \K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)"
+              fi
+              echo "Building Drift Mojave Linux x86_64 version: ${ver}"
+              echo "##vso[task.setvariable variable=ASSET_VERSION]${ver}"
+            displayName: 'Resolve build version'
+
+          - bash: |
+              set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+              sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure-cli*
+              sudo apt-get update -o Acquire::Retries=3
+              sudo apt-get install -y -o Acquire::Retries=3 \
+                build-essential ninja-build pkg-config git xvfb zsync zstd ccache fonts-noto-core python3-pip \
+                libgl1-mesa-dev libegl1-mesa-dev libglib2.0-dev libdbus-1-dev \
+                libzstd-dev libssl-dev libsoundtouch-dev zlib1g-dev \
+                libpulse-dev libasound2-dev \
+                libva2 libva-drm2 libva-x11-2 \
+                libfontconfig1-dev libfreetype6-dev libxkbcommon-dev libxkbcommon-x11-dev \
+                clang-15 lld libharfbuzz-dev libexpat1-dev libpng-dev \
+                libwayland-dev \
+                libx11-dev libx11-xcb-dev libxext-dev libxfixes-dev libxi-dev libxrender-dev \
+                libxcb1-dev libxcb-glx0-dev libxcb-keysyms1-dev libxcb-image0-dev libxcb-shm0-dev \
+                libxcb-icccm4-dev libxcb-sync-dev libxcb-xfixes0-dev libxcb-shape0-dev \
+                libxcb-randr0-dev libxcb-render-util0-dev libxcb-xinerama0-dev libxcb-cursor-dev
+            displayName: 'Install native build dependencies'
+
+          - bash: |
+              set -euo pipefail
+              git clone --filter=blob:none --sparse --depth 1 '$(ADDONS_REPO)' drift-addons
+              git -C drift-addons sparse-checkout set \
+                staging/fonts-essentials/fonts \
+                staging/stickers-harmonyos/emoji-font \
+                staging/stickers-harmonyos/stickers \
+                staging/effects-core/effects
+              cp -r drift-addons/staging/fonts-essentials/fonts fonts
+              cp -r drift-addons/staging/stickers-harmonyos/emoji-font emoji-fonts
+              ln -s "$(Build.SourcesDirectory)/drift-addons" "$(Build.SourcesDirectory)/../drift-addons"
+
+              dl="$(Agent.TempDirectory)/driftpkg"
+              mkdir -p "$dl"
+              for pkg in deepfilternet.v3-1.0.0.driftpkg silero.vad-1.0.0.driftpkg onnxruntime.cpu.linux-x64-1.0.0.driftpkg; do
+                curl -fsSL "$(ADDONS_PKG_URL)/$pkg" -o "$dl/$pkg"
+              done
+              python3 scripts/unpack-driftpkg.py "$dl/deepfilternet.v3-1.0.0.driftpkg" "$(Build.SourcesDirectory)"
+              python3 scripts/unpack-driftpkg.py "$dl/silero.vad-1.0.0.driftpkg" "$(Build.SourcesDirectory)/drift-addons/staging/silero-vad"
+              python3 scripts/unpack-driftpkg.py "$dl/onnxruntime.cpu.linux-x64-1.0.0.driftpkg" "$(Build.SourcesDirectory)/.ort"
+              test -d models/deepfilternet3
+              test -f drift-addons/staging/silero-vad/models/silero-vad/silero_vad.onnx
+              test -f .ort/runtime/lib/libonnxruntime.so
+            displayName: 'Stage Drift-Addons, test models, and ONNX Runtime'
+
+          - task: Cache@2
+            inputs:
+              key: 'qt-linux-x64 | "$(QT_VERSION)" | "$(QT_MODULES)"'
+              path: '$(QT_BASE_DIR)'
+              cacheHitVar: 'QT_CACHE_HIT'
+            displayName: 'Cache Qt $(QT_VERSION)'
+
+          - bash: |
+              set -euo pipefail
+              if [ "$(QT_CACHE_HIT)" != "true" ]; then
+                python3 -m pip install --upgrade pip
+                python3 -m pip install aqtinstall
+                python3 -m aqt install-qt linux desktop "$(QT_VERSION)" linux_gcc_64 -m qtmultimedia qtimageformats -O "$(QT_BASE_DIR)"
+              fi
+              qtRoot="$(QT_BASE_DIR)/$(QT_VERSION)/gcc_64"
+              if [ ! -x "$qtRoot/bin/qmake" ]; then
+                qmakeBin="$(find "$(QT_BASE_DIR)" -maxdepth 4 -type f -name qmake | head -n1)"
+                qtRoot="$(dirname "$(dirname "$qmakeBin")")"
+              fi
+              echo "Using QT_ROOT_DIR=${qtRoot}"
+              echo "##vso[task.setvariable variable=QT_ROOT_DIR]${qtRoot}"
+              echo "##vso[task.prependpath]${qtRoot}/bin"
+            displayName: 'Install and register Qt $(QT_VERSION)'
+
+          - task: Cache@2
+            inputs:
+              key: 'v2-deps-linux-x86_64 | CMakeLists.txt'
+              path: '$(Build.SourcesDirectory)/.deps'
+            displayName: 'Cache FetchContent dependencies'
+
+          - task: Cache@2
+            inputs:
+              key: 'v2-skia-linux-x64 | third_party/build-skia.sh'
+              path: '$(Build.SourcesDirectory)/third_party/prebuilt/skia/linux-x64'
+              cacheHitVar: 'SKIA_CACHE_HIT'
+            displayName: 'Restore Skia cache'
+
+          - bash: |
+              set -euo pipefail
+              if [ "$(SKIA_CACHE_HIT)" != "true" ]; then
+                JOBS="$(nproc)" CC=clang-15 CXX=clang++-15 SKIA_SYSTEM_ICU=0 third_party/build-skia.sh linux-x64
+                rm -rf third_party/src
+              fi
+            displayName: 'Build Skia'
+
+          - bash: |
+              set -euo pipefail
+              rm -rf "$(Build.SourcesDirectory)/.deps/ffmpeg"
+              mkdir -p "$(Build.SourcesDirectory)/.deps/ffmpeg"
+              curl -fsSL "https://github.com/$(FFMPEG_REPO)/releases/download/$(FFMPEG_TAG)/ffmpeg-$(FFMPEG_TAG)-linux64-gpl-shared.tar.xz" \
+                | tar -xJf - --strip-components=1 -C "$(Build.SourcesDirectory)/.deps/ffmpeg"
+            displayName: 'Fetch pinned FFmpeg $(FFMPEG_TAG)'
+
+          - task: Cache@2
+            inputs:
+              key: 'ccache-appimage-x86_64 | "$(Build.SourceVersion)"'
+              restoreKeys: |
+                ccache-appimage-x86_64 |
+              path: '$(CCACHE_DIR)'
+            displayName: 'Restore ccache'
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(CCACHE_DIR)"
+              ccache -z
+              export PKG_CONFIG_PATH="$(Build.SourcesDirectory)/.deps/ffmpeg/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+              cmake -B build -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH="$(QT_ROOT_DIR);$(Build.SourcesDirectory)/.deps/ffmpeg" \
+                -DFETCHCONTENT_BASE_DIR="$(FETCHCONTENT_BASE_DIR)" \
+                -DDRIFT_BUNDLE_ONNXRUNTIME=OFF \
+                -DDRIFT_BUNDLE_CORE_PACKAGES_ONLY=ON \
+                -DDRIFT_WITH_SKIA=ON \
+                -DDRIFT_DISTRIBUTION=appimage \
+                -DDRIFT_LINKER=lld \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                -DDRIFT_CHANNEL=stable \
+                -DDRIFT_AUTO_UPDATE_TRANSLATIONS=OFF
+              cmake --build build --parallel
+              ccache -s
+            displayName: 'Configure and build'
+
+          - bash: |
+              set -euo pipefail
+              export DRIFT_ONNXRUNTIME_DIR="$(Build.SourcesDirectory)/.ort/runtime"
+              export DRIFT_STICKERS_DIR="$(Build.SourcesDirectory)/drift-addons/staging/stickers-harmonyos/stickers"
+              export LD_LIBRARY_PATH="$(Build.SourcesDirectory)/.deps/ffmpeg/lib:${LD_LIBRARY_PATH:-}"
+              export PATH="$(Build.SourcesDirectory)/.deps/ffmpeg/bin:${PATH}"
+              QT_QPA_PLATFORM=xcb xvfb-run -a -s "-screen 0 1280x1024x24" \
+                ctest --test-dir build --output-on-failure --output-log build/ctest.log \
+                --output-junit ctest-junit.xml --test-output-size-passed 20000000 --test-output-size-failed 20000000
+            condition: and(succeeded(), ${{ parameters.runTests }})
+            displayName: 'Run CTest suite under Xvfb'
+
+          - task: PublishTestResults@2
+            condition: and(succeededOrFailed(), ${{ parameters.runTests }})
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'build/ctest-junit.xml'
+              testRunTitle: 'Linux x86_64 CTest'
+              failTaskOnFailedTests: false
+            displayName: 'Publish Linux test results'
+
+          - bash: |
+              set -euo pipefail
+              cmake --install build --prefix "$(Build.SourcesDirectory)/AppDir/usr" --component drift
+              mkdir -p "$(Build.SourcesDirectory)/dist"
+
+              app_id="org.driftmojave.Drift"
+              icon="$(Agent.TempDirectory)/${app_id}.png"
+              cp flatpak/share/icons/hicolor/256x256/apps/org.cutwire.Drift.png "${icon}"
+
+              wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage -O linuxdeploy.AppImage
+              wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage -O linuxdeploy-plugin-qt.AppImage
+              chmod +x linuxdeploy.AppImage linuxdeploy-plugin-qt.AppImage
+
+              export APPIMAGE_EXTRACT_AND_RUN=1
+              export QMAKE="$(QT_ROOT_DIR)/bin/qmake"
+              export VERSION="$(ASSET_VERSION)"
+              export LDAI_UPDATE_INFORMATION="gh-releases-zsync|aedmark|Drift-Mojave|latest|Drift-*-x86_64.AppImage.zsync"
+              export LDAI_OUTPUT="Drift-$(ASSET_VERSION)-x86_64.AppImage"
+              export QML_SOURCES_PATHS="$(Build.SourcesDirectory)/src/qml"
+              export LD_LIBRARY_PATH="$(Build.SourcesDirectory)/.deps/ffmpeg/lib:$(QT_ROOT_DIR)/lib:${LD_LIBRARY_PATH:-}"
+              export EXTRA_PLATFORM_PLUGINS="libqwayland.so"
+              export EXTRA_QT_MODULES="waylandcompositor"
+
+              ./linuxdeploy.AppImage --appdir AppDir --plugin qt --output appimage \
+                -d "build/metadata/${app_id}.desktop" \
+                -i "${icon}" \
+                -e AppDir/usr/bin/drift \
+                -l /usr/lib/x86_64-linux-gnu/libssl.so.3 \
+                -l /usr/lib/x86_64-linux-gnu/libcrypto.so.3
+              test -f "${LDAI_OUTPUT}.zsync"
+              mv "${LDAI_OUTPUT}" "${LDAI_OUTPUT}.zsync" dist/
+            displayName: 'Build Linux AppImage'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.SourcesDirectory)/dist'
+              artifact: 'linux-appimage-x86_64'
+            displayName: 'Publish Linux AppImage artifact'
+
+      # -----------------------------------------------------------------------
+      # macOS (Homebrew Qt + FFmpeg plugin + Skia + ad-hoc DMG)
+      # -----------------------------------------------------------------------
+      - job: macOS
+        displayName: 'macOS disk image'
+        condition: or(eq('${{ parameters.platforms }}', 'desktop'), eq('${{ parameters.platforms }}', 'macos'))
+        timeoutInMinutes: 360
+        pool:
+          vmImage: 'macOS-15'
+        variables:
+          CCACHE_DIR: '$(Pipeline.Workspace)/ccache'
+          CCACHE_MAXSIZE: '700M'
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - bash: |
+              set -euo pipefail
+              ver="$(printf '%s' '${{ parameters.version }}' | xargs)"
+              if [ -z "$ver" ]; then
+                ver="$(grep -oE '^project\(Drift VERSION [0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt | awk '{print $3}')"
+              fi
+              arch="$(uname -m)"
+              if [ "$arch" = "arm64" ]; then
+                skia_target="mac-arm64"
+                ort_pkg="onnxruntime.cpu.osx-arm64-1.0.0.driftpkg"
+              else
+                skia_target="mac-x64"
+                ort_pkg="onnxruntime.cpu.osx-x64-1.0.0.driftpkg"
+              fi
+              echo "Building Drift Mojave macOS ($arch) version: ${ver}"
+              echo "##vso[task.setvariable variable=ASSET_VERSION]${ver}"
+              echo "##vso[task.setvariable variable=HOST_ARCH]${arch}"
+              echo "##vso[task.setvariable variable=SKIA_TARGET]${skia_target}"
+              echo "##vso[task.setvariable variable=ORT_PKG]${ort_pkg}"
+            displayName: 'Resolve build version and architecture'
+
+          - bash: |
+              set -euo pipefail
+              brew update
+              brew install qt ffmpeg zstd openssl@3 sound-touch ninja ccache
+              qt_ver="$(brew list --versions qtmultimedia | awk '{print $NF}')"
+              ff_ver="$(brew list --versions ffmpeg | awk '{print $NF}')"
+              plugin_hash="$(shasum -a 256 third_party/build-qt-ffmpeg-plugin.sh | awk '{print $1}')"
+              echo "##vso[task.setvariable variable=QT_FFMPEG_CACHE_KEY]v1-qt-ffmpeg-$(HOST_ARCH)-${qt_ver}-${ff_ver}-${plugin_hash}"
+            displayName: 'Install Homebrew dependencies'
+
+          - bash: |
+              set -euo pipefail
+              git clone --filter=blob:none --sparse --depth 1 '$(ADDONS_REPO)' drift-addons
+              git -C drift-addons sparse-checkout set \
+                staging/fonts-essentials/fonts \
+                staging/stickers-harmonyos/emoji-font \
+                staging/stickers-harmonyos/stickers \
+                staging/effects-core/effects
+              cp -r drift-addons/staging/fonts-essentials/fonts "$(Build.SourcesDirectory)/fonts"
+              cp -r drift-addons/staging/stickers-harmonyos/emoji-font "$(Build.SourcesDirectory)/emoji-fonts"
+              ln -s "$(Build.SourcesDirectory)/drift-addons" "$(Build.SourcesDirectory)/../drift-addons"
+
+              dl="$(Agent.TempDirectory)/driftpkg"
+              mkdir -p "$dl"
+              for pkg in deepfilternet.v3-1.0.0.driftpkg silero.vad-1.0.0.driftpkg "$(ORT_PKG)"; do
+                curl -fsSL "$(ADDONS_PKG_URL)/$pkg" -o "$dl/$pkg"
+              done
+              python3 scripts/unpack-driftpkg.py "$dl/deepfilternet.v3-1.0.0.driftpkg" "$(Build.SourcesDirectory)"
+              python3 scripts/unpack-driftpkg.py "$dl/silero.vad-1.0.0.driftpkg" "$(Build.SourcesDirectory)/drift-addons/staging/silero-vad"
+              python3 scripts/unpack-driftpkg.py "$dl/$(ORT_PKG)" "$(Build.SourcesDirectory)/.ort"
+              test -d "$(Build.SourcesDirectory)/models/deepfilternet3"
+              test -f "$(Build.SourcesDirectory)/drift-addons/staging/silero-vad/models/silero-vad/silero_vad.onnx"
+              test -f "$(Build.SourcesDirectory)/.ort/runtime/lib/libonnxruntime.dylib"
+            displayName: 'Stage Drift-Addons, test models, and ONNX Runtime'
+
+          - task: Cache@2
+            inputs:
+              key: '$(QT_FFMPEG_CACHE_KEY)'
+              path: '$(Build.SourcesDirectory)/third_party/prebuilt/qt-ffmpeg-plugin/$(HOST_ARCH)'
+            displayName: 'Restore Qt FFmpeg plugin cache'
+
+          - bash: third_party/build-qt-ffmpeg-plugin.sh
+            displayName: 'Build Qt FFmpeg plugin'
+
+          - task: Cache@2
+            inputs:
+              key: 'v2-skia-$(SKIA_TARGET) | third_party/build-skia.sh'
+              path: '$(Build.SourcesDirectory)/third_party/prebuilt/skia/$(SKIA_TARGET)'
+              cacheHitVar: 'SKIA_CACHE_HIT'
+            displayName: 'Restore Skia cache'
+
+          - bash: |
+              set -euo pipefail
+              if [ "$(SKIA_CACHE_HIT)" != "true" ]; then
+                JOBS="$(sysctl -n hw.ncpu)" third_party/build-skia.sh "$(SKIA_TARGET)"
+                rm -rf third_party/src
+              fi
+            displayName: 'Build Skia'
+
+          - task: Cache@2
+            inputs:
+              key: 'v2-deps-macos-$(HOST_ARCH) | CMakeLists.txt'
+              path: '$(Build.SourcesDirectory)/.deps'
+            displayName: 'Cache FetchContent dependencies'
+
+          - task: Cache@2
+            inputs:
+              key: 'ccache-macos-$(HOST_ARCH) | "$(Build.SourceVersion)"'
+              restoreKeys: |
+                ccache-macos-$(HOST_ARCH) |
+              path: '$(CCACHE_DIR)'
+            displayName: 'Restore ccache'
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(CCACHE_DIR)"
+              ccache -z
+              cmake -B build-macos -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH="$(brew --prefix qt);$(brew --prefix openssl@3);$(brew --prefix)" \
+                -DFETCHCONTENT_BASE_DIR="$(FETCHCONTENT_BASE_DIR)" \
+                -DDRIFT_BUNDLE_ONNXRUNTIME=OFF \
+                -DDRIFT_BUNDLE_CORE_PACKAGES_ONLY=ON \
+                -DDRIFT_WITH_SKIA=ON \
+                -DDRIFT_DISTRIBUTION=macos \
+                -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+                -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                -DDRIFT_CHANNEL=stable \
+                -DDRIFT_AUTO_UPDATE_TRANSLATIONS=OFF
+              cmake --build build-macos --parallel
+              ccache -s
+            displayName: 'Configure and build'
+
+          - bash: |
+              set -euo pipefail
+              export DRIFT_ONNXRUNTIME_DIR="$(Build.SourcesDirectory)/.ort/runtime"
+              export DRIFT_STICKERS_DIR="$(Build.SourcesDirectory)/drift-addons/staging/stickers-harmonyos/stickers"
+              ctest --test-dir build-macos --output-on-failure --output-log build-macos/ctest.log \
+                --output-junit ctest-junit.xml --test-output-size-passed 20000000 --test-output-size-failed 20000000
+            condition: and(succeeded(), ${{ parameters.runTests }})
+            displayName: 'Run CTest suite'
+
+          - task: PublishTestResults@2
+            condition: and(succeededOrFailed(), ${{ parameters.runTests }})
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: 'build-macos/ctest-junit.xml'
+              testRunTitle: 'macOS CTest'
+              failTaskOnFailedTests: false
+            displayName: 'Publish macOS test results'
+
+          - bash: |
+              set -euo pipefail
+              scripts/package-macos.sh --build-dir build-macos --skip-build --channel stable
+              want="dist/Drift-$(ASSET_VERSION)-$(HOST_ARCH).dmg"
+              for f in dist/Drift-*.dmg; do
+                [ "$f" = "$want" ] || mv "$f" "$want"
+              done
+            displayName: 'Build ad-hoc macOS disk image'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Build.SourcesDirectory)/dist'
+              artifact: 'macos-dmg'
+            displayName: 'Publish macOS disk image artifact'
+
+  # ---------------------------------------------------------------------------
+  # Stage 2: Aggregate SHA256SUMS across produced artifacts
+  # ---------------------------------------------------------------------------
+  - stage: ReleaseChecksums
+    displayName: 'Generate Release Checksums'
+    dependsOn: BuildDesktop
+    condition: succeeded()
+    jobs:
+      - job: Checksums
+        displayName: 'Compute SHA256SUMS'
+        pool:
+          vmImage: 'ubuntu-22.04'
+        steps:
+          - checkout: none
+
+          - download: current
+            displayName: 'Download produced build artifacts'
+
+          - bash: |
+              set -euo pipefail
+              mkdir -p "$(Pipeline.Workspace)/checksums"
+              mapfile -t assets < <(find "$(Pipeline.Workspace)" -type f \( -name '*.AppImage' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' \) | sort)
+              if [ "${#assets[@]}" -eq 0 ]; then
+                echo "::error::No release artifacts found to checksum"
+                exit 1
+              fi
+              sha256sum "${assets[@]}" | sed -E 's#  .*/#  #' > "$(Pipeline.Workspace)/checksums/SHA256SUMS"
+              cat "$(Pipeline.Workspace)/checksums/SHA256SUMS"
+            displayName: 'Write SHA256SUMS'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(Pipeline.Workspace)/checksums/SHA256SUMS'
+              artifact: 'release-checksums'
+            displayName: 'Publish SHA256SUMS artifact'
