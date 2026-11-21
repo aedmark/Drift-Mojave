@@ -113,6 +113,93 @@ Item {
 
         property int renameIndex: -1
 
+        // Timeline Regions (Tier 3A)
+        Repeater {
+            model: EditorState.regions
+            delegate: Rectangle {
+                id: regionBar
+                required property var modelData
+                readonly property real startPx: (modelData.startSeconds || 0) * seekStrip.panel.pxPerSecond
+                readonly property real endPx: (modelData.endSeconds || 0) * seekStrip.panel.pxPerSecond
+                x: startPx
+                y: 2
+                width: Math.max(8, endPx - startPx)
+                height: Math.max(10, bookmarkRow.height - 4)
+                radius: 3
+                color: modelData.color && modelData.color.length > 0 ? modelData.color : "#3B82F6"
+                opacity: regionMouse.containsMouse ? 0.55 : 0.35
+                border.width: 1
+                border.color: modelData.color && modelData.color.length > 0 ? modelData.color : "#60A5FA"
+                z: 0
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 4
+                    anchors.rightMargin: 4
+                    text: regionBar.modelData.label || ""
+                    color: "#FFFFFF"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSize2xs
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    visible: parent.width >= 26
+                }
+
+                MouseArea {
+                    id: regionMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: (mouse) => {
+                        if (mouse.button === Qt.RightButton) {
+                            regionContextMenu.targetRegionId = regionBar.modelData.id || ""
+                            regionContextMenu.targetRegionLabel = regionBar.modelData.label || ""
+                            regionContextMenu.popup(regionBar, mouse.x, mouse.y)
+                        } else {
+                            EditorState.jumpToRegion(regionBar.modelData.id || "", true)
+                        }
+                    }
+                }
+
+                ThemedToolTip {
+                    visible: regionMouse.containsMouse && !regionContextMenu.opened
+                    text: qsTr("Region: %1 (%2s – %3s) — Click to select work area, right-click for options")
+                        .arg(regionBar.modelData.label || "")
+                        .arg((regionBar.modelData.startSeconds || 0).toFixed(2))
+                        .arg((regionBar.modelData.endSeconds || 0).toFixed(2))
+                }
+            }
+        }
+
+        ThemedContextMenu {
+            id: regionContextMenu
+            property string targetRegionId: ""
+            property string targetRegionLabel: ""
+
+            ThemedMenuItem {
+                enabled: false
+                text: qsTr("Region — %1").arg(regionContextMenu.targetRegionLabel)
+            }
+            ThemedMenuSeparator {}
+            ThemedMenuItem {
+                text: qsTr("Set work area to region")
+                onTriggered: EditorState.jumpToRegion(regionContextMenu.targetRegionId, true)
+            }
+            ThemedMenuItem {
+                text: qsTr("Add region from work area (Alt+Shift+R)")
+                enabled: EditorState.workAreaActive
+                onTriggered: EditorState.addRegionFromWorkArea()
+            }
+            ThemedMenuItem {
+                text: qsTr("Remove region")
+                icon.name: Theme.icons.trash
+                onTriggered: EditorState.removeRegion(regionContextMenu.targetRegionId)
+            }
+        }
+
         Repeater {
             model: EditorState.bookmarks
             delegate: TimelineBookmarkMarker {

@@ -746,6 +746,255 @@ void AppController::exportWithSettings(const QUrl &outputUrl, const QVariantMap 
     });
 }
 
+namespace {
+QString sanitizeFilenameSegment(const QString &input, const QString &fallback)
+{
+    QString out = input.trimmed();
+    static const QString kIllegal = QStringLiteral("/\\:*?\"<>|");
+    for (QChar &ch : out) {
+        if (kIllegal.contains(ch) || ch.unicode() < 32)
+            ch = QLatin1Char('_');
+    }
+    while (out.endsWith(QLatin1Char('.')) || out.endsWith(QLatin1Char(' ')))
+        out.chop(1);
+    return out.isEmpty() ? fallback : out;
+}
+
+QString formatBatchRegionFilenameHelper(const QString &templateStr, const QString &projectName,
+                                        const QString &regionLabel, int oneBasedIndex,
+                                        const QString &ext)
+{
+    QString tmpl = templateStr.trimmed();
+    if (tmpl.isEmpty())
+        tmpl = QStringLiteral("{Project}_{Region}_{Index}.{ext}");
+
+    const QString safeProject = sanitizeFilenameSegment(projectName, QStringLiteral("Project"));
+    const QString safeRegion = sanitizeFilenameSegment(regionLabel, QStringLiteral("Region_%1").arg(oneBasedIndex));
+    const QString paddedIndex = QStringLiteral("%1").arg(qMax(1, oneBasedIndex), 2, 10, QLatin1Char('0'));
+    QString safeExt = ext.trimmed();
+    if (safeExt.startsWith(QLatin1Char('.')))
+        safeExt.remove(0, 1);
+    if (safeExt.isEmpty())
+        safeExt = QStringLiteral("mp4");
+
+    tmpl.replace(QStringLiteral("{Project}"), safeProject);
+    tmpl.replace(QStringLiteral("{Region}"), safeRegion);
+    tmpl.replace(QStringLiteral("{Index}"), paddedIndex);
+    tmpl.replace(QStringLiteral("{ext}"), safeExt);
+    QString result = sanitizeFilenameSegment(tmpl, QStringLiteral("%1_%2.%3").arg(safeProject, paddedIndex, safeExt));
+    if (!result.endsWith(QLatin1Char('.') + safeExt, Qt::CaseInsensitive))
+        result += QLatin1Char('.') + safeExt;
+    return result;
+}
+} // namespace
+
+QString AppController::previewBatchRegionFilename(const QString &templateStr,
+                                                  const QString &regionLabel, int oneBasedIndex,
+                                                  const QString &ext) const
+{
+    return formatBatchRegionFilenameHelper(templateStr, m_project.name(), regionLabel, oneBasedIndex, ext);
+}
+
+bool AppController::batchExportRegions(const QUrl &outputDirUrl, const QString &filenameTemplate,
+                                       const QVariantList &regionIds, const QVariantMap &settings)
+{
+    if (m_exportInProgress) {
+        setLastMessage(tr("Export already in progress"), QStringLiteral("warning"));
+        return false;
+    }
+
+    QString dirPath = outputDirUrl.isLocalFile() ? outputDirUrl.toLocalFile() : outputDirUrl.toString();
+    dirPath = dirPath.trimmed();
+    if (dirPath.isEmpty()) {
+        setLastMessage(tr("Choose an output folder for batch render"), QStringLiteral("warning"));
+        return false;
+    }
+
+    QSet<QString> wantedIds;
+    for (const QVariant &v : regionIds) {
+        const QString id = v.toString();
+        if (!id.isEmpty())
+            wantedIds.insert(id);
+    }
+
+    QList<drift::Region> targetRegions;
+    for (const drift::Region &r : m_project.regions()) {
+        if (r.endUs <= r.startUs)
+            continue;
+        if (wantedIds.isEmpty() || wantedIds.contains(r.id))
+            targetRegions.append(r);
+    }
+    if (targetRegions.isEmpty()) {
+        setLastMessage(tr("No regions selected for batch render"), QStringLiteral("warning"));
+        return false;
+    }
+    std::stable_sort(targetRegions.begin(), targetRegions.end(),
+                     [](const drift::Region &a, const drift::Region &b) {
+                         return a.startUs < b.startUs;
+                     });
+
+    if (!QDir().mkpath(dirPath)) {
+        setLastMessage(tr("Could not create output folder"), QStringLiteral("error"));
+        return false;
+    }
+
+    ExportSettings baseSettings = Exporter::settingsFromMap(settings);
+    const QString bakeMode = settings.value(QStringLiteral("useBakes"), true).toBool()
+        ? settings.value(QStringLiteral("bakes"), QStringLiteral("all")).toString()
+        : QStringLiteral("none");
+    baseSettings.useBakes = bakeMode != QLatin1String("none");
+    if (baseSettings.useBakes && m_bakes)
+        baseSettings.bakes = m_bakes->exportPool(bakeMode != QLatin1String("fresh"), {});
+
+    const QString container =
+        baseSettings.gifExport
+            ? QStringLiteral("gif")
+            : baseSettings.audioOnly
+                  ? Exporter::preferredAudioOnlyContainer(baseSettings.audioCodecId)
+                  : Exporter::preferredContainer(baseSettings.videoCodecId, baseSettings.audioCodecId);
+    const QString suffix = Exporter::defaultSuffix(container, baseSettings.audioOnly);
+
+    setPlaying(false);
+    m_exportCancel.storeRelaxed(0);
+    m_exportProgress = 0.0;
+    m_exportInProgress = true;
+    m_exportByAgent = m_exportRequestedByAgent;
+    m_exportAudioOnly = baseSettings.audioOnly && !baseSettings.gifExport;
+    m_batchExportStatus = QVariantMap{
+        {QStringLiteral("active"), true},
+        {QStringLiteral("currentIndex"), 0},
+        {QStringLiteral("totalCount"), int(targetRegions.size())},
+        {QStringLiteral("currentRegionName"), targetRegions.first().label},
+        {QStringLiteral("succeededCount"), 0},
+        {QStringLiteral("failedCount"), 0},
+        {QStringLiteral("outputPaths"), QStringList{}},
+    };
+    emit batchExportStatusChanged();
+    emit exportProgressChanged();
+    emit exportInProgressChanged();
+    setLastMessage(tr("Batch rendering %1 regions…").arg(targetRegions.size()));
+
+    const drift::Project snapshot = m_project.exportView({});
+    const QString projectName = m_project.name();
+
+    m_exportFuture = QtConcurrent::run(
+        [this, snapshot, baseSettings, targetRegions, dirPath, filenameTemplate, projectName, suffix]() {
+            Exporter::BackgroundHold hold(QStringLiteral("Batch rendering regions"), /*cancellable=*/true);
+            const int total = int(targetRegions.size());
+            int succeeded = 0;
+            int failed = 0;
+            QStringList outputs;
+            QSet<QString> usedPaths;
+            QString lastError;
+            bool cancelled = false;
+
+            for (int i = 0; i < total; ++i) {
+                if (m_exportCancel.loadRelaxed() != 0 || Exporter::BackgroundHold::cancelRequested()) {
+                    cancelled = true;
+                    break;
+                }
+                const drift::Region &region = targetRegions.at(i);
+                const QString baseName = formatBatchRegionFilenameHelper(
+                    filenameTemplate, projectName, region.label, i + 1, suffix);
+                QString outPath = QDir(dirPath).filePath(baseName);
+                int dedup = 2;
+                while (usedPaths.contains(outPath)) {
+                    QFileInfo fi(baseName);
+                    outPath = QDir(dirPath).filePath(
+                        QStringLiteral("%1_%2.%3").arg(fi.completeBaseName()).arg(dedup++).arg(fi.suffix()));
+                }
+                usedPaths.insert(outPath);
+
+                QMetaObject::invokeMethod(
+                    this,
+                    [this, i, total, label = region.label, succeeded, failed, outputs]() {
+                        m_batchExportStatus = QVariantMap{
+                            {QStringLiteral("active"), true},
+                            {QStringLiteral("currentIndex"), i},
+                            {QStringLiteral("totalCount"), total},
+                            {QStringLiteral("currentRegionName"), label},
+                            {QStringLiteral("succeededCount"), succeeded},
+                            {QStringLiteral("failedCount"), failed},
+                            {QStringLiteral("outputPaths"), outputs},
+                        };
+                        emit batchExportStatusChanged();
+                    },
+                    Qt::QueuedConnection);
+
+                ExportSettings regionSettings = baseSettings;
+                regionSettings.startUs = region.startUs;
+                regionSettings.endUs = region.endUs;
+
+                QString error;
+                const auto report = [this, i, total](double fraction) {
+                    const double overall = (double(i) + qBound(0.0, fraction, 1.0)) / double(qMax(1, total));
+                    QMetaObject::invokeMethod(
+                        this,
+                        [this, overall]() {
+                            m_exportProgress = overall;
+                            emit exportProgressChanged();
+                        },
+                        Qt::QueuedConnection);
+                    return m_exportCancel.loadRelaxed() == 0 && !Exporter::BackgroundHold::cancelRequested();
+                };
+
+                const bool ok = Exporter::run(snapshot, regionSettings, outPath, &error, report);
+                if (ok) {
+                    ++succeeded;
+                    outputs.append(outPath);
+                } else {
+                    if (error == QLatin1String("Export cancelled") || error == QLatin1String("Cancelled")
+                        || m_exportCancel.loadRelaxed() != 0) {
+                        cancelled = true;
+                        break;
+                    }
+                    ++failed;
+                    lastError = error;
+                }
+            }
+
+            const bool allOk = !cancelled && failed == 0 && succeeded == total;
+            QMetaObject::invokeMethod(
+                this,
+                [this, allOk, cancelled, succeeded, failed, total, outputs, lastError]() {
+                    m_exportInProgress = false;
+                    m_exportProgress = allOk ? 1.0 : 0.0;
+                    m_batchExportStatus = QVariantMap{
+                        {QStringLiteral("active"), false},
+                        {QStringLiteral("currentIndex"), total},
+                        {QStringLiteral("totalCount"), total},
+                        {QStringLiteral("currentRegionName"), QString()},
+                        {QStringLiteral("succeededCount"), succeeded},
+                        {QStringLiteral("failedCount"), failed},
+                        {QStringLiteral("outputPaths"), outputs},
+                    };
+                    for (const QString &path : outputs) {
+                        const qint64 sz = QFileInfo(path).size();
+                        recordExport(QUrl::fromLocalFile(path), 0.0, sz, {});
+                    }
+                    emit batchExportStatusChanged();
+                    emit exportProgressChanged();
+                    emit exportInProgressChanged();
+                    if (cancelled) {
+                        setLastMessage(tr("Batch render cancelled (%1/%2 completed)").arg(succeeded).arg(total),
+                                       QStringLiteral("info"));
+                    } else if (allOk) {
+                        setLastMessage(tr("Batch render complete (%1 regions)").arg(succeeded),
+                                       QStringLiteral("success"));
+                    } else {
+                        setLastMessage(lastError.isEmpty()
+                                           ? tr("Batch render finished with %1 failures").arg(failed)
+                                           : lastError,
+                                       QStringLiteral("error"));
+                    }
+                    emit batchExportFinished(succeeded, total, outputs);
+                    emit exportFinished(allOk);
+                },
+                Qt::QueuedConnection);
+        });
+    return true;
+}
+
 void AppController::recordExport(const QUrl &url, double durationSeconds, qint64 sizeBytes,
                                  const QString &thumbnail)
 {

@@ -349,6 +349,8 @@ class AppController : public QObject
     Q_PROPERTY(bool inlineTextEditing READ inlineTextEditing NOTIFY inlineTextEditingChanged)
     Q_PROPERTY(QVariantList actions READ actions NOTIFY shortcutsChanged)
     Q_PROPERTY(QVariantList bookmarks READ bookmarks NOTIFY bookmarksChanged)
+    Q_PROPERTY(QVariantList regions READ regions NOTIFY regionsChanged)
+    Q_PROPERTY(QVariantMap batchExportStatus READ batchExportStatus NOTIFY batchExportStatusChanged)
     Q_PROPERTY(bool workAreaActive READ workAreaActive NOTIFY workAreaChanged)
     Q_PROPERTY(double workAreaInSeconds READ workAreaInSeconds NOTIFY workAreaChanged)
     Q_PROPERTY(double workAreaOutSeconds READ workAreaOutSeconds NOTIFY workAreaChanged)
@@ -1916,6 +1918,29 @@ public:
     Q_INVOKABLE void goToWorkAreaOut();
     Q_INVOKABLE void clearWorkArea();
     Q_INVOKABLE void toggleLoopWorkArea();
+
+    // Timeline Regions & Batch Render by Regions (Tier 3A)
+    Q_INVOKABLE QVariantList regions() const;
+    Q_INVOKABLE QString addRegion(double startSeconds, double endSeconds,
+                                  const QString &label = QString(),
+                                  const QString &color = QString());
+    Q_INVOKABLE QString addRegionFromWorkArea(const QString &label = QString());
+    Q_INVOKABLE void renameRegion(const QString &regionId, const QString &label);
+    Q_INVOKABLE void updateRegionRange(const QString &regionId, double startSeconds, double endSeconds);
+    Q_INVOKABLE void removeRegion(const QString &regionId);
+    Q_INVOKABLE void jumpToRegion(const QString &regionId, bool setWorkArea = true);
+    QVariantMap batchExportStatus() const { return m_batchExportStatus; }
+    Q_INVOKABLE QString previewBatchRegionFilename(const QString &templateStr,
+                                                   const QString &regionLabel, int oneBasedIndex,
+                                                   const QString &ext = QStringLiteral("mp4")) const;
+    Q_INVOKABLE bool batchExportRegions(const QUrl &outputDirUrl, const QString &filenameTemplate,
+                                        const QVariantList &regionIds, const QVariantMap &settings);
+
+    // Trimmer Subclipping & Dynamic RAM Preview (Tier 3B)
+    Q_INVOKABLE bool insertSubclipFromTrimmer(int assetIndex, double inSeconds, double outSeconds,
+                                              bool overwrite,
+                                              const QString &streamMode = QStringLiteral("both"));
+    Q_INVOKABLE bool triggerDynamicRamPreview();
     Q_INVOKABLE void freezeFrameAtPlayhead();
     // The project's own media folder (created if needed): files here are bundled on save.
     static QString projectMediaDir(const QString &projectId);
@@ -2168,6 +2193,7 @@ signals:
     void multicamFramesChanged();
     // Raised by the "multicam" shortcut/action. QML owns the window, as with the file actions.
     void openMulticamWindowRequested();
+    void openTrimmerWindowRequested();
     void selectionChanged();
     void editCapabilitiesChanged();
     void sequenceTabsChanged();
@@ -2175,6 +2201,9 @@ signals:
     void selectedClipRotationAtPlayheadChanged();
     void selectedTransitionDataChanged();
     void bookmarksChanged();
+    void regionsChanged();
+    void batchExportStatusChanged();
+    void batchExportFinished(int succeeded, int total, const QStringList &outputPaths);
     void workAreaChanged();
     void loopWorkAreaEnabledChanged();
     void lastMessageChanged();
@@ -2776,6 +2805,7 @@ protected:
     QTimer *m_multicamTimer = nullptr;
     bool m_inlineMulticamEnabled = false;
     int m_inlineMulticamRevision = 0;
+    QVariantMap m_batchExportStatus;
     bool findActiveInlineMulticamClip(int *outTrackIndex, int *outClipIndex) const;
 
     bool m_reverseRendering = false;

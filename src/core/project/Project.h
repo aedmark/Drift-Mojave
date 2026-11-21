@@ -24,6 +24,17 @@ struct Bookmark
     QString label;
 };
 
+struct Region
+{
+    QString id;
+    TimeUs startUs = 0;
+    TimeUs endUs = 0;
+    QString label;
+    QString color;
+
+    bool operator==(const Region &) const = default;
+};
+
 // How the canvas area behind/around clips is filled.
 enum class BackgroundKind { Color, Blur, Transparent };
 
@@ -244,6 +255,10 @@ public:
     const QList<Bookmark> &bookmarks() const { return m_bookmarks; }
     QList<Bookmark> &bookmarks() { return m_bookmarks; }
 
+    const QList<Region> &regions() const { return m_regions; }
+    QList<Region> &regions() { return m_regions; }
+    void setRegions(const QList<Region> &regions) { m_regions = regions; }
+
     // Timeline work area (Mark In / Mark Out). Unset markers use -1.
     TimeUs workAreaInUs() const { return m_workAreaInUs; }
     TimeUs workAreaOutUs() const { return m_workAreaOutUs; }
@@ -337,6 +352,7 @@ private:
     QString m_activeSequenceId;
     QStringList m_openSequenceTabs;
     QList<Bookmark> m_bookmarks;
+    QList<Region> m_regions;
     QList<Effect> m_masterAudioEffects;
     QList<Effect> m_masterVideoEffects;
     QList<AudioBus> m_audioBuses;

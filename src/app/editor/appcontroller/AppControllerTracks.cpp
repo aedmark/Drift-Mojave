@@ -5,6 +5,7 @@
 #include "app/mcp/McpController.h"
 #include "app/jobs/vision/SegmentationController.h"
 #include "app/editor/ProjectFileController.h"
+#include "app/jobs/render/BakeController.h"
 #include "ui/preview/PreviewController.h"
 
 #include "engine/decode/readers/ClipReaderPool.h"
@@ -178,6 +179,9 @@ QHash<QString, QString> defaultShortcuts()
         // file actions above.
         {QStringLiteral("multicam"), QStringLiteral("Ctrl+Shift+C")},
         {QStringLiteral("toggleInlineMulticam"), QStringLiteral("Alt+Shift+C")},
+        {QStringLiteral("openTrimmer"), QStringLiteral("Alt+Shift+T")},
+        {QStringLiteral("dynamicRamPreview"), QStringLiteral("Shift+B")},
+        {QStringLiteral("addRegionFromWorkArea"), QStringLiteral("Alt+Shift+R")},
         {QStringLiteral("transformTogether"), QStringLiteral("Ctrl+G")},
         {QStringLiteral("selectTransformLayer"), QStringLiteral("Shift+G")},
         {QStringLiteral("workspace.next"), QStringLiteral("Ctrl+Alt+Right")},
@@ -1204,6 +1208,153 @@ void AppController::setTrackCompositeBlendMode(int trackIndex, const QString &bl
     pushProjectEdit(before, tr("Set track composite mode"));
     finishEdit(tr("Track composite mode updated"));
     emit tracksChanged();
+}
+
+// --- Timeline Regions & Dynamic RAM Preview (Tier 3A / 3B) ------------------
+
+QVariantList AppController::regions() const
+{
+    QVariantList out;
+    const QList<drift::Region> &list = m_project.regions();
+    out.reserve(list.size());
+    for (int i = 0; i < list.size(); ++i) {
+        const drift::Region &r = list.at(i);
+        out.append(QVariantMap{
+            {QStringLiteral("index"), i},
+            {QStringLiteral("id"), r.id},
+            {QStringLiteral("startSeconds"), drift::usToSeconds(r.startUs)},
+            {QStringLiteral("endSeconds"), drift::usToSeconds(r.endUs)},
+            {QStringLiteral("durationSeconds"), drift::usToSeconds(qMax<drift::TimeUs>(0, r.endUs - r.startUs))},
+            {QStringLiteral("label"), r.label},
+            {QStringLiteral("color"), r.color},
+        });
+    }
+    return out;
+}
+
+QString AppController::addRegion(double startSeconds, double endSeconds,
+                                 const QString &label, const QString &color)
+{
+    const drift::TimeUs sUs = qMax<drift::TimeUs>(0, drift::secondsToUs(startSeconds));
+    const drift::TimeUs eUs = qMax<drift::TimeUs>(0, drift::secondsToUs(endSeconds));
+    if (eUs <= sUs)
+        return {};
+
+    drift::Region r;
+    r.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    r.startUs = sUs;
+    r.endUs = eUs;
+    const QString trimmed = label.trimmed();
+    r.label = trimmed.isEmpty() ? tr("Region %1").arg(m_project.regions().size() + 1) : trimmed;
+    r.color = color.trimmed();
+
+    const drift::Project before = m_project;
+    QList<drift::Region> &list = m_project.regions();
+    list.append(r);
+    std::stable_sort(list.begin(), list.end(),
+                     [](const drift::Region &a, const drift::Region &b) {
+                         return a.startUs < b.startUs;
+                     });
+    pushProjectEdit(before, tr("Add region"));
+    finishEdit(tr("Region added"));
+    emit regionsChanged();
+    return r.id;
+}
+
+QString AppController::addRegionFromWorkArea(const QString &label)
+{
+    if (m_project.hasWorkArea()) {
+        return addRegion(drift::usToSeconds(m_project.workAreaInUs()),
+                         drift::usToSeconds(m_project.workAreaOutUs()), label);
+    }
+    if (isValidClipIndex(m_selectedTrack, m_selectedClip)) {
+        const drift::Clip &c = m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip);
+        return addRegion(drift::usToSeconds(c.timelineStart),
+                         drift::usToSeconds(c.timelineEnd()),
+                         label.isEmpty() ? c.name : label);
+    }
+    setLastMessage(tr("Set a work area or select a clip to create a region"), QStringLiteral("warning"));
+    return {};
+}
+
+void AppController::renameRegion(const QString &regionId, const QString &label)
+{
+    const QString trimmed = label.trimmed();
+    if (trimmed.isEmpty())
+        return;
+    for (int i = 0; i < m_project.regions().size(); ++i) {
+        if (m_project.regions().at(i).id == regionId) {
+            if (m_project.regions().at(i).label == trimmed)
+                return;
+            const drift::Project before = m_project;
+            m_project.regions()[i].label = trimmed;
+            pushProjectEdit(before, tr("Rename region"));
+            finishEdit(tr("Region renamed"));
+            emit regionsChanged();
+            return;
+        }
+    }
+}
+
+void AppController::updateRegionRange(const QString &regionId, double startSeconds, double endSeconds)
+{
+    const drift::TimeUs sUs = qMax<drift::TimeUs>(0, drift::secondsToUs(startSeconds));
+    const drift::TimeUs eUs = qMax<drift::TimeUs>(0, drift::secondsToUs(endSeconds));
+    if (eUs <= sUs)
+        return;
+    for (int i = 0; i < m_project.regions().size(); ++i) {
+        if (m_project.regions().at(i).id == regionId) {
+            if (m_project.regions().at(i).startUs == sUs && m_project.regions().at(i).endUs == eUs)
+                return;
+            const drift::Project before = m_project;
+            m_project.regions()[i].startUs = sUs;
+            m_project.regions()[i].endUs = eUs;
+            std::stable_sort(m_project.regions().begin(), m_project.regions().end(),
+                             [](const drift::Region &a, const drift::Region &b) {
+                                 return a.startUs < b.startUs;
+                             });
+            pushProjectEdit(before, tr("Resize region"));
+            finishEdit(tr("Region updated"));
+            emit regionsChanged();
+            return;
+        }
+    }
+}
+
+void AppController::removeRegion(const QString &regionId)
+{
+    for (int i = 0; i < m_project.regions().size(); ++i) {
+        if (m_project.regions().at(i).id == regionId) {
+            const drift::Project before = m_project;
+            m_project.regions().removeAt(i);
+            pushProjectEdit(before, tr("Remove region"));
+            finishEdit(tr("Region removed"));
+            emit regionsChanged();
+            return;
+        }
+    }
+}
+
+void AppController::jumpToRegion(const QString &regionId, bool setWorkArea)
+{
+    for (const drift::Region &r : m_project.regions()) {
+        if (r.id == regionId) {
+            if (setWorkArea) {
+                m_project.setWorkAreaInUs(r.startUs);
+                m_project.setWorkAreaOutUs(r.endUs);
+                emit workAreaChanged();
+            }
+            setPlayheadSeconds(drift::usToSeconds(r.startUs));
+            return;
+        }
+    }
+}
+
+bool AppController::triggerDynamicRamPreview()
+{
+    if (!m_bakes)
+        return false;
+    return m_bakes->dynamicRamPreview();
 }
 
 void AppController::setTrackClipDisplay(int trackIndex, int mode)
@@ -2524,6 +2675,12 @@ void AppController::triggerAction(const QString &actionId)
         emit openMulticamWindowRequested();
     else if (actionId == QStringLiteral("toggleInlineMulticam"))
         toggleInlineMulticam();
+    else if (actionId == QStringLiteral("openTrimmer"))
+        emit openTrimmerWindowRequested();
+    else if (actionId == QStringLiteral("dynamicRamPreview"))
+        triggerDynamicRamPreview();
+    else if (actionId == QStringLiteral("addRegionFromWorkArea"))
+        addRegionFromWorkArea();
     else if (actionId == QStringLiteral("delete"))
         deleteSelectedClip();
     else if (actionId == QStringLiteral("deleteWithEffects"))

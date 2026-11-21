@@ -1257,6 +1257,7 @@ Project Project::detachedCopy() const
     }
     out.m_openSequenceTabs.detach();
     out.m_bookmarks.detach();
+    out.m_regions.detach();
     out.m_masterAudioEffects.detach();
     for (Effect &effect : out.m_masterAudioEffects)
         detachEffect(effect);
@@ -1978,6 +1979,23 @@ Project Project::fromJson(const QJsonObject &object, QString *errorOut)
         project.m_bookmarks.append(bookmark);
     }
 
+    project.m_regions.clear();
+    const QJsonArray regionsArray = object.value(QStringLiteral("regions")).toArray();
+    for (const QJsonValue &value : regionsArray) {
+        const QJsonObject ro = value.toObject();
+        Region r;
+        r.id = ro.value(QStringLiteral("id")).toString();
+        if (r.id.isEmpty())
+            r.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        r.startUs = qMax<TimeUs>(0, static_cast<TimeUs>(ro.value(QStringLiteral("startUs")).toDouble(0.0)));
+        r.endUs = qMax<TimeUs>(0, static_cast<TimeUs>(ro.value(QStringLiteral("endUs")).toDouble(0.0)));
+        if (r.endUs <= r.startUs)
+            continue;
+        r.label = ro.value(QStringLiteral("label")).toString();
+        r.color = ro.value(QStringLiteral("color")).toString();
+        project.m_regions.append(r);
+    }
+
     project.clearWorkArea();
     if (object.contains(QStringLiteral("workAreaInUs"))) {
         project.setWorkAreaInUs(static_cast<TimeUs>(object.value(QStringLiteral("workAreaInUs")).toDouble(-1)));
@@ -2162,6 +2180,24 @@ QJsonObject Project::toJson(bool includeTranscripts) const
         root.insert(QStringLiteral("masterVideoEffects"), effectsToJson(m_masterVideoEffects));
     if (!m_audioBuses.isEmpty())
         root.insert(QStringLiteral("audioBuses"), audioBusesToJson(m_audioBuses));
+    if (!m_regions.isEmpty()) {
+        QJsonArray regionsArray;
+        for (const Region &r : m_regions) {
+            if (r.endUs <= r.startUs)
+                continue;
+            QJsonObject ro{
+                {QStringLiteral("id"), r.id},
+                {QStringLiteral("startUs"), static_cast<double>(r.startUs)},
+                {QStringLiteral("endUs"), static_cast<double>(r.endUs)},
+                {QStringLiteral("label"), r.label},
+            };
+            if (!r.color.isEmpty())
+                ro.insert(QStringLiteral("color"), r.color);
+            regionsArray.append(ro);
+        }
+        if (!regionsArray.isEmpty())
+            root.insert(QStringLiteral("regions"), regionsArray);
+    }
     if (!m_teleprompterScript.isEmpty())
         root.insert(QStringLiteral("teleprompterScript"), m_teleprompterScript);
     if (!m_openSequenceTabs.isEmpty())

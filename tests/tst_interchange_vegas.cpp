@@ -43,6 +43,7 @@ private slots:
     void readsVignetteAndSoftlightEffects();
     void readsEventPanCropAndKeyframes();
     void readsProjectSummaryRiffInfoChunks();
+    void readsRegionsEnvelopesBezierMasksAndTrackAudioFx();
 };
 
 void TestInterchangeVegas::detectsVegasProject()
@@ -1269,6 +1270,196 @@ void TestInterchangeVegas::readsProjectSummaryRiffInfoChunks()
         QVERIFY(sampleProj.has_value());
         QCOMPARE(sampleProj->name(), QStringLiteral("Untitled Project"));
     }
+}
+
+void TestInterchangeVegas::readsRegionsEnvelopesBezierMasksAndTrackAudioFx()
+{
+    auto appendU32 = [](QByteArray &b, quint32 v) {
+        char buf[4] = {char(v & 0xFF), char((v >> 8) & 0xFF), char((v >> 16) & 0xFF), char((v >> 24) & 0xFF)};
+        b.append(buf, 4);
+    };
+    auto appendU64 = [&](QByteArray &b, quint64 v) {
+        appendU32(b, quint32(v & 0xFFFFFFFFu));
+        appendU32(b, quint32(v >> 32));
+    };
+    auto appendDouble = [&](QByteArray &b, double d) {
+        quint64 bits = 0;
+        std::memcpy(&bits, &d, sizeof(bits));
+        appendU64(b, bits);
+    };
+    auto appendUtf16 = [](QByteArray &b, const QString &s) {
+        for (QChar ch : s) {
+            const ushort u = ch.unicode();
+            b.append(char(u & 0xFF));
+            b.append(char((u >> 8) & 0xFF));
+        }
+        b.append('\0');
+        b.append('\0');
+    };
+    auto pad8 = [](QByteArray &b) {
+        while (b.size() % 8 != 0)
+            b.append('\0');
+    };
+    auto makeChunk = [&](const uint8_t guid[16], const QByteArray &payload) {
+        QByteArray out;
+        out.append(reinterpret_cast<const char *>(guid), 16);
+        appendU64(out, quint64(24 + payload.size()));
+        out.append(payload);
+        pad8(out);
+        return out;
+    };
+    auto makeList = [&](const uint8_t listGuid[16], const uint8_t typeGuid[16], const QByteArray &body) {
+        QByteArray out;
+        out.append(reinterpret_cast<const char *>(listGuid), 16);
+        appendU64(out, quint64(40 + body.size()));
+        out.append(reinterpret_cast<const char *>(typeGuid), 16);
+        out.append(body);
+        pad8(out);
+        return out;
+    };
+
+    static const uint8_t kW64Riff[16] = {0x72,0x69,0x66,0x66,0x2e,0x91,0xcf,0x11,0xa5,0xd6,0x28,0xdb,0x04,0xc1,0x00,0x00};
+    static const uint8_t kW64List[16] = {0x6c,0x69,0x73,0x74,0x2f,0x91,0xcf,0x11,0xa5,0xd6,0x28,0xdb,0x04,0xc1,0x00,0x00};
+    static const uint8_t kTimeline[16] = {0x47,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kTrack[16] = {0x48,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvCont[16] = {0x49,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvent[16] = {0x4a,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvTime[16] = {0x6a,0x20,0x8d,0x16,0x21,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kPanCrop[16] = {0xff,0xac,0x4b,0x88,0xeb,0x74,0x6c,0x45,0x88,0xf3,0x73,0x9e,0x83,0x90,0xbd,0x07};
+    static const uint8_t kEnvList[16] = {0x4b,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEnvChunk[16] = {0x4c,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kAudioFxList[16] = {0x28,0x6c,0xd4,0x69,0x0b,0x7f,0xd2,0x11,0x87,0x17,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kMarkerList[16] = {0xb5,0x00,0x09,0x1f,0x84,0xdc,0x43,0x47,0x81,0xcb,0x08,0x77,0x44,0x40,0x45,0x98};
+    static const uint8_t kMarkerGuid[16] = {0x56,0x62,0xf7,0xab,0x2d,0x39,0xd2,0x11,0x86,0xc7,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kTrackHdr[16] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10};
+    static const uint8_t kDummyForm[16] = {'V','E','G','S',0,0,0,0,0,0,0,0,0,0,0,0};
+
+    auto makeTrackHdr = [&](quint32 trackTypeCode) {
+        QByteArray p(64, '\0');
+        p[32] = char(trackTypeCode & 0xFF);
+        return makeChunk(kTrackHdr, p);
+    };
+    auto makeEnv = [&](quint32 envType, const QList<QPair<qint64, double>> &pts) {
+        QByteArray p;
+        appendU32(p, envType);
+        appendU32(p, quint32(pts.size()));
+        for (const auto &pt : pts) {
+            appendU64(p, quint64(pt.first));
+            appendDouble(p, pt.second);
+            appendU32(p, 0);
+        }
+        return makeChunk(kEnvChunk, p);
+    };
+
+    QByteArray evTimePayload(32, '\0');
+    {
+        QByteArray t;
+        appendU64(t, 0);          // header padding (0..7)
+        appendU64(t, 0);          // header padding (8..15)
+        appendU64(t, 0);          // startTicks at offset 16
+        appendU64(t, 20000000);   // durTicks = 2.0s at offset 24
+        evTimePayload = t;
+    }
+
+    QByteArray panPayload;
+    {
+        QByteArray epcs(52, '\0');
+        quint32 w = 1920, h = 1080;
+        std::memcpy(epcs.data() + 44, &w, 4);
+        std::memcpy(epcs.data() + 48, &h, 4);
+        panPayload.append("EPCS", 4);
+        appendU32(panPayload, quint32(epcs.size()));
+        panPayload.append(epcs);
+
+        QByteArray maskBody;
+        appendU32(maskBody, 1);    // flags: invert = true
+        appendDouble(maskBody, 12.0);
+        appendU32(maskBody, 4);    // 4 vertices
+        appendDouble(maskBody, 192.0);  appendDouble(maskBody, 108.0);
+        appendDouble(maskBody, 1728.0); appendDouble(maskBody, 108.0);
+        appendDouble(maskBody, 1728.0); appendDouble(maskBody, 972.0);
+        appendDouble(maskBody, 192.0);  appendDouble(maskBody, 972.0);
+        panPayload.append("MASK", 4);
+        appendU32(panPayload, quint32(maskBody.size()));
+        panPayload.append(maskBody);
+    }
+    const QByteArray vEvent = makeList(kW64List, kEvent,
+                                       makeChunk(kEvTime, evTimePayload) + makeChunk(kPanCrop, panPayload));
+    const QByteArray vTrackBody =
+        makeTrackHdr(2 /*Video*/)
+        + makeList(kW64List, kEvCont, vEvent)
+        + makeList(kW64List, kEnvList, makeEnv(2 /*Composite*/, {{0, 1.0}, {10000000, 0.5}}));
+
+    QByteArray audioFxBody;
+    appendUtf16(audioFxBody, QStringLiteral("Track EQ"));
+    appendUtf16(audioFxBody, QStringLiteral("LowGain"));
+    appendDouble(audioFxBody, 4.5);
+    appendUtf16(audioFxBody, QStringLiteral("HighGain"));
+    appendDouble(audioFxBody, -3.0);
+    appendUtf16(audioFxBody, QStringLiteral("Track Compressor"));
+    appendUtf16(audioFxBody, QStringLiteral("Threshold"));
+    appendDouble(audioFxBody, -24.0);
+    appendUtf16(audioFxBody, QStringLiteral("Ratio"));
+    appendDouble(audioFxBody, 6.0);
+
+    const QByteArray aTrackBody =
+        makeTrackHdr(1 /*Audio*/)
+        + makeList(kW64List, kEnvList,
+                   makeEnv(0 /*Volume*/, {{0, 0.8}, {20000000, 1.5}})
+                   + makeEnv(1 /*Pan*/, {{0, -0.5}, {20000000, 0.5}}))
+        + makeList(kW64List, kAudioFxList, audioFxBody);
+
+    QByteArray markerNameBytes;
+    appendUtf16(markerNameBytes, QStringLiteral("Chorus"));
+    QByteArray markerPayload;
+    appendU32(markerPayload, 28);                         // hdrSize (Format B after uint64 chunkSize)
+    appendU32(markerPayload, 1);                          // id
+    appendU64(markerPayload, 5000000);                    // posTicks = 0.5s
+    appendU64(markerPayload, 20000000);                   // lenTicks = 2.0s
+    appendU32(markerPayload, quint32(markerNameBytes.size())); // cbName
+    markerPayload.append(markerNameBytes);
+    const QByteArray paddedMarker = makeChunk(kMarkerGuid, markerPayload);
+
+    const QByteArray timelineBody =
+        makeList(kW64List, kTrack, vTrackBody)
+        + makeList(kW64List, kTrack, aTrackBody);
+    const QByteArray fileBody =
+        makeList(kW64List, kTimeline, timelineBody)
+        + makeList(kW64List, kMarkerList, paddedMarker);
+    const QByteArray vegBytes = makeList(kW64Riff, kDummyForm, fileBody);
+
+    QString err;
+    const auto loaded = drift::vegas::readProjectData(vegBytes, QString(), &err);
+    QVERIFY2(loaded.has_value(), qPrintable(err));
+    QCOMPARE(loaded->tracks().size(), 2);
+
+    const drift::Track &vt = loaded->tracks().at(0);
+    QCOMPARE(vt.type, drift::TrackType::Video);
+    QVERIFY(!vt.compositeEnvelope.isEmpty());
+    QVERIFY(qAbs(vt.compositeEnvelope.evaluateAt(drift::secondsToUs(1.0)) - 0.5) < 1e-4);
+    QCOMPARE(vt.clips.size(), 1);
+    QCOMPARE(vt.clips.at(0).mask.shape, drift::MaskShape::Freeform);
+    QCOMPARE(vt.clips.at(0).mask.points.size(), 4);
+    QVERIFY(vt.clips.at(0).mask.invert);
+    QVERIFY(qAbs(vt.clips.at(0).mask.feather - 12.0) < 1e-4);
+    QVERIFY(qAbs(vt.clips.at(0).mask.points.at(0).x() - 0.1) < 1e-4);
+
+    const drift::Track &at = loaded->tracks().at(1);
+    QCOMPARE(at.type, drift::TrackType::Audio);
+    QVERIFY(!at.volumeEnvelope.isEmpty());
+    QVERIFY(qAbs(at.volumeEnvelope.evaluateAt(drift::secondsToUs(2.0)) - 1.5) < 1e-4);
+    QVERIFY(!at.panEnvelope.isEmpty());
+    QVERIFY(qAbs(at.panEnvelope.evaluateAt(0) + 0.5) < 1e-4);
+    QCOMPARE(at.audioEffects.size(), 2);
+    QCOMPARE(at.audioEffects.at(0).catalogId, QStringLiteral("utility.eq"));
+    QVERIFY(qAbs(at.audioEffects.at(0).parameters.value(QStringLiteral("low")).toDouble() - 4.5) < 1e-4);
+    QCOMPARE(at.audioEffects.at(1).catalogId, QStringLiteral("utility.compressor"));
+    QVERIFY(qAbs(at.audioEffects.at(1).parameters.value(QStringLiteral("threshold")).toDouble() + 24.0) < 1e-4);
+
+    QCOMPARE(loaded->regions().size(), 1);
+    QCOMPARE(loaded->regions().at(0).label, QStringLiteral("Chorus"));
+    QCOMPARE(loaded->regions().at(0).startUs, drift::secondsToUs(0.5));
+    QCOMPARE(loaded->regions().at(0).endUs, drift::secondsToUs(2.5));
 }
 
 QTEST_MAIN(TestInterchangeVegas)

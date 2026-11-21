@@ -57,6 +57,9 @@ public:
 
     // Bakes the work area at the current quality. Queued behind a running bake.
     Q_INVOKABLE void bakeWorkArea();
+    // Dynamic RAM Preview (Shift+B): bakes the work area (or selected clip / short span around
+    // playhead if no work area is set), enables work-area loop, and starts playback once ready.
+    Q_INVOKABLE bool dynamicRamPreview();
     // Same range as bake `id`, at the current quality.
     Q_INVOKABLE void rebake(const QString &id);
     Q_INVOKABLE void rebakeAllStale();
@@ -118,6 +121,8 @@ private:
     bool m_detached = false;
     QString m_jobId;
     double m_progress = 0.0;
+    bool m_autoPlayAfterBake = false;
+    drift::TimeUs m_autoPlayStartUs = 0;
     qint64 m_activeStart = 0;
     qint64 m_activeEnd = 0;
     QSet<QString> m_activePreIds;

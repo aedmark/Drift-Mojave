@@ -1175,6 +1175,7 @@ void AppController::syncAfterProjectSwap()
     reconcileSequenceTabs();
     m_projectFile->setDirty(true);
     emit bookmarksChanged();
+    emit regionsChanged();
     emit workAreaChanged();
     emit masterAudioEffectsChanged();
     emit masterVideoEffectsChanged();

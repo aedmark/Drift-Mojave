@@ -2781,6 +2781,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Open Trimmer window</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dynamic RAM preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create region from work area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Search…</source>
         <translation>Поиск…</translation>
     </message>
@@ -2935,6 +2947,22 @@
     <message>
         <source>Clip duplicated</source>
         <translation>Клип дублирован</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation type="unfinished">Аудио</translation>
+    </message>
+    <message>
+        <source>Video</source>
+        <translation type="unfinished">Видео</translation>
+    </message>
+    <message>
+        <source>Overwrite from Trimmer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Insert from Trimmer</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Your text here</source>
@@ -5513,6 +5541,46 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Region %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Region added</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set a work area or select a clip to create a region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Region renamed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Resize region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Region updated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Region removed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Move track</source>
         <translation>Переместить дорожку</translation>
     </message>
@@ -5615,6 +5683,34 @@
     <message>
         <source>Export failed</source>
         <translation>Ошибка экспорта</translation>
+    </message>
+    <message>
+        <source>Choose an output folder for batch render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No regions selected for batch render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create output folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Batch rendering %1 regions…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Batch render cancelled (%1/%2 completed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Batch render complete (%1 regions)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Batch render finished with %1 failures</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Opening your video…</source>
@@ -7183,6 +7279,18 @@
     <message>
         <source>Set a work area to bake</source>
         <translation>Задайте рабочую область для запекания</translation>
+    </message>
+    <message>
+        <source>Nothing on the timeline to preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Playing cached Dynamic RAM Preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Building Dynamic RAM Preview…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Could not open the bake cache</source>
@@ -10152,6 +10260,22 @@
         <translation>Другой…</translation>
     </message>
     <message>
+        <source>Folder picker is unavailable on this platform.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose folder for Batch Region Render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Batch region render started…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Batch render cancelled.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Export GIF</source>
         <translation>Экспортировать GIF</translation>
     </message>
@@ -10202,6 +10326,30 @@
     <message>
         <source>Cancel</source>
         <translation>Отмена</translation>
+    </message>
+    <message>
+        <source>Batch render all regions (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Batch render by regions (no regions yet)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export one file per timeline region using the filename template below</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>+ Region from Work Area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Intro</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Use baked ranges</source>
@@ -16844,6 +16992,26 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Remove all master effects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RAM Preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dynamic RAM Preview (Shift+B): pre-render and loop work area or selected clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trimmer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open dedicated Trimmer window (Alt+Shift+T)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -26429,6 +26597,26 @@ If playback stutters, try another.</source>
         <source>Click or drag to seek</source>
         <translation>Нажмите или перетащите для перехода ко времени</translation>
     </message>
+    <message>
+        <source>Region: %1 (%2s – %3s) — Click to select work area, right-click for options</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Region — %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set work area to region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add region from work area (Alt+Shift+R)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove region</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>TimelineSequenceTabs</name>
@@ -28755,6 +28943,121 @@ If playback stutters, try another.</source>
     <message>
         <source>Install a custom transition or effect from a .driftfx or zip made in Drift Forge</source>
         <translation>Установить пользовательский переход или эффект из файла .driftfx или zip, созданного в Drift Forge</translation>
+    </message>
+</context>
+<context>
+    <name>TrimmerWindow</name>
+    <message>
+        <source>Subclip overwritten to timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Subclip inserted to timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trimmer — %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trimmer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Media:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Asset %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Video + Audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Video Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import media into the project bin to trim subclips here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pos %1  |  In %2  |  Out %3  |  Dur %4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>J −</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shuttle reverse (J)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation type="unfinished">Пауза</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation type="unfinished">Воспроизвести</translation>
+    </message>
+    <message>
+        <source>Play / Pause (Space)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L +</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shuttle forward (L)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Step backward 1 frame (Left)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Step forward 1 frame (Right)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mark In (I)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mark Out (O)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear I/O</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loop I/O</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Insert (A)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Insert subclip at playhead and ripple downstream clips right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Overwrite (Shift+A)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Overwrite timeline range at playhead with subclip</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

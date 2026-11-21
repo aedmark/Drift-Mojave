@@ -371,6 +371,9 @@ ThemedDialog {
         startExport("all")
     }
 
+    property bool batchRenderRegions: false
+    property string batchFilenameTemplate: "{Project}_{Region}_{Index}.{ext}"
+
     function startExport(bakeMode) {
         var container = isGifExport ? "gif"
                 : isAudioOnly
@@ -378,6 +381,25 @@ ThemedDialog {
                   : EditorState.exportPreferredContainer(videoCodecId, audioCodecId)
         var filters = EditorState.exportSaveFilters(container, isAudioOnly)
         var suffix = EditorState.exportDefaultSuffix(container, isAudioOnly)
+        if (batchRenderRegions && EditorState.regions.length > 0) {
+            if (!FileDialogs.supportsDirectoryPicker()) {
+                Toasts.warning(qsTr("Folder picker is unavailable on this platform."))
+                return
+            }
+            var startDir = EditorState.lastExportFolder().length > 0
+                    ? "file://" + EditorState.lastExportFolder() : ""
+            var dirUrl = FileDialogs.openDirectory(qsTr("Choose folder for Batch Region Render"), startDir)
+            if (dirUrl != "") {
+                const batchSettings = buildSettings()
+                batchSettings.bakes = useBakes ? bakeMode : "none"
+                batchSettings.exportWorkAreaOnly = false
+                if (EditorState.batchExportRegions(dirUrl, batchFilenameTemplate, [], batchSettings))
+                    Toasts.info(qsTr("Batch region render started…"))
+            } else {
+                Toasts.info(qsTr("Batch render cancelled."))
+            }
+            return
+        }
         var dialogTitle = isGifExport ? qsTr("Export GIF")
                 : isAudioOnly ? qsTr("Export Audio") : qsTr("Export Video")
         // SAF offers no overwrite, so a repeated default name would only ever pick up " (1)".
@@ -480,6 +502,64 @@ ThemedDialog {
             ExportDialogModeBar { dialog: root }
 
             ExportDialogWorkAreaCheck { dialog: root }
+
+            Column {
+                width: parent.width
+                spacing: Theme.spacingSm
+
+                Row {
+                    width: parent.width
+                    spacing: Theme.spacingSm
+
+                    ThemedCheckBox {
+                        text: EditorState.regions.length > 0
+                              ? qsTr("Batch render all regions (%1)").arg(EditorState.regions.length)
+                              : qsTr("Batch render by regions (no regions yet)")
+                        enabled: EditorState.regions.length > 0
+                        checked: root.batchRenderRegions && EditorState.regions.length > 0
+                        tooltip: qsTr("Export one file per timeline region using the filename template below")
+                        onToggled: root.batchRenderRegions = checked
+                    }
+
+                    ThemedButton {
+                        visible: EditorState.workAreaActive
+                        text: qsTr("+ Region from Work Area")
+                        variant: "text"
+                        onClicked: EditorState.addRegionFromWorkArea()
+                    }
+                }
+
+                Column {
+                    width: parent.width
+                    visible: root.batchRenderRegions && EditorState.regions.length > 0
+                    spacing: Theme.spacingXs
+
+                    ThemedTextField {
+                        width: parent.width
+                        text: root.batchFilenameTemplate
+                        placeholderText: "{Project}_{Region}_{Index}.{ext}"
+                        onTextEdited: root.batchFilenameTemplate = text
+                    }
+
+                    Text {
+                        width: parent.width
+                        readonly property string previewExt: root.isGifExport ? "gif"
+                            : (root.isAudioOnly
+                               ? EditorState.exportDefaultSuffix(EditorState.exportPreferredAudioOnlyContainer(root.audioCodecId), true)
+                               : EditorState.exportDefaultSuffix(EditorState.exportPreferredContainer(root.videoCodecId, root.audioCodecId), false))
+                        text: qsTr("Preview: %1").arg(
+                            EditorState.previewBatchRegionFilename(
+                                root.batchFilenameTemplate,
+                                EditorState.regions.length > 0 ? EditorState.regions[0].label : qsTr("Intro"),
+                                1,
+                                previewExt))
+                        color: Theme.c.foregroundMuted !== undefined ? Theme.c.foregroundMuted : "#A0A0AA"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeXs
+                        elide: Text.ElideRight
+                    }
+                }
+            }
 
             ThemedCheckBox {
                 width: parent.width

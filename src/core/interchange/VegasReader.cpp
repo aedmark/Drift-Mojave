@@ -84,6 +84,16 @@ static const uint8_t kTypeSummaryList[16] = {
 static const uint8_t kGuidSummaryChunk[16] = {
     0x1d, 0x4f, 0x23, 0x71, 0x57, 0x52, 0xd2, 0x11, 0x86, 0xdc, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
 };
+// Track envelope list & chunk GUIDs (VEGAS Volume / Pan / Composite / Mute envelopes)
+static const uint8_t kListTrackEnvelopes[16] = {
+    0x4b, 0x07, 0x6c, 0x4d, 0x16, 0x23, 0xd2, 0x11, 0x86, 0xb0, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
+};
+static const uint8_t kChunkTrackEnvelope[16] = {
+    0x4c, 0x07, 0x6c, 0x4d, 0x16, 0x23, 0xd2, 0x11, 0x86, 0xb0, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
+};
+static const uint8_t kListTrackAudioFx[16] = {
+    0x28, 0x6c, 0xd4, 0x69, 0x0b, 0x7f, 0xd2, 0x11, 0x87, 0x17, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
+};
 
 inline quint32 readU32LE(const uint8_t *p)
 {
@@ -882,6 +892,188 @@ QList<Effect> extractVideoEffects(const uint8_t *payload, qsizetype payloadSize)
     return effects;
 }
 
+QList<Effect> extractAudioEffects(const uint8_t *payload, qsizetype payloadSize)
+{
+    QList<Effect> effects;
+    if (!payload || payloadSize < 16)
+        return effects;
+
+    // 1. Track EQ / Paragraphic EQ / Graphic EQ -> utility.eq
+    qsizetype eqPos = findUtf16(payload, payloadSize, "Track EQ");
+    if (eqPos < 0)
+        eqPos = findUtf16(payload, payloadSize, "Paragraphic EQ");
+    if (eqPos < 0)
+        eqPos = findUtf16(payload, payloadSize, "Graphic EQ");
+    if (eqPos >= 0) {
+        const uint8_t *sub = payload + eqPos;
+        const qsizetype subSize = std::min<qsizetype>(payloadSize - eqPos, 4096);
+        Effect fx;
+        fx.catalogId = QStringLiteral("utility.eq");
+        fx.name = QStringLiteral("EQ");
+        const double low = parseDoubleParam(sub, subSize, "LowGain",
+                                            parseDoubleParam(sub, subSize, "Low", 0.0));
+        const double mid = parseDoubleParam(sub, subSize, "MidGain",
+                                            parseDoubleParam(sub, subSize, "Mid", 0.0));
+        const double high = parseDoubleParam(sub, subSize, "HighGain",
+                                             parseDoubleParam(sub, subSize, "High", 0.0));
+        fx.parameters[QStringLiteral("low")] = qBound(-12.0, low, 12.0);
+        fx.parameters[QStringLiteral("mid")] = qBound(-12.0, mid, 12.0);
+        fx.parameters[QStringLiteral("high")] = qBound(-12.0, high, 12.0);
+        effects.append(fx);
+    }
+
+    // 2. Track Compressor / ExpressFX Dynamics / Wave Hammer -> utility.compressor
+    qsizetype compPos = findUtf16(payload, payloadSize, "Track Compressor");
+    if (compPos < 0)
+        compPos = findUtf16(payload, payloadSize, "ExpressFX Dynamics");
+    if (compPos < 0)
+        compPos = findUtf16(payload, payloadSize, "Wave Hammer");
+    if (compPos >= 0) {
+        const uint8_t *sub = payload + compPos;
+        const qsizetype subSize = std::min<qsizetype>(payloadSize - compPos, 4096);
+        Effect fx;
+        fx.catalogId = QStringLiteral("utility.compressor");
+        fx.name = QStringLiteral("Compressor");
+        fx.parameters[QStringLiteral("threshold")] =
+            qBound(-40.0, parseDoubleParam(sub, subSize, "Threshold", -18.0), -2.0);
+        fx.parameters[QStringLiteral("ratio")] =
+            qBound(1.5, parseDoubleParam(sub, subSize, "Ratio", 3.0), 12.0);
+        fx.parameters[QStringLiteral("attack")] =
+            qBound(1.0, parseDoubleParam(sub, subSize, "Attack", 20.0), 200.0);
+        fx.parameters[QStringLiteral("release")] =
+            qBound(20.0, parseDoubleParam(sub, subSize, "Release", 250.0), 1000.0);
+        fx.parameters[QStringLiteral("makeup")] =
+            qBound(1.0, parseDoubleParam(sub, subSize, "Makeup", 2.0), 4.0);
+        effects.append(fx);
+    }
+
+    // 3. Track Noise Gate -> utility.gate
+    qsizetype gatePos = findUtf16(payload, payloadSize, "Track Noise Gate");
+    if (gatePos < 0)
+        gatePos = findUtf16(payload, payloadSize, "Noise Gate");
+    if (gatePos >= 0) {
+        const uint8_t *sub = payload + gatePos;
+        const qsizetype subSize = std::min<qsizetype>(payloadSize - gatePos, 4096);
+        Effect fx;
+        fx.catalogId = QStringLiteral("utility.gate");
+        fx.name = QStringLiteral("Noise Gate");
+        fx.parameters[QStringLiteral("threshold")] =
+            qBound(0.001, parseDoubleParam(sub, subSize, "Threshold", 0.02), 0.2);
+        fx.parameters[QStringLiteral("ratio")] =
+            qBound(1.0, parseDoubleParam(sub, subSize, "Ratio", 3.0), 9.0);
+        fx.parameters[QStringLiteral("attack")] =
+            qBound(1.0, parseDoubleParam(sub, subSize, "Attack", 10.0), 100.0);
+        fx.parameters[QStringLiteral("release")] =
+            qBound(20.0, parseDoubleParam(sub, subSize, "Release", 250.0), 1000.0);
+        effects.append(fx);
+    }
+
+    // 4. Reverb / Acoustic Mirror -> space.reverb
+    qsizetype revPos = findUtf16(payload, payloadSize, "Reverb");
+    if (revPos < 0)
+        revPos = findUtf16(payload, payloadSize, "Acoustic Mirror");
+    if (revPos >= 0) {
+        const uint8_t *sub = payload + revPos;
+        const qsizetype subSize = std::min<qsizetype>(payloadSize - revPos, 4096);
+        Effect fx;
+        fx.catalogId = QStringLiteral("space.reverb");
+        fx.name = QStringLiteral("Reverb");
+        fx.parameters[QStringLiteral("size")] =
+            qBound(0.0, parseDoubleParam(sub, subSize, "RoomSize", 0.5), 1.0);
+        fx.parameters[QStringLiteral("damping")] =
+            qBound(0.0, parseDoubleParam(sub, subSize, "Damping", 0.5), 1.0);
+        fx.parameters[QStringLiteral("width")] =
+            qBound(0.0, parseDoubleParam(sub, subSize, "Width", 1.0), 1.0);
+        fx.parameters[QStringLiteral("mix")] =
+            qBound(0.0, parseDoubleParam(sub, subSize, "WetMix", 0.3), 1.0);
+        effects.append(fx);
+    }
+
+    // 5. Simple Delay / Multi-Tap Delay -> space.echo
+    qsizetype delPos = findUtf16(payload, payloadSize, "Simple Delay");
+    if (delPos < 0)
+        delPos = findUtf16(payload, payloadSize, "Multi-Tap Delay");
+    if (delPos >= 0) {
+        const uint8_t *sub = payload + delPos;
+        const qsizetype subSize = std::min<qsizetype>(payloadSize - delPos, 4096);
+        Effect fx;
+        fx.catalogId = QStringLiteral("space.echo");
+        fx.name = QStringLiteral("Echo");
+        fx.parameters[QStringLiteral("delay")] =
+            qBound(10.0, parseDoubleParam(sub, subSize, "DelayMs", 60.0), 900.0);
+        fx.parameters[QStringLiteral("decay")] =
+            qBound(0.1, parseDoubleParam(sub, subSize, "Decay", 0.4), 0.9);
+        fx.parameters[QStringLiteral("in_gain")] = 0.8;
+        fx.parameters[QStringLiteral("out_gain")] = 0.88;
+        effects.append(fx);
+    }
+
+    return effects;
+}
+
+void parseTrackEnvelopeChunk(const uint8_t *payload, qsizetype size, Track &track)
+{
+    if (!payload || size < 8)
+        return;
+    const quint32 envType = readU32LE(payload);
+    const quint32 pointCount = readU32LE(payload + 4);
+    if (pointCount == 0 || pointCount > 100000)
+        return;
+
+    // Each point: int64 timeTicks (8) + double value (8) + uint32 curveType (4) = 20 bytes
+    constexpr qsizetype kPointStride = 20;
+    if (8 + static_cast<qsizetype>(pointCount) * kPointStride > size)
+        return;
+
+    KeyframeTrack<double> *target = nullptr;
+    double minVal = 0.0;
+    double maxVal = 2.0;
+    switch (envType) {
+    case 0: // Volume
+        target = &track.volumeEnvelope;
+        minVal = 0.0;
+        maxVal = 2.0;
+        track.showVolumeEnvelope = true;
+        break;
+    case 1: // Pan
+        target = &track.panEnvelope;
+        minVal = -1.0;
+        maxVal = 1.0;
+        track.showPanEnvelope = true;
+        break;
+    case 2: // Composite level
+        target = &track.compositeEnvelope;
+        minVal = 0.0;
+        maxVal = 1.0;
+        track.showCompositeEnvelope = true;
+        break;
+    case 3: // Mute
+        target = &track.muteEnvelope;
+        minVal = 0.0;
+        maxVal = 1.0;
+        track.showMuteEnvelope = true;
+        break;
+    default:
+        return;
+    }
+
+    for (quint32 i = 0; i < pointCount; ++i) {
+        const uint8_t *pt = payload + 8 + static_cast<qsizetype>(i) * kPointStride;
+        const qint64 ticks = static_cast<qint64>(readU64LE(pt));
+        const double rawVal = readDoubleLE(pt + 8);
+        const quint32 curve = readU32LE(pt + 16);
+        if (std::isnan(rawVal) || std::isinf(rawVal))
+            continue;
+        const TimeUs tUs = qMax<TimeUs>(0, static_cast<TimeUs>(ticks / 10));
+        double val = qBound(minVal, rawVal, maxVal);
+        if (envType == 3)
+            val = rawVal >= 0.5 ? 1.0 : 0.0;
+        target->setKeyframe(tUs, val);
+        if (curve == 1 || envType == 3)
+            target->setEasing(tUs, Interpolation::Hold);
+    }
+}
+
 QString extractPathFromPayload(const uint8_t *data, qsizetype size)
 {
     if (size < 4)
@@ -1096,6 +1288,7 @@ struct PanCropData
     quint32 sourceWidth = 0;
     quint32 sourceHeight = 0;
     QList<PanCropKeyframe> keyframes;
+    std::optional<Mask> mask;
 };
 
 PanCropData parsePanCropChunk(const uint8_t *payload, qsizetype size)
@@ -1141,11 +1334,58 @@ PanCropData parsePanCropChunk(const uint8_t *payload, qsizetype size)
         ++pos;
     }
 
+    // 3. Locate MASK / MSKK Bezier mask path subchunks (flags + feather + vertexCount + (x, y) doubles)
+    static const uint8_t kFourCCMask[4] = {'M', 'A', 'S', 'K'};
+    static const uint8_t kFourCCMskk[4] = {'M', 'S', 'K', 'K'};
+    const double sw = result.sourceWidth > 0 ? double(result.sourceWidth) : 1920.0;
+    const double sh = result.sourceHeight > 0 ? double(result.sourceHeight) : 1080.0;
+    for (qsizetype i = 0; i + 8 <= size; ++i) {
+        if (std::memcmp(payload + i, kFourCCMask, 4) == 0
+            || std::memcmp(payload + i, kFourCCMskk, 4) == 0) {
+            const quint32 mLen = readU32LE(payload + i + 4);
+            const qsizetype dStart = i + 8;
+            // Header: uint32 flags (bit0 = negative/invert) + double featherPx + uint32 vertexCount
+            if (mLen >= 16 && dStart + static_cast<qsizetype>(mLen) <= size) {
+                const quint32 flags = readU32LE(payload + dStart);
+                const double feather = readDoubleLE(payload + dStart + 4);
+                const quint32 vertexCount = readU32LE(payload + dStart + 12);
+                if (vertexCount >= 3 && vertexCount <= 4096
+                    && 16 + static_cast<qsizetype>(vertexCount) * 16 <= static_cast<qsizetype>(mLen)) {
+                    Mask mask;
+                    mask.shape = MaskShape::Freeform;
+                    mask.enabled = true;
+                    mask.invert = (flags & 0x01) != 0;
+                    if (!std::isnan(feather) && !std::isinf(feather) && feather >= 0.0)
+                        mask.feather = qBound(0.0, feather, 200.0);
+                    mask.points.reserve(static_cast<qsizetype>(vertexCount));
+                    for (quint32 v = 0; v < vertexCount; ++v) {
+                        const uint8_t *vp = payload + dStart + 16 + static_cast<qsizetype>(v) * 16;
+                        const double vx = readDoubleLE(vp);
+                        const double vy = readDoubleLE(vp + 8);
+                        if (std::isnan(vx) || std::isnan(vy) || std::isinf(vx) || std::isinf(vy))
+                            continue;
+                        // Accept either normalized [0..1] or source-pixel coordinates.
+                        const double nx = (vx > 1.5 || vx < -0.5) ? (vx / sw) : vx;
+                        const double ny = (vy > 1.5 || vy < -0.5) ? (vy / sh) : vy;
+                        mask.points.append(QPointF(qBound(-0.5, nx, 1.5), qBound(-0.5, ny, 1.5)));
+                    }
+                    if (mask.points.size() >= 3) {
+                        result.mask = mask;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     return result;
 }
 
 void applyPanCropToClip(Clip &clip, const PanCropData &panCrop, int canvasWidth, int canvasHeight)
 {
+    if (panCrop.mask.has_value())
+        clip.mask = *panCrop.mask;
+
     if (panCrop.keyframes.isEmpty())
         return;
 
@@ -1896,12 +2136,12 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
 
                     qsizetype evpos = tpos + 40;
                     const qsizetype evend = tpos + static_cast<qsizetype>(tsize);
-                    while (evpos + 40 <= evend) {
+                    while (evpos + 24 <= evend) {
                         const quint64 evsize = readU64LE(bytes + evpos + 16);
-                        if (evsize < 40 || evpos + static_cast<qsizetype>(evsize) > evend)
+                        if (evsize < 24 || evpos + static_cast<qsizetype>(evsize) > evend)
                             break;
 
-                        if (std::memcmp(bytes + evpos, kGuidW64List, 16) == 0
+                        if (evsize >= 40 && std::memcmp(bytes + evpos, kGuidW64List, 16) == 0
                             && std::memcmp(bytes + evpos + 24, kTypeEventContainer, 16) == 0) {
                             qsizetype epos = evpos + 40;
                             const qsizetype eend = evpos + static_cast<qsizetype>(evsize);
@@ -2122,6 +2362,15 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                         if (!std::isnan(pan) && !std::isinf(pan))
                                             track.pan = qBound(-1.0, static_cast<double>(pan), 1.0);
                                     }
+                                } else if (std::memcmp(aptr, kChunkTrackEnvelope, 16) == 0) {
+                                    parseTrackEnvelopeChunk(aptr + 24, static_cast<qsizetype>(asize - 24), track);
+                                } else if ((std::memcmp(aptr, kGuidW64List, 16) == 0 && asize >= 40
+                                            && (std::memcmp(aptr + 24, kListTrackAudioFx, 16) == 0
+                                                || std::memcmp(aptr + 24, kListEventFx, 16) == 0))
+                                           || std::memcmp(aptr, kChunkEventEffect, 16) == 0) {
+                                    const QList<Effect> afx = extractAudioEffects(aptr + 24, static_cast<qsizetype>(asize - 24));
+                                    for (const Effect &e : afx)
+                                        track.audioEffects.append(e);
                                 }
                                 apos += (asize + 7) & ~7;
                             }
@@ -2139,6 +2388,36 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     pan = readFloatLE(apayload + 20);
                                 if (!std::isnan(pan) && !std::isinf(pan))
                                     track.pan = qBound(-1.0, static_cast<double>(pan), 1.0);
+                            }
+                        } else if (evsize >= 40 && std::memcmp(bytes + evpos, kGuidW64List, 16) == 0
+                                   && std::memcmp(bytes + evpos + 24, kListTrackEnvelopes, 16) == 0) {
+                            qsizetype envPos = evpos + 40;
+                            const qsizetype envEnd = evpos + static_cast<qsizetype>(evsize);
+                            while (envPos + 24 <= envEnd) {
+                                const uint8_t *envPtr = bytes + envPos;
+                                const quint64 envSize = readU64LE(envPtr + 16);
+                                if (envSize < 24 || envPos + static_cast<qsizetype>(envSize) > envEnd)
+                                    break;
+                                if (std::memcmp(envPtr, kChunkTrackEnvelope, 16) == 0) {
+                                    parseTrackEnvelopeChunk(envPtr + 24, static_cast<qsizetype>(envSize - 24), track);
+                                }
+                                envPos += (envSize + 7) & ~7;
+                            }
+                        } else if (std::memcmp(bytes + evpos, kChunkTrackEnvelope, 16) == 0) {
+                            parseTrackEnvelopeChunk(bytes + evpos + 24, static_cast<qsizetype>(evsize - 24), track);
+                        } else if ((evsize >= 40 && std::memcmp(bytes + evpos, kGuidW64List, 16) == 0
+                                    && (std::memcmp(bytes + evpos + 24, kListTrackAudioFx, 16) == 0
+                                        || std::memcmp(bytes + evpos + 24, kListEventFx, 16) == 0))
+                                   || std::memcmp(bytes + evpos, kListEventFx, 16) == 0
+                                   || std::memcmp(bytes + evpos, kChunkEventEffect, 16) == 0) {
+                            const uint8_t *fxPayload = bytes + evpos + 24;
+                            const qsizetype fxPayloadSize = static_cast<qsizetype>(evsize - 24);
+                            if (trackType == TrackType::Audio) {
+                                for (const Effect &e : extractAudioEffects(fxPayload, fxPayloadSize))
+                                    track.audioEffects.append(e);
+                            } else {
+                                for (const Effect &e : extractVideoEffects(fxPayload, fxPayloadSize))
+                                    track.effects.append(e);
                             }
                         }
                         evpos += (evsize + 7) & ~7;
@@ -2315,6 +2594,13 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                 bmOut.timeUs = m.posUs + m.durUs;
                                 bmOut.label = QStringLiteral("%1 (Out)").arg(baseLabel);
                                 project.bookmarks().append(bmOut);
+
+                                Region region;
+                                region.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                                region.startUs = m.posUs;
+                                region.endUs = m.posUs + m.durUs;
+                                region.label = baseLabel;
+                                project.regions().append(region);
                             }
                         } else {
                             Bookmark bm;
@@ -2350,6 +2636,28 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                           return a.label < b.label;
                       });
             project.bookmarks() = std::move(uniqueBookmarks);
+        }
+
+        if (!project.regions().isEmpty()) {
+            QList<Region> uniqueRegions;
+            for (const Region &r : project.regions()) {
+                bool exists = false;
+                for (const Region &u : uniqueRegions) {
+                    if (u.startUs == r.startUs && u.endUs == r.endUs && u.label == r.label) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists)
+                    uniqueRegions.append(r);
+            }
+            std::stable_sort(uniqueRegions.begin(), uniqueRegions.end(),
+                             [](const Region &a, const Region &b) {
+                                 if (a.startUs != b.startUs)
+                                     return a.startUs < b.startUs;
+                                 return a.label < b.label;
+                             });
+            project.regions() = std::move(uniqueRegions);
         }
 
         for (const QString &seqId : project.sequenceIds()) {

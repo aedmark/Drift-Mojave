@@ -78,6 +78,7 @@
 #include "engine/decode/readers/ClipReaderPool.h"
 #include "app/editor/AppController.h"
 #include "app/editor/AppControllerDetail.h"
+#include "app/jobs/render/BakeController.h"
 #include "app/mcp/McpDetail.h"
 #include "app/editor/TimelineClipsModel.h"
 #include "app/editor/sessions/SubtitleCueFilterModel.h"
@@ -553,6 +554,8 @@ private slots:
     void audioBusesSendsCrudUndoAndRoundTrip();
     void videoTrackFxMasterFxTrackMotionAndParentCompositeRoundTrip();
     void inlineMulticamCreateFromSelectionAndPunchTakesUndo();
+    void regionsCrudTemplateFormattingAndBatchExportUndoRoundTrip();
+    void trimmerInsertOverwriteAndDynamicRamPreview();
 };
 
 // A file dragged in from the file manager has no bin row yet, so the timeline's drop preview
@@ -19310,6 +19313,183 @@ void EditorStateTest::inlineMulticamCreateFromSelectionAndPunchTakesUndo()
     state.undo();
     QCOMPARE(state.project()->tracks().at(0).clips.size(), 1);
     QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineDuration, drift::secondsToUs(4.0));
+}
+
+void EditorStateTest::regionsCrudTemplateFormattingAndBatchExportUndoRoundTrip()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // Write a short 1.0s stereo 48kHz PCM WAV file so batchExportRegions exercises real Exporter::run.
+    const QString wavPath = dir.filePath(QStringLiteral("source.wav"));
+    {
+        QFile f(wavPath);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        constexpr quint32 kRate = 48000;
+        constexpr quint16 kCh = 2;
+        constexpr quint16 kBits = 16;
+        constexpr quint32 kFrames = kRate;
+        const quint32 dataBytes = kFrames * kCh * (kBits / 8);
+        QDataStream ds(&f);
+        ds.setByteOrder(QDataStream::LittleEndian);
+        f.write("RIFF", 4);
+        ds << quint32(36 + dataBytes);
+        f.write("WAVEfmt ", 8);
+        ds << quint32(16) << quint16(1) << kCh << kRate << quint32(kRate * kCh * 2) << quint16(kCh * 2) << kBits;
+        f.write("data", 4);
+        ds << dataBytes;
+        QByteArray pcm(int(dataBytes), '\0');
+        auto *samples = reinterpret_cast<qint16 *>(pcm.data());
+        for (quint32 i = 0; i < kFrames; ++i) {
+            const qint16 v = static_cast<qint16>(0.25 * 32767.0 * std::sin(2.0 * M_PI * 440.0 * double(i) / double(kRate)));
+            samples[i * 2] = v;
+            samples[i * 2 + 1] = v;
+        }
+        f.write(pcm);
+    }
+
+    AssetLibrary library;
+    AppController state(&library);
+    state.project()->setName(QStringLiteral("Mojave Demo"));
+    state.project()->tracks().clear();
+    drift::Track aTrack;
+    aTrack.id = QStringLiteral("a1");
+    aTrack.type = drift::TrackType::Audio;
+    drift::Clip aClip;
+    aClip.id = QStringLiteral("ac1");
+    aClip.type = drift::ClipType::Audio;
+    aClip.path = wavPath;
+    aClip.timelineStart = 0;
+    aClip.timelineDuration = drift::secondsToUs(1.0);
+    aClip.srcIn = 0;
+    aClip.srcOut = drift::secondsToUs(1.0);
+    aTrack.clips.append(aClip);
+    state.project()->tracks().append(aTrack);
+
+    const QString r1 = state.addRegion(0.0, 0.3, QStringLiteral("Intro"));
+    QVERIFY(!r1.isEmpty());
+    state.project()->setWorkAreaInUs(drift::secondsToUs(0.5));
+    state.project()->setWorkAreaOutUs(drift::secondsToUs(0.8));
+    const QString r2 = state.addRegionFromWorkArea(QStringLiteral("Outro: Cut/1"));
+    QVERIFY(!r2.isEmpty());
+    QCOMPARE(state.regions().size(), 2);
+
+    state.renameRegion(r1, QStringLiteral("Opening"));
+    state.updateRegionRange(r1, 0.0, 0.35);
+    QCOMPARE(state.regions().at(0).toMap().value(QStringLiteral("label")).toString(), QStringLiteral("Opening"));
+
+    const QString preview = state.previewBatchRegionFilename(
+        QStringLiteral("{Project}_{Region}_{Index}.{ext}"), QStringLiteral("Outro: Cut/1"), 2, QStringLiteral("wav"));
+    QCOMPARE(preview, QStringLiteral("Mojave Demo_Outro_ Cut_1_02.wav"));
+
+    // JSON round-trip
+    const drift::Project reloaded = drift::Project::fromJson(state.project()->toJson());
+    QCOMPARE(reloaded.regions().size(), 2);
+    QCOMPARE(reloaded.regions().at(0).label, QStringLiteral("Opening"));
+    QCOMPARE(reloaded.regions().at(1).startUs, drift::secondsToUs(0.5));
+
+    // Remove & undo
+    state.removeRegion(r2);
+    QCOMPARE(state.regions().size(), 1);
+    state.undo();
+    QCOMPARE(state.regions().size(), 2);
+
+    // Real Batch Render of both regions to audio-only WAV files
+    const QString outDir = dir.filePath(QStringLiteral("batch_out"));
+    QSignalSpy spy(&state, &AppController::batchExportFinished);
+    QVariantMap settings = state.exportDefaultSettings();
+    settings.insert(QStringLiteral("audioOnly"), true);
+    settings.insert(QStringLiteral("audioCodecId"), QStringLiteral("flac"));
+    settings.insert(QStringLiteral("useBakes"), false);
+    QVERIFY(state.batchExportRegions(QUrl::fromLocalFile(outDir),
+                                     QStringLiteral("{Project}_{Region}_{Index}.{ext}"),
+                                     {}, settings));
+    QVERIFY(spy.wait(20000));
+    QCOMPARE(spy.count(), 1);
+    const QList<QVariant> args = spy.takeFirst();
+    QCOMPARE(args.at(0).toInt(), 2);
+    QCOMPARE(args.at(1).toInt(), 2);
+    const QStringList paths = args.at(2).toStringList();
+    QCOMPARE(paths.size(), 2);
+    for (const QString &p : paths) {
+        QVERIFY2(QFileInfo::exists(p), qPrintable(p));
+        QVERIFY(QFileInfo(p).size() > 44);
+    }
+}
+
+void EditorStateTest::trimmerInsertOverwriteAndDynamicRamPreview()
+{
+    AssetLibrary library;
+    AppController state(&library);
+    state.project()->tracks().clear();
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("v1"), .type = drift::TrackType::Video});
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("a1"), .type = drift::TrackType::Audio});
+
+    drift::MediaAsset a1, a2;
+    a1.id = QStringLiteral("asset-1");
+    a1.name = QStringLiteral("Base");
+    a1.path = QStringLiteral("/tmp/base.mp4");
+    a1.kind = drift::MediaKind::Video;
+    a1.durationUs = drift::secondsToUs(10.0);
+    a2.id = QStringLiteral("asset-2");
+    a2.name = QStringLiteral("InsertCut");
+    a2.path = QStringLiteral("/tmp/cut.mp4");
+    a2.kind = drift::MediaKind::Video;
+    a2.durationUs = drift::secondsToUs(10.0);
+    state.project()->assets().insert(a1.id, a1);
+    state.project()->assets().insert(a2.id, a2);
+    state.project()->assetOrder().append({a1.id, a2.id});
+
+    drift::Clip base;
+    base.id = QStringLiteral("base-clip");
+    base.assetId = a1.id;
+    base.path = a1.path;
+    base.type = drift::ClipType::Video;
+    base.timelineStart = 0;
+    base.timelineDuration = drift::secondsToUs(6.0);
+    base.srcIn = 0;
+    base.srcOut = drift::secondsToUs(6.0);
+    state.project()->tracks()[0].clips.append(base);
+
+    // 1. Insert mode at t=2.0s ripples tail [2..6s] right to [4..8s].
+    state.setPlayheadSeconds(2.0);
+    QVERIFY(state.insertSubclipFromTrimmer(1, 1.0, 3.0, false /*overwrite*/, QStringLiteral("both")));
+    QCOMPARE(state.project()->tracks().at(0).clips.size(), 3);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineDuration, drift::secondsToUs(2.0));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(1).assetId, a2.id);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(1).srcIn, drift::secondsToUs(1.0));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(1).srcOut, drift::secondsToUs(3.0));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(2).timelineStart, drift::secondsToUs(4.0));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(2).timelineDuration, drift::secondsToUs(4.0));
+
+    state.undo();
+    QCOMPARE(state.project()->tracks().at(0).clips.size(), 1);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineDuration, drift::secondsToUs(6.0));
+
+    // 2. Overwrite mode (video-only) at t=2.0s replaces [2..4s] without shifting [4..6s].
+    state.setPlayheadSeconds(2.0);
+    QVERIFY(state.insertSubclipFromTrimmer(1, 0.5, 2.5, true /*overwrite*/, QStringLiteral("video")));
+    QCOMPARE(state.project()->tracks().at(0).clips.size(), 3);
+    QVERIFY(state.project()->tracks().at(0).clips.at(1).suppressEmbeddedAudio);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(2).timelineStart, drift::secondsToUs(4.0));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(2).timelineDuration, drift::secondsToUs(2.0));
+
+    // 3. Audio-only subclip routes onto the Audio track.
+    state.setPlayheadSeconds(0.0);
+    QVERIFY(state.insertSubclipFromTrimmer(1, 0.0, 1.5, false, QStringLiteral("audio")));
+    QCOMPARE(state.project()->tracks().at(1).clips.size(), 1);
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).type, drift::ClipType::Audio);
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).timelineDuration, drift::secondsToUs(1.5));
+
+    // 4. Dynamic RAM Preview sets work area & loop mode from selection when no work area is set.
+    state.clearWorkArea();
+    state.selectClip(0, 1);
+    QVERIFY(state.triggerDynamicRamPreview());
+    QVERIFY(state.workAreaActive());
+    QVERIFY(state.loopWorkAreaEnabled());
+    QVERIFY(qAbs(state.workAreaInSeconds() - 2.0) < 0.05);
+    QVERIFY(qAbs(state.workAreaOutSeconds() - 4.0) < 0.05);
+    state.bakes()->cancelBake();
 }
 
 QTEST_MAIN(EditorStateTest)

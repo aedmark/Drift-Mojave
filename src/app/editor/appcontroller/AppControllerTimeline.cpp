@@ -5174,3 +5174,166 @@ void AppController::moveClipToTrack(int trackIndex, int clipIndex, int newTrackI
         m_undoStack.endMacro();
     finishEdit(tr("Clips moved"));
 }
+
+// --- Trimmer Subclip Insert / Overwrite (Tier 3B) ----------------------------
+
+namespace {
+void prepareTrackRangeForSubclip(drift::Track &track, drift::TimeUs startUs, drift::TimeUs durUs,
+                                 bool overwrite, double fps)
+{
+    const drift::TimeUs endUs = startUs + durUs;
+    if (overwrite) {
+        QList<drift::Clip> kept;
+        kept.reserve(track.clips.size() + 1);
+        for (drift::Clip clip : track.clips) {
+            if (clip.timelineEnd() <= startUs || clip.timelineStart >= endUs) {
+                kept.append(clip);
+                continue;
+            }
+            if (clip.timelineStart < startUs && clip.timelineEnd() > endUs) {
+                // Straddles the entire overwrite span: keep left head and right tail.
+                drift::Clip head = clip;
+                drift::Clip midTail = clip;
+                if (drift::splitClipAtOffset(head, midTail, startUs - clip.timelineStart, fps)) {
+                    midTail.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                    drift::Clip midDiscard = midTail;
+                    drift::Clip rightTail = midTail;
+                    if (drift::splitClipAtOffset(midDiscard, rightTail, endUs - midTail.timelineStart, fps)) {
+                        rightTail.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                        kept.append(head);
+                        kept.append(rightTail);
+                    } else {
+                        kept.append(head);
+                    }
+                }
+            } else if (clip.timelineStart < startUs) {
+                // Overlaps left edge: trim tail of existing clip.
+                drift::Clip head = clip;
+                drift::Clip discard = clip;
+                if (drift::splitClipAtOffset(head, discard, startUs - clip.timelineStart, fps))
+                    kept.append(head);
+            } else if (clip.timelineEnd() > endUs) {
+                // Overlaps right edge: trim head of existing clip.
+                drift::Clip discard = clip;
+                drift::Clip tail = clip;
+                if (drift::splitClipAtOffset(discard, tail, endUs - clip.timelineStart, fps)) {
+                    tail.id = clip.id;
+                    kept.append(tail);
+                }
+            }
+            // Else completely enclosed in [startUs, endUs]: dropped.
+        }
+        track.clips = std::move(kept);
+    } else {
+        // Insert: split any clip strictly straddling startUs, then ripple everything >= startUs right.
+        QList<drift::Clip> updated;
+        updated.reserve(track.clips.size() + 1);
+        for (drift::Clip clip : track.clips) {
+            if (clip.timelineStart < startUs && clip.timelineEnd() > startUs) {
+                drift::Clip head = clip;
+                drift::Clip tail = clip;
+                if (drift::splitClipAtOffset(head, tail, startUs - clip.timelineStart, fps)) {
+                    tail.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                    tail.timelineStart += durUs;
+                    updated.append(head);
+                    updated.append(tail);
+                    continue;
+                }
+            }
+            if (clip.timelineStart >= startUs)
+                clip.timelineStart += durUs;
+            updated.append(clip);
+        }
+        track.clips = std::move(updated);
+    }
+}
+} // namespace
+
+bool AppController::insertSubclipFromTrimmer(int assetIndex, double inSeconds, double outSeconds,
+                                             bool overwrite, const QString &streamMode)
+{
+    if (assetIndex < 0 || assetIndex >= m_project.assetOrder().size())
+        return false;
+    const QString assetId = m_project.assetOrder().at(assetIndex);
+    const drift::MediaAsset *asset = m_project.asset(assetId);
+    if (!asset)
+        return false;
+
+    drift::TimeUs inUs = qMax<drift::TimeUs>(0, drift::secondsToUs(inSeconds));
+    drift::TimeUs outUs = qMax<drift::TimeUs>(0, drift::secondsToUs(outSeconds));
+    if (asset->kind == drift::MediaKind::Image) {
+        if (outUs <= inUs)
+            outUs = inUs + drift::secondsToUs(5.0);
+    } else if (asset->durationUs > 0) {
+        inUs = qMin(inUs, asset->durationUs);
+        outUs = qMin(outUs > inUs ? outUs : asset->durationUs, asset->durationUs);
+    }
+    const drift::TimeUs subDur = outUs - inUs;
+    if (subDur <= 0)
+        return false;
+
+    const bool wantAudioOnly = (asset->kind == drift::MediaKind::Audio)
+                               || (streamMode.compare(QLatin1String("audio"), Qt::CaseInsensitive) == 0);
+    const bool wantVideoOnly = !wantAudioOnly
+                               && (streamMode.compare(QLatin1String("video"), Qt::CaseInsensitive) == 0);
+    const drift::TimeUs insertAt = qMax<drift::TimeUs>(0, m_playheadUs);
+
+    const drift::Project before = m_project.detachedCopy();
+    int targetTrack = -1;
+    const drift::TrackType wantedType =
+        wantAudioOnly ? drift::TrackType::Audio : drift::TrackType::Video;
+    for (int i = 0; i < m_project.tracks().size(); ++i) {
+        if (m_project.tracks().at(i).type == wantedType && !m_project.tracks().at(i).locked) {
+            targetTrack = i;
+            break;
+        }
+    }
+    if (targetTrack < 0) {
+        drift::Track t;
+        t.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        t.type = wantedType;
+        t.name = wantedType == drift::TrackType::Audio ? tr("Audio") : tr("Video");
+        m_project.tracks().append(t);
+        targetTrack = int(m_project.tracks().size()) - 1;
+    }
+
+    drift::Track &track = m_project.tracks()[targetTrack];
+    prepareTrackRangeForSubclip(track, insertAt, subDur, overwrite, m_project.fps());
+
+    drift::Clip clip;
+    clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    clip.assetId = asset->id;
+    clip.path = asset->path;
+    clip.name = asset->name.isEmpty() ? QFileInfo(asset->path).fileName() : asset->name;
+    clip.thumbnailPath = asset->thumbnailPath;
+    clip.filmstripPath = asset->filmstripPath;
+    if (wantAudioOnly) {
+        clip.type = drift::ClipType::Audio;
+    } else if (asset->kind == drift::MediaKind::Image) {
+        clip.type = drift::ClipType::Image;
+    } else {
+        clip.type = drift::ClipType::Video;
+        clip.suppressEmbeddedAudio = wantVideoOnly;
+    }
+    clip.timelineStart = insertAt;
+    clip.timelineDuration = subDur;
+    clip.srcIn = (asset->kind == drift::MediaKind::Image) ? 0 : inUs;
+    clip.srcOut = (asset->kind == drift::MediaKind::Image) ? subDur : outUs;
+
+    int insertIdx = int(track.clips.size());
+    for (int i = 0; i < track.clips.size(); ++i) {
+        if (track.clips.at(i).timelineStart >= clip.timelineStart) {
+            insertIdx = i;
+            break;
+        }
+    }
+    track.clips.insert(insertIdx, clip);
+
+    const QString label = overwrite ? tr("Overwrite from Trimmer") : tr("Insert from Trimmer");
+    pushProjectEdit(before, label);
+    syncClipModels();
+    finishEdit(label);
+    selectClip(targetTrack, insertIdx);
+    setPlayheadSeconds(drift::usToSeconds(insertAt + subDur));
+    return true;
+}

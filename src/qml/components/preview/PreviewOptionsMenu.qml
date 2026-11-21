@@ -183,6 +183,32 @@ Popup {
                 }
             }
         }
+
+        PreviewOptionsRowLabel { text: qsTr("Tools") }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacingXs
+
+            ThemedButton {
+                Layout.fillWidth: true
+                text: qsTr("RAM Preview")
+                tooltip: qsTr("Dynamic RAM Preview (Shift+B): pre-render and loop work area or selected clip")
+                onClicked: {
+                    root.close()
+                    EditorState.triggerDynamicRamPreview()
+                }
+            }
+
+            ThemedButton {
+                Layout.fillWidth: true
+                text: qsTr("Trimmer")
+                tooltip: qsTr("Open dedicated Trimmer window (Alt+Shift+T)")
+                onClicked: {
+                    root.close()
+                    EditorState.triggerAction("openTrimmer")
+                }
+            }
+        }
     }
 
     // Picking a decoder that runs on the other GPU is a legitimate choice — some codecs only the

@@ -326,6 +326,74 @@ void BakeController::bakeWorkArea()
     enqueue(requestForUs(m_app->m_project.workAreaInUs(), m_app->m_project.workAreaOutUs()));
 }
 
+bool BakeController::dynamicRamPreview()
+{
+    const drift::TimeUs totalDurUs = m_app->m_project.sequenceDurationUs({});
+    if (totalDurUs <= 0) {
+        m_app->setLastMessage(tr("Nothing on the timeline to preview"), QStringLiteral("warning"));
+        return false;
+    }
+
+    drift::TimeUs startUs = -1;
+    drift::TimeUs endUs = -1;
+    if (m_app->m_project.hasWorkArea()) {
+        startUs = m_app->m_project.workAreaInUs();
+        endUs = m_app->m_project.workAreaOutUs();
+    } else if (m_app->selectedTrack() >= 0 && m_app->selectedTrack() < m_app->m_project.tracks().size()
+               && m_app->selectedClip() >= 0
+               && m_app->selectedClip() < m_app->m_project.tracks().at(m_app->selectedTrack()).clips.size()) {
+        const drift::Clip &clip = m_app->m_project.tracks().at(m_app->selectedTrack()).clips.at(m_app->selectedClip());
+        startUs = clip.timelineStart;
+        endUs = clip.timelineEnd();
+    } else {
+        startUs = qBound<drift::TimeUs>(0, m_app->m_playheadUs, qMax<drift::TimeUs>(0, totalDurUs - 1));
+        endUs = qMin<drift::TimeUs>(totalDurUs, startUs + drift::secondsToUs(10.0));
+        if (endUs <= startUs) {
+            startUs = 0;
+            endUs = qMin<drift::TimeUs>(totalDurUs, drift::secondsToUs(10.0));
+        }
+    }
+
+    if (endUs <= startUs)
+        return false;
+
+    if (!m_app->m_project.hasWorkArea()) {
+        m_app->m_project.setWorkAreaInUs(startUs);
+        m_app->m_project.setWorkAreaOutUs(endUs);
+        emit m_app->workAreaChanged();
+    }
+    m_app->setLoopWorkAreaEnabled(true);
+
+    const Request req = requestForUs(startUs, endUs);
+    if (req.endFrame <= req.startFrame)
+        return false;
+
+    // If a fresh bake already covers the full requested frame span, jump straight into playback.
+    bool alreadyFresh = false;
+    if (m_index) {
+        for (const drift::Bake &bake : m_index->bakes) {
+            if (!m_staleIds.contains(bake.id) && bake.startFrame <= req.startFrame
+                && bake.endFrame >= req.endFrame) {
+                alreadyFresh = true;
+                break;
+            }
+        }
+    }
+    if (alreadyFresh) {
+        m_autoPlayAfterBake = false;
+        m_app->setPlayheadSeconds(drift::usToSeconds(startUs));
+        m_app->setPlaying(true);
+        m_app->setLastMessage(tr("Playing cached Dynamic RAM Preview"));
+        return true;
+    }
+
+    m_autoPlayAfterBake = true;
+    m_autoPlayStartUs = startUs;
+    m_app->setLastMessage(tr("Building Dynamic RAM Preview…"));
+    enqueue(req);
+    return true;
+}
+
 void BakeController::rebake(const QString &id)
 {
     if (!m_index)
@@ -360,6 +428,7 @@ void BakeController::enqueue(Request request)
 
 void BakeController::cancelBake()
 {
+    m_autoPlayAfterBake = false;
     m_queue.clear();
     if (m_busy)
         m_app->m_jobs->cancel(m_jobId);
@@ -525,7 +594,15 @@ void BakeController::onJobDone(const std::shared_ptr<JobState> &state, bool canc
 
     emit busyChanged();
     emit progressChanged();
+    const bool startAutoPlay = !cancelled && result.ok && m_autoPlayAfterBake && m_queue.isEmpty();
+    if (cancelled || !result.ok)
+        m_autoPlayAfterBake = false;
     startNext();
+    if (startAutoPlay) {
+        m_autoPlayAfterBake = false;
+        m_app->setPlayheadSeconds(drift::usToSeconds(m_autoPlayStartUs));
+        m_app->setPlaying(true);
+    }
 }
 
 void BakeController::whenIdle(std::function<void()> op)

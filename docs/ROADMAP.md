@@ -56,11 +56,11 @@ Status: **Completed**
 
 ## Tier 3 — Finishing, I/O & Deeper `.veg` Interchange (`v1.3.0+`)
 
-Status: **Planned**
+Status: **Completed**
 
 1. **Batch Render by Regions**
-   - One-click multi-file export across timeline **Regions** using configurable filename templates (`{Project}_{Region}_{Index}.{ext}`), codecs, and preset profiles.
-2. **Dedicated Trimmer Window (`Alt+2`) & Dynamic RAM Preview (`Shift+B`)**
-   - Dedicated dual-shuttle **Trimmer** panel for subclipping (`I`/`O` -> Insert / Overwrite to timeline) and `Shift+B` **Dynamic RAM Preview** wired into range bakes for stutter-free playback of heavy FX sections.
+   - First-class timeline **Regions** (`Alt+Shift+R`) and one-click multi-file export across regions using configurable filename templates (`{Project}_{Region}_{Index}.{ext}`), codecs, and preset profiles.
+2. **Dedicated Trimmer Window (`Alt+Shift+T`) & Dynamic RAM Preview (`Shift+B`)**
+   - Dedicated dual-shuttle **Trimmer** window for subclipping (`I`/`O`, `J`/`K`/`L`, `Video+Audio` / `Video Only` / `Audio Only` -> Insert / Overwrite to timeline) and `Shift+B` **Dynamic RAM Preview** wired into range bakes for stutter-free looped playback of heavy FX sections.
 3. **Deeper `.veg` Binary Interchange**
-   - Direct extraction of VEGAS **Volume/Pan/Composite Track Envelopes**, **Bezier Mask** paths, and per-track **Audio FX** parameters from `.veg` project streams.
+   - Direct extraction of VEGAS **Regions**, **Volume/Pan/Composite/Mute Track Envelopes**, **Bezier Mask** paths, and per-track **Audio FX** parameters from `.veg` project streams.

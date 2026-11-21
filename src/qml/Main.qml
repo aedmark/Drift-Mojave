@@ -672,6 +672,13 @@ ApplicationWindow {
         }
     }
 
+    LazyLoader {
+        id: trimmerWindowLoader
+        sourceComponent: Component {
+            TrimmerWindow { }
+        }
+    }
+
     // Kept loaded so the last page, its search and its scroll are still there on reopening.
     LazyLoader {
         id: marketplaceWindowLoader
@@ -1265,10 +1272,16 @@ ApplicationWindow {
                 fadeCurveWindowLoader.item.close()
             if (multicamWindowLoader.item)
                 multicamWindowLoader.item.close()
+            if (trimmerWindowLoader.item)
+                trimmerWindowLoader.item.close()
         }
 
         function onOpenMulticamWindowRequested() {
             multicamWindowLoader.ensure().openSession()
+        }
+
+        function onOpenTrimmerWindowRequested() {
+            trimmerWindowLoader.ensure().openTrimmer()
         }
 
         function onProjectLayoutChosenChanged() {
