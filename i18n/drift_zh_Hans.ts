@@ -11984,6 +11984,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Pause</source>
+        <translation type="unfinished">暂停</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation type="unfinished">播放</translation>
+    </message>
+    <message>
+        <source>Play / Pause (Space)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Exit</source>
         <translation type="unfinished"></translation>
     </message>
@@ -27361,6 +27373,34 @@ If playback stutters, try another.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Normal</source>
+        <translation type="unfinished">正常</translation>
+    </message>
+    <message>
+        <source>Multiply</source>
+        <translation type="unfinished">正片叠底</translation>
+    </message>
+    <message>
+        <source>Screen</source>
+        <translation type="unfinished">滤色</translation>
+    </message>
+    <message>
+        <source>Overlay</source>
+        <translation type="unfinished">叠加</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Soft Light</source>
+        <translation type="unfinished">柔光</translation>
+    </message>
+    <message>
+        <source>Difference</source>
+        <translation type="unfinished">差值</translation>
+    </message>
+    <message>
         <source>Track height</source>
         <translation>轨道高度</translation>
     </message>
@@ -28796,6 +28836,14 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Audio Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio Clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio-only source — %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

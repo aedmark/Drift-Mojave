@@ -1807,7 +1807,9 @@ public:
     Q_INVOKABLE void removeAudioBus(const QString &busId);
     Q_INVOKABLE void renameAudioBus(const QString &busId, const QString &name);
     Q_INVOKABLE void setAudioBusVolume(const QString &busId, double volume);
+    Q_INVOKABLE void previewAudioBusVolume(const QString &busId, double volume);
     Q_INVOKABLE void setAudioBusPan(const QString &busId, double pan);
+    Q_INVOKABLE void previewAudioBusPan(const QString &busId, double pan);
     Q_INVOKABLE void setAudioBusMuted(const QString &busId, bool muted);
     Q_INVOKABLE void setAudioBusSolo(const QString &busId, bool solo);
     Q_INVOKABLE QVariantList busAudioEffects(const QString &busId) const;

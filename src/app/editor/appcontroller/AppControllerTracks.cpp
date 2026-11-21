@@ -853,11 +853,34 @@ void AppController::renameAudioBus(const QString &busId, const QString &name)
     }
 }
 
+void AppController::previewAudioBusVolume(const QString &busId, double volume)
+{
+    const double clamped = qBound(0.0, volume, 2.0);
+    for (int i = 0; i < m_project.audioBuses().size(); ++i) {
+        if (m_project.audioBuses().at(i).id == busId) {
+            if (!m_previewDragActive)
+                beginPreviewDrag(tr("Adjust audio bus volume"));
+            m_project.audioBuses()[i].volume = clamped;
+            m_previewDragDirty = true;
+            emit audioBusesChanged();
+            emitPreviewFrame();
+            return;
+        }
+    }
+}
+
 void AppController::setAudioBusVolume(const QString &busId, double volume)
 {
     const double clamped = qBound(0.0, volume, 2.0);
     for (int i = 0; i < m_project.audioBuses().size(); ++i) {
         if (m_project.audioBuses().at(i).id == busId) {
+            if (m_previewDragActive) {
+                m_project.audioBuses()[i].volume = clamped;
+                m_previewDragDirty = true;
+                commitPreviewDrag();
+                emit audioBusesChanged();
+                return;
+            }
             if (qFuzzyCompare(m_project.audioBuses().at(i).volume, clamped))
                 return;
             const drift::Project before = m_project;
@@ -870,11 +893,34 @@ void AppController::setAudioBusVolume(const QString &busId, double volume)
     }
 }
 
+void AppController::previewAudioBusPan(const QString &busId, double pan)
+{
+    const double clamped = qBound(-1.0, pan, 1.0);
+    for (int i = 0; i < m_project.audioBuses().size(); ++i) {
+        if (m_project.audioBuses().at(i).id == busId) {
+            if (!m_previewDragActive)
+                beginPreviewDrag(tr("Adjust audio bus pan"));
+            m_project.audioBuses()[i].pan = clamped;
+            m_previewDragDirty = true;
+            emit audioBusesChanged();
+            emitPreviewFrame();
+            return;
+        }
+    }
+}
+
 void AppController::setAudioBusPan(const QString &busId, double pan)
 {
     const double clamped = qBound(-1.0, pan, 1.0);
     for (int i = 0; i < m_project.audioBuses().size(); ++i) {
         if (m_project.audioBuses().at(i).id == busId) {
+            if (m_previewDragActive) {
+                m_project.audioBuses()[i].pan = clamped;
+                m_previewDragDirty = true;
+                commitPreviewDrag();
+                emit audioBusesChanged();
+                return;
+            }
             if (qFuzzyCompare(1.0 + m_project.audioBuses().at(i).pan, 1.0 + clamped))
                 return;
             const drift::Project before = m_project;

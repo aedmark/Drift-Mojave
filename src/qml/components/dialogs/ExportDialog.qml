@@ -386,8 +386,10 @@ ThemedDialog {
                 Toasts.warning(qsTr("Folder picker is unavailable on this platform."))
                 return
             }
-            var startDir = EditorState.lastExportFolder().length > 0
-                    ? "file://" + EditorState.lastExportFolder() : ""
+            var folder = EditorState.lastExportFolder()
+            var startDir = folder.length > 0
+                    ? (folder.startsWith("/") ? "file://" : "file:///") + folder.replace(/\\/g, "/")
+                    : ""
             var dirUrl = FileDialogs.openDirectory(qsTr("Choose folder for Batch Region Render"), startDir)
             if (dirUrl != "") {
                 const batchSettings = buildSettings()

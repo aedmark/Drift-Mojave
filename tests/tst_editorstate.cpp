@@ -19189,6 +19189,21 @@ void EditorStateTest::audioBusesSendsCrudUndoAndRoundTrip()
     QCOMPARE(state.audioBuses().size(), 1);
     QCOMPARE(state.trackOutputBus(0), busId);
     QCOMPARE(state.trackAudioSends(0).size(), 1);
+
+    // Live fader & pan preview drags must collapse into a single undo step and restore cleanly.
+    state.previewAudioBusVolume(busId, 0.4);
+    state.previewAudioBusVolume(busId, 0.25);
+    state.setAudioBusVolume(busId, 0.25);
+    QVERIFY(qAbs(state.project()->audioBuses().at(0).volume - 0.25) < 1e-6);
+    state.undo();
+    QVERIFY(qAbs(state.project()->audioBuses().at(0).volume - 0.75) < 1e-6);
+
+    state.previewAudioBusPan(busId, 0.4);
+    state.previewAudioBusPan(busId, 0.65);
+    state.setAudioBusPan(busId, 0.65);
+    QVERIFY(qAbs(state.project()->audioBuses().at(0).pan - 0.65) < 1e-6);
+    state.undo();
+    QVERIFY(qAbs(state.project()->audioBuses().at(0).pan + 0.3) < 1e-6);
 }
 
 void EditorStateTest::videoTrackFxMasterFxTrackMotionAndParentCompositeRoundTrip()
@@ -19227,6 +19242,8 @@ void EditorStateTest::videoTrackFxMasterFxTrackMotionAndParentCompositeRoundTrip
     QVERIFY(!state.setTrackCompositeParent(0, QStringLiteral("v1")));
     QVERIFY(state.setTrackCompositeParent(1, QStringLiteral("v1")));
     QVERIFY(!state.setTrackCompositeParent(0, QStringLiteral("v2")));
+    state.setTrackCompositeBlendMode(1, QStringLiteral("softLight"));
+    QCOMPARE(state.project()->tracks().at(1).compositeBlendMode, drift::BlendMode::SoftLight);
     state.setTrackCompositeBlendMode(1, QStringLiteral("multiply"));
 
     const drift::Project reloaded = drift::Project::fromJson(state.project()->toJson());
@@ -19237,7 +19254,9 @@ void EditorStateTest::videoTrackFxMasterFxTrackMotionAndParentCompositeRoundTrip
     QCOMPARE(reloaded.tracks().at(1).compositeParentTrackId, QStringLiteral("v1"));
     QCOMPARE(reloaded.tracks().at(1).compositeBlendMode, drift::BlendMode::Multiply);
 
-    state.undo(); // composite blend mode
+    state.undo(); // composite blend mode (multiply -> softLight)
+    QCOMPARE(state.project()->tracks().at(1).compositeBlendMode, drift::BlendMode::SoftLight);
+    state.undo(); // composite blend mode (softLight -> normal)
     state.undo(); // composite parent
     QCOMPARE(state.trackCompositeParent(1), QString());
     state.resetTrackMotion(1);

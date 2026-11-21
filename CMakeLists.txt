@@ -1134,6 +1134,10 @@ target_link_libraries(driftapp PUBLIC
     driftcore
     driftengine
 )
+if(MSVC)
+    target_compile_options(driftengine PRIVATE /bigobj)
+    target_compile_options(driftapp PRIVATE /bigobj)
+endif()
 if(ANDROID)
     find_package(Qt6 REQUIRED COMPONENTS CorePrivate)
     target_link_libraries(driftapp PUBLIC Qt6::CorePrivate)

@@ -93,6 +93,23 @@ Window {
     }
 
     Connections {
+        target: AssetLibrary
+        function onCountChanged() {
+            if (!root.visible)
+                return
+            if (AssetLibrary.count === 0) {
+                EditorState.assetPreview.pause()
+                EditorState.assetPreview.end()
+                root.assetIndex = 0
+                root.inSeconds = 0.0
+                root.outSeconds = 0.0
+            } else if (!EditorState.assetPreview.active || root.assetIndex >= AssetLibrary.count) {
+                root.loadAsset(Math.min(Math.max(0, root.assetIndex), AssetLibrary.count - 1))
+            }
+        }
+    }
+
+    Connections {
         target: EditorState.assetPreview
         function onPositionChanged() {
             if (root.loopRange && EditorState.assetPreview.playing && root.outSeconds > root.inSeconds
@@ -203,10 +220,41 @@ Window {
                     anchors.margins: 4
                     fillMode: Image.PreserveAspectFit
                     cache: false
-                    visible: AssetLibrary.count > 0 && EditorState.assetPreview.active
-                    source: EditorState.assetPreview.active
+                    visible: AssetLibrary.count > 0 && EditorState.assetPreview.active && root.currentAsset.kind !== "audio"
+                    source: (EditorState.assetPreview.active && root.currentAsset.kind !== "audio")
                             ? ("image://clippreview/frame?rev=" + EditorState.assetPreview.revision)
                             : ""
+                }
+
+                Column {
+                    anchors.centerIn: parent
+                    spacing: Theme.spacingSm
+                    visible: AssetLibrary.count > 0 && root.currentAsset.kind === "audio"
+
+                    IconGlyph {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        glyph: Theme.icons.audioLines
+                        iconSize: 40
+                        iconColor: Theme.c.multicamAngleTile.borderActive
+                    }
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: root.currentAsset.name || qsTr("Audio Clip")
+                        color: Theme.c.multicamAngleTile.foreground
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeMd
+                        font.weight: Font.Medium
+                    }
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: qsTr("Audio-only source — %1").arg(root.formatTime(root.duration))
+                        color: Theme.c.multicamAngleTile.foreground
+                        opacity: 0.7
+                        font.family: Theme.monoFontFamily
+                        font.pixelSize: Theme.fontSizeXs
+                    }
                 }
 
                 Text {

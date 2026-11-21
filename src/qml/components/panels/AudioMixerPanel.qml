@@ -33,6 +33,9 @@ PanelFrame {
 
     Connections {
         target: EditorState
+        function onPlayingChanged() {
+            root.refreshLiveLoudness()
+        }
         function onSelectionChanged() {
             EditorState.cancelFocusedClipLoudness()
             root.loudnessText = qsTr("Loudness: not measured")

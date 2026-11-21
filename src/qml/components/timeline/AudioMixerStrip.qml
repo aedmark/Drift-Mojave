@@ -684,8 +684,6 @@ Rectangle {
                                     readonly property string busId: busData.id || ""
                                     property real peakHoldTimeL: 0
                                     property real peakHoldTimeR: 0
-                                    property real liveVolume: busData.volume !== undefined ? busData.volume : 1.0
-                                    property real livePan: busData.pan !== undefined ? busData.pan : 0.0
 
                                     function applyMeter(targetL, targetR, now) {
                                         const decay = content.meterDecay
@@ -721,8 +719,8 @@ Rectangle {
                                     name: busData.name || qsTr("Bus")
                                     muted: busData.muted === true
                                     solo: busData.solo === true
-                                    volume: liveVolume
-                                    pan: livePan
+                                    volume: busData.volume !== undefined ? busData.volume : 1.0
+                                    pan: busData.pan !== undefined ? busData.pan : 0.0
                                     hasFx: (busData.audioEffects || []).length > 0
                                     fxCount: (busData.audioEffects || []).length
 
@@ -730,18 +728,12 @@ Rectangle {
                                     onRouteClicked: routeContextMenu.openForBus(busId, name)
                                     onMuteToggled: EditorState.setAudioBusMuted(busId, !muted)
                                     onSoloToggled: EditorState.setAudioBusSolo(busId, !solo)
-                                    onVolumePreviewed: (gain) => liveVolume = gain
-                                    onVolumeCommitted: EditorState.setAudioBusVolume(busId, liveVolume)
-                                    onVolumeSet: (gain) => {
-                                        liveVolume = gain
-                                        EditorState.setAudioBusVolume(busId, gain)
-                                    }
-                                    onPanPreviewed: (value) => livePan = value
-                                    onPanCommitted: EditorState.setAudioBusPan(busId, livePan)
-                                    onPanSet: (value) => {
-                                        livePan = value
-                                        EditorState.setAudioBusPan(busId, value)
-                                    }
+                                    onVolumePreviewed: (gain) => EditorState.previewAudioBusVolume(busId, gain)
+                                    onVolumeCommitted: EditorState.setAudioBusVolume(busId, busData.volume !== undefined ? busData.volume : 1.0)
+                                    onVolumeSet: (gain) => EditorState.setAudioBusVolume(busId, gain)
+                                    onPanPreviewed: (value) => EditorState.previewAudioBusPan(busId, value)
+                                    onPanCommitted: EditorState.setAudioBusPan(busId, busData.pan !== undefined ? busData.pan : 0.0)
+                                    onPanSet: (value) => EditorState.setAudioBusPan(busId, value)
                                 }
                             }
                         }

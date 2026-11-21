@@ -175,7 +175,7 @@ Item {
     // normal clip clicks or drags anywhere on the track body.
     Rectangle {
         id: addPointChip
-        visible: root.anyVisible && root.height >= 26
+        visible: root.anyVisible && root.height >= 26 && trackData.locked !== true
         x: Math.max(6, Math.min(root.width - width - 6,
                                 (EditorState.playheadSeconds * (root.panel ? root.panel.pxPerSecond : 100)) + 8))
         y: 4
@@ -217,44 +217,49 @@ Item {
     }
 
     Repeater {
-        model: root.flattenedPoints
+        model: root.flattenedPoints.length
 
         Item {
             id: ptItem
-            required property var modelData
             required property int index
+            readonly property var pt: root.flattenedPoints[index] || ({ kind: "volume", time: 0, value: 1, hold: false, color: "#94a3b8" })
+            readonly property string effectiveKind: ptMouse.dragging ? ptMouse.dragKind : pt.kind
+            readonly property real effectiveTime: ptMouse.dragging ? ptMouse.dragTime : pt.time
+            readonly property real effectiveValue: ptMouse.dragging ? ptMouse.dragValue : pt.value
 
             readonly property real pps: root.panel ? root.panel.pxPerSecond : 100
             width: 14
             height: 14
-            x: Math.round(modelData.time * pps - width / 2)
-            y: Math.round(root.valueToY(modelData.kind, modelData.value) - height / 2)
-            z: ptMouse.pressed ? 20 : 5
+            x: Math.round(effectiveTime * pps - width / 2)
+            y: Math.round(root.valueToY(effectiveKind, effectiveValue) - height / 2)
+            z: ptMouse.dragging ? 20 : 5
 
             Rectangle {
                 anchors.centerIn: parent
-                width: ptMouse.containsMouse || ptMouse.pressed ? 10 : 8
+                width: ptMouse.containsMouse || ptMouse.dragging ? 10 : 8
                 height: width
-                radius: ptItem.modelData.kind === "mute" ? 1 : width / 2
-                color: ptMouse.containsMouse || ptMouse.pressed ? "#ffffff" : ptItem.modelData.color
+                radius: ptItem.effectiveKind === "mute" ? 1 : width / 2
+                color: ptMouse.containsMouse || ptMouse.dragging ? "#ffffff" : root.strokeColor(ptItem.effectiveKind)
                 border.color: "#0f172a"
                 border.width: 1.5
             }
 
             ThemedToolTip {
-                visible: ptMouse.containsMouse || ptMouse.pressed
-                text: root.formatValue(ptItem.modelData.kind,
-                                       ptMouse.pressed ? ptMouse.dragValue : ptItem.modelData.value)
+                visible: ptMouse.containsMouse || ptMouse.dragging
+                text: root.formatValue(ptItem.effectiveKind, ptItem.effectiveValue)
             }
 
             MouseArea {
                 id: ptMouse
                 anchors.fill: parent
+                enabled: trackData.locked !== true
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 cursorShape: Qt.PointingHandCursor
                 preventStealing: true
 
+                property bool dragging: false
+                property string dragKind: ""
                 property real pressTime: 0
                 property real dragTime: 0
                 property real dragValue: 0
@@ -264,56 +269,63 @@ Item {
                         ptMenu.popup()
                         return
                     }
-                    pressTime = ptItem.modelData.time
+                    dragKind = ptItem.pt.kind
+                    pressTime = ptItem.pt.time
                     dragTime = pressTime
-                    dragValue = ptItem.modelData.value
+                    dragValue = ptItem.pt.value
+                    dragging = true
                     EditorState.beginPreviewDrag(qsTr("Edit track envelope"))
                 }
 
                 onPositionChanged: function(mouse) {
-                    if (!pressed)
+                    if (!dragging)
                         return
-                    const inRootX = ptItem.x + mouse.x + ptItem.width / 2
-                    const inRootY = ptItem.y + mouse.y + ptItem.height / 2
-                    const nextT = Math.max(0.0, inRootX / Math.max(1.0, ptItem.pps))
-                    const nextV = root.yToValue(ptItem.modelData.kind, inRootY)
+                    const inRoot = ptItem.mapToItem(root, mouse.x, mouse.y)
+                    const nextT = Math.max(0.0, inRoot.x / Math.max(1.0, ptItem.pps))
+                    const nextV = root.yToValue(dragKind, inRoot.y)
                     dragTime = nextT
                     dragValue = nextV
-                    EditorState.previewMoveTrackEnvelopePoint(root.trackIndex, ptItem.modelData.kind,
+                    EditorState.previewMoveTrackEnvelopePoint(root.trackIndex, dragKind,
                                                               pressTime, nextT, nextV)
                     pressTime = nextT
                 }
 
                 onReleased: function(mouse) {
-                    if (mouse.button === Qt.LeftButton) {
-                        EditorState.commitMoveTrackEnvelopePoint(root.trackIndex, ptItem.modelData.kind,
+                    if (mouse.button === Qt.LeftButton && dragging) {
+                        dragging = false
+                        EditorState.commitMoveTrackEnvelopePoint(root.trackIndex, dragKind,
                                                                  pressTime, dragTime, dragValue)
                     }
                 }
 
-                onCanceled: EditorState.cancelPreviewDrag()
+                onCanceled: {
+                    if (dragging) {
+                        dragging = false
+                        EditorState.cancelPreviewDrag()
+                    }
+                }
 
                 ThemedContextMenu {
                     id: ptMenu
 
                     ThemedMenuItem {
-                        text: ptItem.modelData.kind === "mute"
-                              ? (ptItem.modelData.value < 0.5 ? qsTr("Unmute here") : qsTr("Mute here"))
+                        text: ptItem.pt.kind === "mute"
+                              ? (ptItem.pt.value < 0.5 ? qsTr("Unmute here") : qsTr("Mute here"))
                               : qsTr("Reset to default")
                         onTriggered: {
-                            const val = ptItem.modelData.kind === "mute"
-                                        ? (ptItem.modelData.value < 0.5 ? 1.0 : 0.0)
-                                        : (ptItem.modelData.kind === "pan" ? 0.0 : 1.0)
-                            EditorState.commitMoveTrackEnvelopePoint(root.trackIndex, ptItem.modelData.kind,
-                                                                     ptItem.modelData.time, ptItem.modelData.time, val)
+                            const val = ptItem.pt.kind === "mute"
+                                        ? (ptItem.pt.value < 0.5 ? 1.0 : 0.0)
+                                        : (ptItem.pt.kind === "pan" ? 0.0 : 1.0)
+                            EditorState.commitMoveTrackEnvelopePoint(root.trackIndex, ptItem.pt.kind,
+                                                                     ptItem.pt.time, ptItem.pt.time, val)
                         }
                     }
                     ThemedMenuItem {
                         text: qsTr("Delete point")
                         icon.name: Theme.icons.trash
                         onTriggered: EditorState.removeTrackEnvelopePoint(root.trackIndex,
-                                                                          ptItem.modelData.kind,
-                                                                          ptItem.modelData.time)
+                                                                          ptItem.pt.kind,
+                                                                          ptItem.pt.time)
                     }
                 }
             }

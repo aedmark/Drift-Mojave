@@ -12023,6 +12023,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Pause</source>
+        <translation type="unfinished">Pausa</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation type="unfinished">Riproduci</translation>
+    </message>
+    <message>
+        <source>Play / Pause (Space)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Exit</source>
         <translation type="unfinished"></translation>
     </message>
@@ -27447,6 +27459,34 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Normal</source>
+        <translation type="unfinished">Normale</translation>
+    </message>
+    <message>
+        <source>Multiply</source>
+        <translation type="unfinished">Moltiplica</translation>
+    </message>
+    <message>
+        <source>Screen</source>
+        <translation type="unfinished">Scolora</translation>
+    </message>
+    <message>
+        <source>Overlay</source>
+        <translation type="unfinished">Sovrapponi</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="unfinished">Aggiungi</translation>
+    </message>
+    <message>
+        <source>Soft Light</source>
+        <translation type="unfinished">Luce soffusa</translation>
+    </message>
+    <message>
+        <source>Difference</source>
+        <translation type="unfinished">Differenza</translation>
+    </message>
+    <message>
         <source>Track height</source>
         <translation>Altezza traccia</translation>
     </message>
@@ -28888,6 +28928,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
     <message>
         <source>Audio Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio Clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio-only source — %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

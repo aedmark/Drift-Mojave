@@ -15,6 +15,13 @@ Rectangle {
     readonly property int gridColumns: takeCount <= 1 ? 1 : (takeCount <= 4 ? 2 : 3)
     readonly property int gridRows: Math.max(1, Math.ceil(Math.min(takeCount, 9) / gridColumns))
 
+    function formatTime(sec) {
+        const s = Math.max(0, sec || 0)
+        const mins = Math.floor(s / 60)
+        const rem = (s - mins * 60).toFixed(2)
+        return (mins < 10 ? "0" : "") + mins + ":" + (rem.length < 5 ? "0" : "") + rem
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.spacingMd
@@ -51,6 +58,22 @@ Rectangle {
                     font.pixelSize: Theme.fontSizeXs
                     font.weight: Font.Medium
                     elide: Text.ElideRight
+                }
+
+                Text {
+                    text: root.formatTime(EditorState.playheadSeconds)
+                    color: Theme.c.multicamAngleTile.foreground
+                    opacity: 0.8
+                    font.family: Theme.monoFontFamily
+                    font.pixelSize: Theme.fontSizeXs
+                }
+
+                ThemedButton {
+                    text: EditorState.playing ? qsTr("Pause") : qsTr("Play")
+                    glyph: EditorState.playing ? Theme.icons.pause : Theme.icons.play
+                    variant: "text"
+                    tooltip: qsTr("Play / Pause (Space)")
+                    onClicked: EditorState.togglePlayback()
                 }
 
                 ThemedButton {

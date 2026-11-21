@@ -22,7 +22,7 @@ ThemedContextMenu {
             // Custom name only — pre-filling the type+position fallback
             // ("Video 1") would persist it as a real name on an unchanged
             // confirm, then stick after the track is reordered.
-            renameDialog.nameField.text = column.tracks[header.index].name || ""
+            renameDialog.nameField.text = column.tracks[header.index]?.name || ""
             renameDialog.open()
         }
     }
@@ -279,37 +279,44 @@ ThemedContextMenu {
         visible: header.transformable
 
         Repeater {
-            model: ["Normal", "Multiply", "Screen", "Overlay", "Add", "Soft Light", "Difference"]
+            model: [
+                { label: qsTr("Normal"), id: "normal" },
+                { label: qsTr("Multiply"), id: "multiply" },
+                { label: qsTr("Screen"), id: "screen" },
+                { label: qsTr("Overlay"), id: "overlay" },
+                { label: qsTr("Add"), id: "add" },
+                { label: qsTr("Soft Light"), id: "softLight" },
+                { label: qsTr("Difference"), id: "difference" }
+            ]
             delegate: ThemedMenuItem {
-                required property string modelData
-                readonly property string modeId: modelData.toLowerCase().replace(" ", "")
-                text: modelData
-                icon.name: (column.tracks[header.index]?.compositeBlendMode || "normal") === modeId ? Theme.icons.check : ""
-                onTriggered: EditorState.setTrackCompositeBlendMode(header.index, modeId)
+                required property var modelData
+                text: modelData.label
+                icon.name: (column.tracks[header.index]?.compositeBlendMode || "normal") === modelData.id ? Theme.icons.check : ""
+                onTriggered: EditorState.setTrackCompositeBlendMode(header.index, modelData.id)
             }
         }
     }
     ThemedMenuSeparator {
-        visible: column.tracks[header.index].type === "video"
+        visible: column.tracks[header.index]?.type === "video"
     }
     // The active entry swaps its icon for a tick, like the header's
     // Settings menu.
     ThemedMenuItem {
-        visible: column.tracks[header.index].type === "video"
+        visible: column.tracks[header.index]?.type === "video"
         text: column.clipDisplayLabel(0)
         icon.name: header.clipDisplay === 0 ? Theme.icons.check
                                                    : column.clipDisplayGlyph(0)
         onTriggered: EditorState.setTrackClipDisplay(header.index, 0)
     }
     ThemedMenuItem {
-        visible: column.tracks[header.index].type === "video"
+        visible: column.tracks[header.index]?.type === "video"
         text: column.clipDisplayLabel(1)
         icon.name: header.clipDisplay === 1 ? Theme.icons.check
                                                    : column.clipDisplayGlyph(1)
         onTriggered: EditorState.setTrackClipDisplay(header.index, 1)
     }
     ThemedMenuItem {
-        visible: column.tracks[header.index].type === "video"
+        visible: column.tracks[header.index]?.type === "video"
         text: column.clipDisplayLabel(2)
         icon.name: header.clipDisplay === 2 ? Theme.icons.check
                                                    : column.clipDisplayGlyph(2)
@@ -353,14 +360,14 @@ ThemedContextMenu {
         visible: column.touchHold
         text: qsTr("Taller row")
         icon.name: Theme.icons.chevronUp
-        enabled: column.tracks[header.index].heightScale < EditorState.trackHeightScaleMax()
+        enabled: (column.tracks[header.index]?.heightScale ?? 1.0) < EditorState.trackHeightScaleMax()
         onTriggered: EditorState.nudgeTrackHeightScale(header.index, 1)
     }
     ThemedMenuItem {
         visible: column.touchHold
         text: qsTr("Shorter row")
         icon.name: Theme.icons.chevronDown
-        enabled: column.tracks[header.index].heightScale > EditorState.trackHeightScaleMin()
+        enabled: (column.tracks[header.index]?.heightScale ?? 1.0) > EditorState.trackHeightScaleMin()
         onTriggered: EditorState.nudgeTrackHeightScale(header.index, -1)
     }
     ThemedMenuSeparator {}

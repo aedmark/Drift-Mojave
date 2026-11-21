@@ -12023,6 +12023,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Pause</source>
+        <translation type="unfinished">বিরতি দিন</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation type="unfinished">চালান</translation>
+    </message>
+    <message>
+        <source>Play / Pause (Space)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Exit</source>
         <translation type="unfinished"></translation>
     </message>
@@ -27447,6 +27459,34 @@ If playback stutters, try another.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Normal</source>
+        <translation type="unfinished">স্বাভাবিক</translation>
+    </message>
+    <message>
+        <source>Multiply</source>
+        <translation type="unfinished">গুণ করুন</translation>
+    </message>
+    <message>
+        <source>Screen</source>
+        <translation type="unfinished">স্ক্রীন</translation>
+    </message>
+    <message>
+        <source>Overlay</source>
+        <translation type="unfinished">ওভারলে</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="unfinished">যোগ করুন</translation>
+    </message>
+    <message>
+        <source>Soft Light</source>
+        <translation type="unfinished">সফট লাইট</translation>
+    </message>
+    <message>
+        <source>Difference</source>
+        <translation type="unfinished">ডিফারেন্স</translation>
+    </message>
+    <message>
         <source>Track height</source>
         <translation>ট্র্যাক উচ্চতা</translation>
     </message>
@@ -28888,6 +28928,14 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Audio Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio Clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio-only source — %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
