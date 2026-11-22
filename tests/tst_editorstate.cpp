@@ -149,6 +149,7 @@ private slots:
     void trackFoldersRenderQueueAndWorkspaces();
     void trackFolderCollapseMuteSoloAndTimelineSearch();
     void referenceStillGalleryAndSplitWipe();
+    void sceneCutMarkSplitAndSilencePresets();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20619,6 +20620,54 @@ void EditorStateTest::referenceStillGalleryAndSplitWipe()
     preview->clearReferenceGallery();
     QVERIFY(preview->referenceGallery().isEmpty());
     QVERIFY(!preview->hasReferenceFrame());
+}
+
+void EditorStateTest::sceneCutMarkSplitAndSilencePresets()
+{
+    AssetLibrary library;
+    AppController state(&library);
+
+    // Track 0 is Video by default
+    drift::Clip c;
+    c.id = QStringLiteral("scene-clip");
+    c.type = drift::ClipType::Video;
+    c.srcIn = 0;
+    c.srcOut = 10 * drift::kUsPerSecond;
+    c.timelineStart = 2 * drift::kUsPerSecond;
+    c.timelineDuration = 10 * drift::kUsPerSecond;
+    state.project()->tracks()[0].clips.append(c);
+
+    drift::SceneAnalysis analysis;
+    drift::Scene s1; s1.sourceIn = 0; s1.sourceOut = 3 * drift::kUsPerSecond;
+    drift::Scene s2; s2.sourceIn = 3 * drift::kUsPerSecond; s2.sourceOut = 7 * drift::kUsPerSecond;
+    drift::Scene s3; s3.sourceIn = 7 * drift::kUsPerSecond; s3.sourceOut = 10 * drift::kUsPerSecond;
+    analysis.scenes = {s1, s2, s3};
+
+    SceneDetectController *scenes = state.scenes();
+    QVERIFY(scenes != nullptr);
+    scenes->applySceneAnalysis(analysis, c.id, QStringLiteral("/tmp/dummy.mp4"), 0);
+
+    const int marked = scenes->markDetectedScenes();
+    QCOMPARE(marked, 3);
+    QCOMPARE(state.project()->bookmarks().size(), 3);
+    QCOMPARE(state.project()->bookmarks().at(0).timeUs, 2 * drift::kUsPerSecond);
+    QCOMPARE(state.project()->bookmarks().at(1).timeUs, 5 * drift::kUsPerSecond);
+    QCOMPARE(state.project()->bookmarks().at(2).timeUs, 9 * drift::kUsPerSecond);
+    state.undo();
+    QCOMPARE(state.project()->bookmarks().size(), 0);
+
+    const int splits = scenes->splitClipAtDetectedScenes();
+    QCOMPARE(splits, 2);
+    QCOMPARE(state.project()->tracks().at(0).clips.size(), 3);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineStart, 2 * drift::kUsPerSecond);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineDuration, 3 * drift::kUsPerSecond);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(1).timelineStart, 5 * drift::kUsPerSecond);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(1).timelineDuration, 4 * drift::kUsPerSecond);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(2).timelineStart, 9 * drift::kUsPerSecond);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(2).timelineDuration, 3 * drift::kUsPerSecond);
+    state.undo();
+    QCOMPARE(state.project()->tracks().at(0).clips.size(), 1);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineDuration, 10 * drift::kUsPerSecond);
 }
 
 QTEST_MAIN(EditorStateTest)

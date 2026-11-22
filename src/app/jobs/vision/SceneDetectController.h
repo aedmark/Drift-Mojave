@@ -56,6 +56,13 @@ public:
     Q_INVOKABLE double threshold() const;
     Q_INVOKABLE void setThreshold(double threshold);
 
+    // Places named timeline markers ("Scene 1", "Scene 2", ...) at every detected scene start
+    // mapped into the clip's timeline span. Returns the number of markers added (one undo step).
+    Q_INVOKABLE int markDetectedScenes();
+    // Splits the analysed clip at every interior detected scene boundary in a single undo step.
+    // Returns the number of splits performed.
+    Q_INVOKABLE int splitClipAtDetectedScenes();
+
     // Scans a file's range for callers that keep their own state (Source Lab): the scene list,
     // `detecting` and the progress above are left alone. Off the GUI thread; `progress` and `done`
     // are called back on it (`done` exactly once, with ok false when the scan failed or `cancel`

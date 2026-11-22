@@ -20115,6 +20115,26 @@ En cas de saccades à la lecture, essayez un autre mode.</translation>
         <source>Scene detection cancelled</source>
         <translation>Détection de scène annulée</translation>
     </message>
+    <message>
+        <source>Scene %1</source>
+        <translation type="unfinished">Scène %1</translation>
+    </message>
+    <message>
+        <source>Mark detected scenes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added %1 scene marker(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split at detected scenes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split clip at %1 scene boundary/boundaries</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScenesShotRow</name>
@@ -26875,6 +26895,34 @@ En cas de saccades à la lecture, essayez un autre mode.</translation>
     <message>
         <source>Remove silence</source>
         <translation>Supprimer les silences</translation>
+    </message>
+    <message>
+        <source>Standard (-34 dB, 0.5s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tight Dialogue (-30 dB, 0.35s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gentle / Natural (-42 dB, 0.8s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scene Cut Detection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detect Scenes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mark Detected Scenes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split Clip at Detected Scenes</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Sync by audio</source>

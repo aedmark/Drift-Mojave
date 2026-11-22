@@ -2,10 +2,14 @@
 
 #include "app/editor/AppController.h"
 #include "app/mcp/McpDetail.h"
+#include "core/edit/TimelineOps.h"
 
 #include <QPointer>
 #include <QSettings>
+#include <QUuid>
 #include <QtConcurrent>
+
+#include <algorithm>
 
 using drift::mcpdetail::sceneRowsFromAnalysis;
 
@@ -280,6 +284,151 @@ void SceneDetectController::detect(int trackIndex, int clipIndex, bool withObjec
     });
 }
 
+namespace {
+QList<drift::TimeUs> sceneTimelinePositions(const drift::Clip &clip, const QVariantList &scenes)
+{
+    QList<drift::TimeUs> positions;
+    const drift::TimeUs span = clip.sourceSpanUs();
+    if (span <= 0 || clip.timelineDuration <= 0)
+        return positions;
+    for (const QVariant &entry : scenes) {
+        const QVariantMap scene = entry.toMap();
+        const drift::TimeUs sourceUs =
+            drift::secondsToUs(scene.value(QStringLiteral("sourceStart")).toDouble());
+        const double through = double(sourceUs - clip.srcIn) / double(span);
+        if (through < -0.001 || through > 1.001)
+            continue;
+        const drift::TimeUs at =
+            clip.timelineStart
+            + drift::TimeUs(qBound(0.0, through, 1.0) * double(clip.timelineDuration));
+        const drift::TimeUs mapped = clip.reverse
+            ? clip.timelineStart + clip.timelineDuration - (at - clip.timelineStart)
+            : at;
+        positions.append(mapped);
+    }
+    std::sort(positions.begin(), positions.end());
+    QList<drift::TimeUs> unique;
+    for (drift::TimeUs pos : positions) {
+        if (unique.isEmpty() || std::abs(pos - unique.last()) >= 10'000)
+            unique.append(pos);
+    }
+    return unique;
+}
+} // namespace
 
+int SceneDetectController::markDetectedScenes()
+{
+    if (!m_app || m_sceneClipId.isEmpty() || m_scenes.isEmpty())
+        return 0;
+
+    const drift::Clip *target = nullptr;
+    for (const drift::Track &track : m_app->m_project.tracks()) {
+        for (const drift::Clip &clip : track.clips) {
+            if (clip.id == m_sceneClipId) {
+                target = &clip;
+                break;
+            }
+        }
+        if (target)
+            break;
+    }
+    if (!target)
+        return 0;
+
+    const QList<drift::TimeUs> positions = sceneTimelinePositions(*target, m_scenes);
+    if (positions.isEmpty())
+        return 0;
+
+    const drift::Project before = m_app->m_project;
+    int added = 0;
+    for (int i = 0; i < positions.size(); ++i) {
+        const drift::TimeUs pos = positions.at(i);
+        bool exists = false;
+        for (const drift::Bookmark &bm : m_app->m_project.bookmarks()) {
+            if (std::abs(bm.timeUs - pos) < 10'000) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            m_app->m_project.bookmarks().append(
+                drift::Bookmark{pos, tr("Scene %1").arg(i + 1)});
+            ++added;
+        }
+    }
+    if (added == 0)
+        return 0;
+
+    std::sort(m_app->m_project.bookmarks().begin(), m_app->m_project.bookmarks().end(),
+              [](const drift::Bookmark &a, const drift::Bookmark &b) {
+                  return a.timeUs < b.timeUs;
+              });
+    m_app->pushProjectEdit(before, tr("Mark detected scenes"));
+    m_app->finishEdit(tr("Added %1 scene marker(s)").arg(added));
+    return added;
+}
+
+int SceneDetectController::splitClipAtDetectedScenes()
+{
+    if (!m_app || m_sceneClipId.isEmpty() || m_scenes.size() <= 1)
+        return 0;
+
+    int trackIndex = -1;
+    int clipIndex = -1;
+    const auto &tracks = m_app->m_project.tracks();
+    for (int ti = 0; ti < tracks.size(); ++ti) {
+        const auto &clips = tracks.at(ti).clips;
+        for (int ci = 0; ci < clips.size(); ++ci) {
+            if (clips.at(ci).id == m_sceneClipId) {
+                trackIndex = ti;
+                clipIndex = ci;
+                break;
+            }
+        }
+        if (trackIndex >= 0)
+            break;
+    }
+    if (trackIndex < 0)
+        return 0;
+
+    const drift::Clip orig = tracks.at(trackIndex).clips.at(clipIndex);
+    const QList<drift::TimeUs> allPos = sceneTimelinePositions(orig, m_scenes);
+    QList<drift::TimeUs> cuts;
+    const drift::TimeUs minEdge = 50'000;
+    for (drift::TimeUs pos : allPos) {
+        if (pos > orig.timelineStart + minEdge
+            && pos < orig.timelineStart + orig.timelineDuration - minEdge) {
+            cuts.append(pos);
+        }
+    }
+    if (cuts.isEmpty())
+        return 0;
+
+    const drift::Project before = m_app->m_project;
+    const double fps = m_app->m_project.fpsExact();
+    int curIdx = clipIndex;
+    int splits = 0;
+    for (drift::TimeUs cutUs : cuts) {
+        drift::Clip &cur = m_app->m_project.tracks()[trackIndex].clips[curIdx];
+        const drift::TimeUs offset = cutUs - cur.timelineStart;
+        if (offset <= minEdge || offset >= cur.timelineDuration - minEdge)
+            continue;
+        drift::Clip head, tail;
+        head = cur;
+        if (!drift::splitClipAtOffset(head, tail, offset, fps))
+            continue;
+        tail.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        cur = head;
+        m_app->m_project.tracks()[trackIndex].clips.insert(curIdx + 1, tail);
+        ++curIdx;
+        ++splits;
+    }
+    if (splits == 0)
+        return 0;
+
+    m_app->pushProjectEdit(before, tr("Split at detected scenes"));
+    m_app->finishEdit(tr("Split clip at %1 scene boundary/boundaries").arg(splits));
+    return splits;
+}
 
 #include "moc_SceneDetectController.cpp"

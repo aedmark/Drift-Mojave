@@ -160,6 +160,14 @@ bool AudioAlignController::canRemoveSilence(int trackIndex, int clipIndex) const
 
 void AudioAlignController::removeSilence(int trackIndex, int clipIndex)
 {
+    removeSilenceWithOptions(trackIndex, clipIndex, -34.0, 0.5, 0.08);
+}
+
+void AudioAlignController::removeSilenceWithOptions(int trackIndex, int clipIndex,
+                                                    double thresholdDb,
+                                                    double minSilenceSec,
+                                                    double paddingSec)
+{
     if (!m_app->isValidClipIndex(trackIndex, clipIndex))
         return;
     const drift::Clip &target = m_app->m_project.tracks().at(trackIndex).clips.at(clipIndex);
@@ -176,10 +184,15 @@ void AudioAlignController::removeSilence(int trackIndex, int clipIndex)
     drift::Project snap = m_app->m_project.detachedCopy();
     drift::muteAllButClip(snap, audible->id);
 
+    drift::SilenceParams params;
+    params.threshold = float(std::clamp(std::pow(10.0, thresholdDb / 20.0), 0.0005, 0.5));
+    params.minSilence = std::clamp(minSilenceSec, 0.05, 30.0);
+    params.padding = std::clamp(paddingSec, 0.0, 2.0);
+
     if (!begin(tr("Finding silence…")))
         return;
 
-    (void)QtConcurrent::run([this, snap, targetId, startUs, durationUs]() {
+    (void)QtConcurrent::run([this, snap, targetId, startUs, durationUs, params]() {
         const qint64 frames = durationUs * kAnalysisRate / drift::kUsPerSecond;
         const std::vector<float> mono = mixMono(snap, startUs, frames, [this](double f) {
             reportProgress(0.95 * f, {});
@@ -189,7 +202,7 @@ void AudioAlignController::removeSilence(int trackIndex, int clipIndex)
         QList<QPair<double, double>> silences;
         if (!cancelled) {
             for (const drift::SilenceSpan &s : drift::findSilence(mono.data(), qint64(mono.size()),
-                                                                  kAnalysisRate))
+                                                                  kAnalysisRate, params))
                 silences.append({s.start, s.end});
         }
         QMetaObject::invokeMethod(

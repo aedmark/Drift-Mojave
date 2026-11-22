@@ -428,12 +428,43 @@ ThemedContextMenu {
             }
         }
     }
-    ThemedMenuItem {
-        text: qsTr("Remove silence")
+    ThemedContextMenu {
+        title: qsTr("Remove silence")
         icon.name: Theme.icons.audioLines
         visible: clipContextMenu.canRemoveSilence
         enabled: !EditorState.audioAlign.running
-        onTriggered: EditorState.audioAlign.removeSilence(owner.trackIndex, owner.clipIndex)
+        ThemedMenuItem {
+            text: qsTr("Standard (-34 dB, 0.5s)")
+            onTriggered: EditorState.audioAlign.removeSilenceWithOptions(owner.trackIndex, owner.clipIndex, -34.0, 0.5, 0.08)
+        }
+        ThemedMenuItem {
+            text: qsTr("Tight Dialogue (-30 dB, 0.35s)")
+            onTriggered: EditorState.audioAlign.removeSilenceWithOptions(owner.trackIndex, owner.clipIndex, -30.0, 0.35, 0.05)
+        }
+        ThemedMenuItem {
+            text: qsTr("Gentle / Natural (-42 dB, 0.8s)")
+            onTriggered: EditorState.audioAlign.removeSilenceWithOptions(owner.trackIndex, owner.clipIndex, -42.0, 0.8, 0.12)
+        }
+    }
+    ThemedContextMenu {
+        title: qsTr("Scene Cut Detection")
+        icon.name: Theme.icons.scissors
+        visible: owner.clipData.kind === "video"
+        ThemedMenuItem {
+            text: qsTr("Detect Scenes")
+            enabled: !EditorState.scenes.detecting
+            onTriggered: EditorState.scenes.detect(owner.trackIndex, owner.clipIndex, false)
+        }
+        ThemedMenuItem {
+            text: qsTr("Mark Detected Scenes")
+            enabled: EditorState.scenes.list.length > 0 && EditorState.scenes.clipId === owner.clipData.id
+            onTriggered: EditorState.scenes.markDetectedScenes()
+        }
+        ThemedMenuItem {
+            text: qsTr("Split Clip at Detected Scenes")
+            enabled: EditorState.scenes.list.length > 1 && EditorState.scenes.clipId === owner.clipData.id
+            onTriggered: EditorState.scenes.splitClipAtDetectedScenes()
+        }
     }
     ThemedContextMenu {
         title: qsTr("Sync by audio")

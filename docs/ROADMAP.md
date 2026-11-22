@@ -140,14 +140,14 @@ Status: **Shipped in `v1.5.0`**
 
 ## Tier 8 — Visual Track Folders, Color Wipe, Smart Cut Detection, Delivery & Project Snapshots (`v1.6.0`)
 
-Status: **In Progress (`8A–8B` implemented on `main`)**
+Status: **In Progress (`8A–8C` implemented on `main`)**
 
 1. **Tier 8A — Visual Track Folders UI, Folder Mute/Solo & Timeline Find/Jump** — ✅ Implemented on `main`
    - Collapsing a Track Folder hides child tracks (`trackRowHeight == 0`), adds a clickable folder header chip (`▸`/`▾` + track count) on the first track in each folder, adds folder-level Mute/Solo in `TrackHeaderContextMenu`, and adds a live Timeline Find & Jump (`searchTimeline` / `jumpToTimelineMatch`) dialog in `TimelineToolbar` across clips, markers, regions, and tracks.
 2. **Tier 8B — Color Finishing: Split-Screen A/B Wipe & Reference Still Gallery** — ✅ Implemented on `main`
    - Reference Still Gallery (`grabReferenceStill`, `addReferenceStillFromFile`, `selectReferenceStill`, `removeReferenceStill`, `exportReferenceStill`, `clearReferenceGallery`), `toggleFxBypassWipe()`, and `PreviewOptionsMenu` controls for Split-Screen A/B Wipe, Wipe Source, Grab Still, and thumbnail gallery switching.
-3. **Tier 8C — Smart Scene Cut Detection & Rough-Cut Silence Trimmer** — Planned
-   - Frame-delta scene cut detection placing markers or auto-splitting, plus batch dead-air silence trimming on dialogue tracks with undo.
+3. **Tier 8C — Smart Scene Cut Detection & Rough-Cut Silence Trimmer** — ✅ Implemented on `main`
+   - `SceneDetectController::markDetectedScenes()` & `splitClipAtDetectedScenes()`, `AudioAlignController::removeSilenceWithOptions()` with dB threshold / min-silence / padding presets, and `TimelineClipContextMenu` submenus for Scene Cut Detection & Remove Silence presets.
 4. **Tier 8D — Persistent Render Queue, Delivery Presets & Embedded Chapters** — Planned
    - Persistent render queue across restarts, curated hardware-preferred delivery presets, and MP4/MKV embedded chapters + YouTube chapter timestamp export.
 5. **Tier 8E — `.veg` Import Summary Report & Lightweight Project Snapshots** — Planned

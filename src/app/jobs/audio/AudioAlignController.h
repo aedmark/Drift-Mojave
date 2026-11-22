@@ -29,6 +29,11 @@ public:
     // Cuts the quiet stretches out of the clip (and its linked partners) and closes the gaps
     // within its span. RMS 0.02, at least 0.5 s quiet, 0.08 s of sound kept either side.
     Q_INVOKABLE void removeSilence(int trackIndex, int clipIndex);
+    // Configurable silence removal with explicit dB threshold, minimum pause, and padding.
+    Q_INVOKABLE void removeSilenceWithOptions(int trackIndex, int clipIndex,
+                                              double thresholdDb = -34.0,
+                                              double minSilenceSec = 0.5,
+                                              double paddingSec = 0.08);
 
     // True when the selection holds two or more audio-bearing items (a linked video and its
     // audio count as one).
