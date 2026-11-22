@@ -89,6 +89,19 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.3.0" date="2026-11-21">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.3.0</url>
+      <description>
+        <p>Drift Mojave 1.3.0 delivers VEGAS Parity Tier 5 plus multi-NLE Keymap Presets: interactive on-clip audio gain envelopes, true zero-generation ProRes 422 Smart Render stream-copying, nested .drift/.veg project import, EBU R128 loudness normalization, and one-click VEGAS/Premiere/Resolve/Final Cut shortcut presets.</p>
+        <ul>
+          <li>NLE Keymap Presets in Settings with VEGAS Pro as the Mojave default alongside Drift Classic, Premiere Pro, DaVinci Resolve, Final Cut Pro, CapCut, Kdenlive, and Shotcut</li>
+          <li>Interactive on-clip audio gain envelope drawing (TimelineAudioGainEnvelope) with double-click insert, drag gain/time nodes, and right-click remove</li>
+          <li>True zero-generation Apple ProRes 422 Smart Render packet pass-through inside Exporter::run</li>
+          <li>Nested project import (importNestedProject) inserting .drift, .veg, or .json projects directly onto the timeline as reusable Composite clips</li>
+          <li>Target EBU R128 Loudness Normalization (-14 LUFS Streaming, -16 LUFS Podcast, -23 LUFS Broadcast, -1.0 dBTP true-peak safety) across video, audio-only, and stem exports</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.0" date="2026-11-21">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.2.0</url>
       <description>

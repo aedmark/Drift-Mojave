@@ -560,6 +560,7 @@ private slots:
     void tier4bSubclipsUsageAuditFiltersAndMediaGenerators();
     void tier4cClipVolumeEnvelopeBusRoutingStemsAndSmartRender();
     void tier4dBidirectionalTimelineInterchangeExport();
+    void tier5KeymapPresetsAudioEnvelopeAndNestedProjectImport();
 };
 
 // A file dragged in from the file manager has no bin row yet, so the timeline's drop preview
@@ -19748,6 +19749,77 @@ void EditorStateTest::tier4dBidirectionalTimelineInterchangeExport()
         QVERIFY2(state.exportTimelineInterchange(QUrl::fromLocalFile(outPath)), qPrintable(outPath));
         QVERIFY(QFileInfo(outPath).size() > 0);
     }
+}
+
+void EditorStateTest::tier5KeymapPresetsAudioEnvelopeAndNestedProjectImport()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    AssetLibrary library;
+    AppController state(&library);
+
+    // 1. NLE keymap presets (VEGAS default + Premiere + Resolve + ...)
+    const QVariantList presets = state.keymapPresets();
+    QCOMPARE(presets.size(), 8);
+    QVERIFY(state.applyKeymapPreset(QStringLiteral("premiere")));
+    QCOMPARE(state.activeKeymapPreset(), QStringLiteral("premiere"));
+    QCOMPARE(state.shortcutFor(QStringLiteral("split")), QStringLiteral("Ctrl+K"));
+    QVERIFY(!state.applyKeymapPreset(QStringLiteral("nonexistent")));
+    state.resetShortcuts();
+    QCOMPARE(state.activeKeymapPreset(), QStringLiteral("vegas"));
+    QCOMPARE(state.shortcutFor(QStringLiteral("split")), QStringLiteral("S"));
+
+    // 2. Per-clip volume envelope populates volumeKeys & volumeKeyframed on TimelineClipsModel
+    state.project()->tracks().clear();
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("v1"), .type = drift::TrackType::Video});
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("a1"), .type = drift::TrackType::Audio});
+    drift::Clip ac;
+    ac.id = QStringLiteral("a-env");
+    ac.type = drift::ClipType::Audio;
+    ac.path = dir.filePath(QStringLiteral("dummy.wav"));
+    ac.timelineStart = 0;
+    ac.timelineDuration = drift::secondsToUs(4.0);
+    ac.srcIn = 0;
+    ac.srcOut = drift::secondsToUs(4.0);
+    state.project()->tracks()[1].clips.append(ac);
+    state.syncClipModels();
+    state.addClipVolumeEnvelopePoint(1, 0, 2.0, 0.4);
+    auto *model = qobject_cast<TimelineClipsModel *>(state.clipsModel(1));
+    QVERIFY(model != nullptr);
+    QCOMPARE(model->data(model->index(0, 0), TimelineClipsModel::VolumeKeyframedRole).toBool(), true);
+    QCOMPARE(model->data(model->index(0, 0), TimelineClipsModel::VolumeKeysRole).toList().size(), 2);
+
+    // 3. Nested project import (.json Drift project -> Composite clip on timeline)
+    drift::Project childProj;
+    childProj.setName(QStringLiteral("Sub Scene"));
+    childProj.setResolution(1280, 720);
+    childProj.setFps(24);
+    drift::Clip cc;
+    cc.id = QStringLiteral("sub-c1");
+    cc.name = QStringLiteral("Sub Shot");
+    cc.type = drift::ClipType::Image;
+    cc.path = dir.filePath(QStringLiteral("sub.png"));
+    cc.timelineStart = 0;
+    cc.timelineDuration = drift::secondsToUs(3.0);
+    cc.srcIn = 0;
+    cc.srcOut = drift::secondsToUs(3.0);
+    childProj.tracks()[0].clips.append(cc);
+
+    const QString childJsonPath = dir.filePath(QStringLiteral("subscene.json"));
+    QFile outJson(childJsonPath);
+    QVERIFY(outJson.open(QIODevice::WriteOnly));
+    outJson.write(childProj.toCompactJson());
+    outJson.close();
+
+    const QString nestedClipId = state.importNestedProject(QUrl::fromLocalFile(childJsonPath), 1.0);
+    QVERIFY(!nestedClipId.isEmpty());
+    QCOMPARE(state.project()->sequenceIds().size(), 1);
+    QCOMPARE(state.project()->tracks().at(0).clips.size(), 1);
+    const drift::Clip &placed = state.project()->tracks().at(0).clips.at(0);
+    QCOMPARE(placed.type, drift::ClipType::Composite);
+    QCOMPARE(placed.timelineStart, drift::secondsToUs(1.0));
+    QCOMPARE(placed.timelineDuration, drift::secondsToUs(3.0));
 }
 
 QTEST_MAIN(EditorStateTest)

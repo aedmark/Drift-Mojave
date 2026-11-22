@@ -5749,6 +5749,38 @@
         </translation>
     </message>
     <message>
+        <source>Drift Mojave default (S split, Ctrl+L ripple, G/U group, F5 expanded edit)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Original Drift defaults (B blade, V select, Shift+R roll)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adobe Premiere Pro chords (Ctrl+K cut, V/C tools, Y slip, N roll)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Blackmagic Resolve Edit page chords (Ctrl+B cut, A/B tools, T slip)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apple Final Cut Pro chords (Ctrl+B blade, A/B tools, V mute clip)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CapCut Desktop chords (Ctrl+B split, Q/W trim to playhead)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>KDE Kdenlive chords (Shift+R split, S select, X razor)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shotcut NLE chords (S split, Ctrl+R ripple, I/O work area)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Exporting…</source>
         <translation>Đang xuất…</translation>
     </message>
@@ -5858,6 +5890,30 @@
     </message>
     <message>
         <source>Timeline exported to %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested project file not found</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unrecognized nested project format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to import nested project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested project has an empty timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested project imported</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested project &quot;%1&quot; added to timeline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -9525,6 +9581,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Import Nested Project as Composite Clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift / VEGAS projects (*.drift *.veg *.json)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Save Shareable Copy</source>
         <translation>Lưu bản sao có thể chia sẻ</translation>
     </message>
@@ -10511,6 +10575,26 @@
     </message>
     <message>
         <source>Stem export failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Normalize loudness (EBU R128: %1 LUFS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Measure timeline loudness and auto-level master gain while protecting True Peak at -1.0 dBTP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>-14 LUFS (Streaming)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>-16 LUFS (Podcast)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>-23 LUFS (Broadcast)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -19166,6 +19250,10 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Import nested project (.drift / .veg)…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Project properties…</source>
         <translation>Thuộc tính dự án…</translation>
     </message>
@@ -20812,6 +20900,18 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
     <message>
         <source>Click a shortcut, then press the keys. Esc cancels, Backspace clears.</source>
         <translation>Nhấp chuột vào phím tắt, sau đó nhấn các phím tương ứng. Phím Esc để hủy, phím Backspace để xóa.</translation>
+    </message>
+    <message>
+        <source>Keymap preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch between VEGAS Pro (Mojave default) and popular NLE shortcut layouts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Applied %1 keymap preset</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Reset to defaults</source>
@@ -26003,6 +26103,17 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
     <message>
         <source>Edit value</source>
         <translation>Chỉnh sửa giá trị</translation>
+    </message>
+</context>
+<context>
+    <name>TimelineAudioGainEnvelope</name>
+    <message>
+        <source>Clip Gain: -inf dB (0%)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip Gain: %1% (%2 dB)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

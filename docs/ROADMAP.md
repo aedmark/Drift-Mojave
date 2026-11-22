@@ -86,3 +86,20 @@ Status: **Shipped in `v1.2.0`**
 4. **Tier 4D — Two-Way Interchange & Deeper `.veg` Import Parity**
    - **Bidirectional Timeline Export**: `TimelineExporter` exporting active sequences to `.fcpxml` (Final Cut Pro XML), `.edl` (CMX 3600 EDL), `.otio` (OpenTimelineIO), and `.txt` (VEGAS Marker/Region TSV).
    - **Deeper `.veg` Import Parity**: Parse per-event lock/mute flags, event velocity envelopes, track composite blend modes, and VEGAS Media Generator chunks.
+
+---
+
+## Tier 5 — Multi-NLE Keymap Presets, True Smart Render, Project Nesting & Loudness Mastering (`v1.3.0`)
+
+Status: **Shipped in `v1.3.0`**
+
+1. **Multi-NLE Keymap Presets (VEGAS Pro Default)**
+   - Built-in conflict-free keymap switcher in Settings (`VEGAS Pro`, `Drift Classic`, `Premiere Pro`, `DaVinci Resolve`, `Final Cut Pro`, `CapCut`, `Kdenlive`, `Shotcut`).
+2. **Tier 5A — Interactive On-Clip Audio Gain Envelope (`TimelineAudioGainEnvelope`)**
+   - Direct Canvas gain curve and draggable dB/gain nodes on audio and embedded-audio video clips (`0–200%` with unity `0 dB` magnetic detent, double-click add, right-click delete).
+3. **Tier 5B — True Zero-Generation Smart Render Pass-Through**
+   - In-process `AVPacket` stream-copy muxing inside `Exporter::run` for qualifying unmodified Apple ProRes 422 `.mov` segments with seamless fallback for composited segments.
+4. **Tier 5C — Project Nesting (`.drift` / `.veg` / `.json` as a Clip)**
+   - Import another Drift `.drift` bundle, VEGAS `.veg` project, or `.json` project directly onto the active timeline as a nested `Composite` clip with full asset and sub-sequence remapping.
+5. **Tier 5D — Target EBU R128 Loudness Normalization**
+   - Optional automatic Integrated LUFS mastering (`-14 LUFS`, `-16 LUFS`, `-23 LUFS`) with `-1.0 dBTP` True Peak limiting across full video exports, audio-only renders, and multi-track/bus WAV stems.

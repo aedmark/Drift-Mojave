@@ -358,6 +358,11 @@ Item {
         owner: clipItem
     }
 
+    TimelineAudioGainEnvelope {
+        id: audioGainEnvelopeOverlay
+        owner: clipItem
+    }
+
     TimelineTopEdgeHandle {
         id: topEdgeHandle
         owner: clipItem

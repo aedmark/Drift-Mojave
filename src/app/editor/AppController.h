@@ -356,6 +356,7 @@ class AppController : public QObject
     Q_PROPERTY(QVariantList guideItems READ guideItems NOTIFY guidesChanged)
     Q_PROPERTY(bool inlineTextEditing READ inlineTextEditing NOTIFY inlineTextEditingChanged)
     Q_PROPERTY(QVariantList actions READ actions NOTIFY shortcutsChanged)
+    Q_PROPERTY(QString activeKeymapPreset READ activeKeymapPreset NOTIFY shortcutsChanged)
     Q_PROPERTY(QVariantList bookmarks READ bookmarks NOTIFY bookmarksChanged)
     Q_PROPERTY(QVariantList regions READ regions NOTIFY regionsChanged)
     Q_PROPERTY(QVariantMap batchExportStatus READ batchExportStatus NOTIFY batchExportStatusChanged)
@@ -2023,6 +2024,9 @@ public:
     // Restores every default binding. Backspace clears a binding and persists the
     // empty string, so without this there was no route back from having cleared one.
     Q_INVOKABLE void resetShortcuts();
+    Q_INVOKABLE QVariantList keymapPresets() const;
+    QString activeKeymapPreset() const { return m_activeKeymapPreset; }
+    Q_INVOKABLE bool applyKeymapPreset(const QString &presetId);
     // Canonical chord string for a key event (Ctrl+Shift+Left, …). Same names the
     // Shortcut items and the shortcut-capture field use, so a rebound chord still
     // matches when it is dispatched from Keys.onPressed rather than Shortcut {}.
@@ -2136,9 +2140,11 @@ public:
     Q_INVOKABLE void exportWithSettings(const QUrl &outputUrl, const QVariantMap &settings,
                                         bool rememberChoice = true);
     Q_INVOKABLE QVariantMap exportAudioStems(const QUrl &outputDirUrl, bool includeTracks = true,
-                                             bool includeBuses = true, bool includeMaster = true);
+                                             bool includeBuses = true, bool includeMaster = true,
+                                             bool normalizeLoudness = false, double targetLufs = -14.0);
     Q_INVOKABLE QVariantList analyzeSmartRenderSegments(const QVariantMap &settings = {}) const;
     Q_INVOKABLE bool exportTimelineInterchange(const QUrl &url, const QString &format = QString());
+    Q_INVOKABLE QString importNestedProject(const QUrl &url, double atSeconds = -1.0);
     Q_INVOKABLE void cancelExport();
     // Copies the finished export into the shared media collection and hands it to the system share
     // sheet. Deferred to this point rather than done as part of the export because it is a second
@@ -2956,6 +2962,7 @@ protected:
     // Persists the library; an edit to an active set also changes what the project saves.
     void guideLibraryEdited(const QString &id);
     QHash<QString, QString> m_shortcuts;
+    QString m_activeKeymapPreset = QStringLiteral("vegas");
     QHash<QString, QSet<QString>> m_assetFavorites;
     int m_draggingAssetIndex = -1;
     QString m_lastMessage;

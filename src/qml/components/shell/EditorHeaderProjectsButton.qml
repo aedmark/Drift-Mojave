@@ -14,6 +14,7 @@ Rectangle {
     signal saveJsonRequested()
     signal openJsonRequested()
     signal exportInterchangeRequested()
+    signal importNestedRequested()
     signal propertiesRequested()
 
     readonly property bool open: recentPopupLoader.shown
@@ -107,6 +108,7 @@ Rectangle {
                 onSaveJsonRequested: projectsButton.saveJsonRequested()
                 onOpenJsonRequested: projectsButton.openJsonRequested()
                 onExportInterchangeRequested: projectsButton.exportInterchangeRequested()
+                onImportNestedRequested: projectsButton.importNestedRequested()
                 // Disabled: external project imports. Uncomment with the open*() functions above.
                 // onImportPremiereRequested: root.openPremiereProject()
                 // onImportMogrtRequested: root.openMogrt()

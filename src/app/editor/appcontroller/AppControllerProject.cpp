@@ -12,8 +12,10 @@
 #include "ui/preview/PreviewController.h"
 
 #include "core/interchange/TimelineExporter.h"
+#include "core/interchange/VegasReader.h"
 #include "engine/audio/AudioMixer.h"
 #include "engine/decode/readers/ClipReaderPool.h"
+#include "engine/project/ProjectBundle.h"
 #include "engine/diagnostics/DebugReport.h"
 #include "engine/project/ProjectDependencies.h"
 #include "engine/encode/export/Exporter.h"
@@ -1632,7 +1634,8 @@ QString sanitizeStemFilename(QString name, const QString &fallback)
     return name.isEmpty() ? fallback : name;
 }
 
-bool writeWavFromProject(const drift::Project &project, const QString &outPath, QString *errorOut)
+bool writeWavFromProject(const drift::Project &project, const QString &outPath, QString *errorOut,
+                         bool normalizeLoudness = false, double targetLufs = -14.0)
 {
     constexpr int kSampleRate = 48000;
     constexpr int kChannels = 2;
@@ -1655,6 +1658,10 @@ bool writeWavFromProject(const drift::Project &project, const QString &outPath, 
     mixer.setMasterClipEnabled(false);
 
     const drift::TimeUs durationUs = qMax<drift::TimeUs>(0, project.durationUs());
+    if (normalizeLoudness && durationUs > 0) {
+        mixer.setMasterVolume(Exporter::computeLoudnessGain(
+            project, 0, durationUs, kSampleRate, targetLufs));
+    }
     const qint64 totalFrames = (durationUs * kSampleRate + 500000) / 1000000;
     QVector<float> floatBuf(kBlockFrames * kChannels);
     QVector<qint16> pcmBuf(kBlockFrames * kChannels);
@@ -1978,7 +1985,8 @@ QString AppController::insertMediaGenerator(const QString &generatorId, double a
 // --- Tier 4C: Audio Stem Export & Smart Render Analysis ----------------------
 
 QVariantMap AppController::exportAudioStems(const QUrl &outputDirUrl, bool includeTracks,
-                                            bool includeBuses, bool includeMaster)
+                                            bool includeBuses, bool includeMaster,
+                                            bool normalizeLoudness, double targetLufs)
 {
     QString dirPath = outputDirUrl.isLocalFile() ? outputDirUrl.toLocalFile() : outputDirUrl.toString();
     dirPath = dirPath.trimmed();
@@ -2037,7 +2045,7 @@ QVariantMap AppController::exportAudioStems(const QUrl &outputDirUrl, bool inclu
             QString err;
             const QString fallback = QStringLiteral("track_%1").arg(i + 1);
             const QString outPath = uniqueStemPath(t.name.trimmed().isEmpty() ? fallback : t.name, fallback);
-            if (!writeWavFromProject(iso, outPath, &err)) {
+            if (!writeWavFromProject(iso, outPath, &err, normalizeLoudness, targetLufs)) {
                 result.insert(QStringLiteral("error"), err);
                 result.insert(QStringLiteral("files"), files);
                 result.insert(QStringLiteral("count"), int(files.size()));
@@ -2083,7 +2091,7 @@ QVariantMap AppController::exportAudioStems(const QUrl &outputDirUrl, bool inclu
             const QString outPath = uniqueStemPath(
                 QStringLiteral("bus_%1").arg(target.name.isEmpty() ? target.id : target.name),
                 QStringLiteral("bus_%1").arg(target.id));
-            if (!writeWavFromProject(iso, outPath, &err)) {
+            if (!writeWavFromProject(iso, outPath, &err, normalizeLoudness, targetLufs)) {
                 result.insert(QStringLiteral("error"), err);
                 result.insert(QStringLiteral("files"), files);
                 result.insert(QStringLiteral("count"), int(files.size()));
@@ -2096,7 +2104,7 @@ QVariantMap AppController::exportAudioStems(const QUrl &outputDirUrl, bool inclu
     if (includeMaster) {
         QString err;
         const QString outPath = uniqueStemPath(QStringLiteral("master"), QStringLiteral("master"));
-        if (!writeWavFromProject(baseProject, outPath, &err)) {
+        if (!writeWavFromProject(baseProject, outPath, &err, normalizeLoudness, targetLufs)) {
             result.insert(QStringLiteral("error"), err);
             result.insert(QStringLiteral("files"), files);
             result.insert(QStringLiteral("count"), int(files.size()));
@@ -2146,4 +2154,146 @@ bool AppController::exportTimelineInterchange(const QUrl &url, const QString &fo
     }
     setLastMessage(tr("Timeline exported to %1").arg(QFileInfo(path).fileName()));
     return true;
+}
+
+// --- Tier 5C: Nested Project Import (.drift / .veg / .json) ------------------
+
+QString AppController::importNestedProject(const QUrl &url, double atSeconds)
+{
+    const QString path = (url.isLocalFile() ? url.toLocalFile() : url.toString()).trimmed();
+    if (path.isEmpty() || !QFileInfo::exists(path)) {
+        setLastMessage(tr("Nested project file not found"), QStringLiteral("warning"));
+        return {};
+    }
+
+    QString err;
+    std::optional<drift::Project> loaded;
+    QHash<QString, QString> pathRemap;
+
+    if (path.endsWith(QLatin1String(".veg"), Qt::CaseInsensitive)
+        || drift::vegas::isVegasProject(path)) {
+        loaded = drift::vegas::readProject(path, &err);
+    } else if (const auto bundle = drift::bundle::readManifest(path, &err); bundle.has_value()) {
+        const QString extractDir = QDir(projectMediaDir(m_project.id()))
+                                       .filePath(QStringLiteral("nested_%1").arg(
+                                           bundle->projectId.isEmpty()
+                                               ? QUuid::createUuid().toString(QUuid::WithoutBraces)
+                                               : bundle->projectId));
+        QDir().mkpath(extractDir);
+        drift::bundle::extract(path, extractDir, {}, &pathRemap, &err);
+        QString parseErr;
+        drift::Project parsed = drift::Project::fromJson(bundle->document, &parseErr);
+        if (!parseErr.isEmpty())
+            err = parseErr;
+        else
+            loaded = std::move(parsed);
+    } else {
+        err.clear();
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) {
+            setLastMessage(f.errorString(), QStringLiteral("error"));
+            return {};
+        }
+        const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+        if (!doc.isObject()) {
+            setLastMessage(tr("Unrecognized nested project format"), QStringLiteral("error"));
+            return {};
+        }
+        drift::Project parsed = drift::Project::fromJson(doc.object(), &err);
+        if (err.isEmpty())
+            loaded = std::move(parsed);
+    }
+
+    if (!loaded.has_value()) {
+        setLastMessage(err.isEmpty() ? tr("Failed to import nested project") : err,
+                       QStringLiteral("error"));
+        return {};
+    }
+
+    const drift::Project &child = *loaded;
+    const drift::TimeUs childDuration = child.durationUs();
+    if (child.tracks().isEmpty() || childDuration <= 0) {
+        setLastMessage(tr("Nested project has an empty timeline"), QStringLiteral("warning"));
+        return {};
+    }
+
+    const drift::Project before = m_project;
+
+    QHash<QString, QString> assetIdMap;
+    for (const drift::MediaAsset &srcAsset : child.assets()) {
+        drift::MediaAsset copy = srcAsset;
+        if (pathRemap.contains(copy.path))
+            copy.path = pathRemap.value(copy.path);
+        if (copy.id.isEmpty() || m_project.assets().contains(copy.id))
+            copy.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        assetIdMap.insert(srcAsset.id, copy.id);
+        m_project.addAsset(copy);
+    }
+
+    QHash<QString, QString> seqIdMap;
+    auto remapTrackList = [&](drift::TrackList list) {
+        for (drift::Track &tr : list) {
+            for (drift::Clip &c : tr.clips) {
+                c.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                if (!c.assetId.isEmpty() && assetIdMap.contains(c.assetId))
+                    c.assetId = assetIdMap.value(c.assetId);
+                if (pathRemap.contains(c.path))
+                    c.path = pathRemap.value(c.path);
+                if (!c.sequenceId.isEmpty() && seqIdMap.contains(c.sequenceId))
+                    c.sequenceId = seqIdMap.value(c.sequenceId);
+            }
+        }
+        return list;
+    };
+
+    for (const QString &subId : child.sequenceIds()) {
+        drift::TrackList subTracks = child.sequenceTracks(subId);
+        subTracks = remapTrackList(std::move(subTracks));
+        const QString newSubId = m_project.addSequence(std::move(subTracks));
+        seqIdMap.insert(subId, newSubId);
+    }
+
+    drift::TrackList mainTracks = remapTrackList(child.tracks());
+    const QString rootSeqId = m_project.addSequence(std::move(mainTracks));
+
+    const QString baseLabel = !child.name().trimmed().isEmpty()
+                                  ? child.name().trimmed()
+                                  : QFileInfo(path).completeBaseName();
+
+    drift::MediaAsset compAsset;
+    compAsset.kind = drift::MediaKind::Composite;
+    compAsset.name = baseLabel;
+    compAsset.sequenceId = rootSeqId;
+    compAsset.durationUs = childDuration;
+    compAsset.width = child.width() > 0 ? child.width() : m_project.width();
+    compAsset.height = child.height() > 0 ? child.height() : m_project.height();
+    compAsset.fps = child.fps() > 0 ? child.fps() : m_project.fps();
+    compAsset.folderId = m_bin ? m_bin->currentFolderId() : QString{};
+    const QString compAssetId = m_project.addAsset(compAsset);
+    if (m_assetLibrary)
+        m_assetLibrary->syncToProject();
+
+    const int trackIndex = drift::ensureTrackForClipType(m_project, drift::ClipType::Composite, true);
+    drift::Track &targetTrack = m_project.tracks()[trackIndex];
+    const drift::TimeUs desiredUs = atSeconds >= 0.0 ? drift::secondsToUs(atSeconds) : m_playheadUs;
+    const drift::TimeUs startUs = drift::resolveClipStart(
+        m_project, targetTrack, -1, desiredUs, childDuration, m_snapEnabled, m_playheadUs);
+
+    drift::Clip compClip;
+    compClip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    compClip.assetId = compAssetId;
+    compClip.sequenceId = rootSeqId;
+    compClip.type = drift::ClipType::Composite;
+    compClip.name = baseLabel;
+    compClip.timelineStart = startUs;
+    compClip.timelineDuration = childDuration;
+    compClip.srcIn = 0;
+    compClip.srcOut = childDuration;
+
+    targetTrack.clips.append(compClip);
+    const int clipIdx = int(targetTrack.clips.size()) - 1;
+    pushProjectEdit(before, tr("Nested project imported"));
+    finishEdit(tr("Nested project \"%1\" added to timeline").arg(baseLabel));
+    selectClip(trackIndex, clipIdx);
+    return compClip.id;
 }

@@ -2580,6 +2580,9 @@ void AppController::loadShortcuts()
 
     QSettings settings;
     settings.beginGroup(QStringLiteral("shortcuts"));
+    m_activeKeymapPreset = settings.value(QStringLiteral("preset"), QStringLiteral("vegas")).toString();
+    if (m_activeKeymapPreset.isEmpty())
+        m_activeKeymapPreset = QStringLiteral("vegas");
     const int version = settings.value(QLatin1String(kShortcutsVersionKey), 0).toInt();
     const QHash<QString, QString> &superseded = supersededShortcutDefaults(version);
 
@@ -2638,14 +2641,136 @@ void AppController::loadShortcuts()
 
 void AppController::resetShortcuts()
 {
+    applyKeymapPreset(QStringLiteral("vegas"));
+}
+
+QVariantList AppController::keymapPresets() const
+{
+    return {
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("vegas")},
+                    {QStringLiteral("name"), QStringLiteral("VEGAS Pro")},
+                    {QStringLiteral("description"), tr("Drift Mojave default (S split, Ctrl+L ripple, G/U group, F5 expanded edit)")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("drift")},
+                    {QStringLiteral("name"), QStringLiteral("Drift Classic")},
+                    {QStringLiteral("description"), tr("Original Drift defaults (B blade, V select, Shift+R roll)")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("premiere")},
+                    {QStringLiteral("name"), QStringLiteral("Premiere Pro")},
+                    {QStringLiteral("description"), tr("Adobe Premiere Pro chords (Ctrl+K cut, V/C tools, Y slip, N roll)")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("resolve")},
+                    {QStringLiteral("name"), QStringLiteral("DaVinci Resolve")},
+                    {QStringLiteral("description"), tr("Blackmagic Resolve Edit page chords (Ctrl+B cut, A/B tools, T slip)")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("finalcut")},
+                    {QStringLiteral("name"), QStringLiteral("Final Cut Pro")},
+                    {QStringLiteral("description"), tr("Apple Final Cut Pro chords (Ctrl+B blade, A/B tools, V mute clip)")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("capcut")},
+                    {QStringLiteral("name"), QStringLiteral("CapCut")},
+                    {QStringLiteral("description"), tr("CapCut Desktop chords (Ctrl+B split, Q/W trim to playhead)")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("kdenlive")},
+                    {QStringLiteral("name"), QStringLiteral("Kdenlive")},
+                    {QStringLiteral("description"), tr("KDE Kdenlive chords (Shift+R split, S select, X razor)")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("shotcut")},
+                    {QStringLiteral("name"), QStringLiteral("Shotcut")},
+                    {QStringLiteral("description"), tr("Shotcut NLE chords (S split, Ctrl+R ripple, I/O work area)")}},
+    };
+}
+
+bool AppController::applyKeymapPreset(const QString &presetId)
+{
+    const QString id = presetId.trimmed().toLower();
+    QHash<QString, QString> overrides;
+
+    if (id == QLatin1String("vegas")) {
+        // Mojave's defaultShortcuts() is already VEGAS-first.
+    } else if (id == QLatin1String("drift")) {
+        overrides = {
+            {QStringLiteral("split"), QStringLiteral("B")},
+            {QStringLiteral("bladeTool"), QStringLiteral("C")},
+            {QStringLiteral("selectTool"), QStringLiteral("V")},
+        };
+    } else if (id == QLatin1String("premiere")) {
+        overrides = {
+            {QStringLiteral("split"), QStringLiteral("Ctrl+K")},
+            {QStringLiteral("selectTool"), QStringLiteral("V")},
+            {QStringLiteral("bladeTool"), QStringLiteral("C")},
+            {QStringLiteral("slipTool"), QStringLiteral("Y")},
+            {QStringLiteral("slideTool"), QStringLiteral("U")},
+            {QStringLiteral("rippleDelete"), QStringLiteral("Shift+Delete")},
+            {QStringLiteral("toggleBookmark"), QStringLiteral("M")},
+            {QStringLiteral("markIn"), QStringLiteral("I")},
+            {QStringLiteral("markOut"), QStringLiteral("O")},
+            {QStringLiteral("delete"), QStringLiteral("Backspace")},
+        };
+    } else if (id == QLatin1String("resolve")) {
+        overrides = {
+            {QStringLiteral("split"), QStringLiteral("Ctrl+B")},
+            {QStringLiteral("selectTool"), QStringLiteral("A")},
+            {QStringLiteral("bladeTool"), QStringLiteral("B")},
+            {QStringLiteral("slipTool"), QStringLiteral("T")},
+            {QStringLiteral("toggleBookmark"), QStringLiteral("M")},
+            {QStringLiteral("markIn"), QStringLiteral("I")},
+            {QStringLiteral("markOut"), QStringLiteral("O")},
+            {QStringLiteral("delete"), QStringLiteral("Backspace")},
+        };
+    } else if (id == QLatin1String("finalcut")) {
+        overrides = {
+            {QStringLiteral("split"), QStringLiteral("Ctrl+B")},
+            {QStringLiteral("selectTool"), QStringLiteral("A")},
+            {QStringLiteral("bladeTool"), QStringLiteral("B")},
+            {QStringLiteral("slipTool"), QStringLiteral("T")},
+            {QStringLiteral("toggleBookmark"), QStringLiteral("M")},
+            {QStringLiteral("toggleClipEnabled"), QStringLiteral("V")},
+            {QStringLiteral("markIn"), QStringLiteral("I")},
+            {QStringLiteral("markOut"), QStringLiteral("O")},
+        };
+    } else if (id == QLatin1String("capcut")) {
+        overrides = {
+            {QStringLiteral("split"), QStringLiteral("Ctrl+B")},
+            {QStringLiteral("selectTool"), QStringLiteral("A")},
+            {QStringLiteral("bladeTool"), QStringLiteral("B")},
+            {QStringLiteral("deleteLeft"), QStringLiteral("Q")},
+            {QStringLiteral("deleteRight"), QStringLiteral("W")},
+            {QStringLiteral("toggleClipEnabled"), QStringLiteral("V")},
+        };
+    } else if (id == QLatin1String("kdenlive")) {
+        overrides = {
+            {QStringLiteral("split"), QStringLiteral("Shift+R")},
+            {QStringLiteral("selectTool"), QStringLiteral("S")},
+            {QStringLiteral("bladeTool"), QStringLiteral("X")},
+            {QStringLiteral("group"), QStringLiteral("G")},
+            {QStringLiteral("ungroup"), QStringLiteral("Ctrl+Shift+G")},
+        };
+    } else if (id == QLatin1String("shotcut")) {
+        overrides = {
+            {QStringLiteral("split"), QStringLiteral("S")},
+            {QStringLiteral("toggleAutoRipple"), QStringLiteral("Ctrl+R")},
+            {QStringLiteral("markIn"), QStringLiteral("I")},
+            {QStringLiteral("markOut"), QStringLiteral("O")},
+        };
+    } else {
+        return false;
+    }
+
     m_shortcuts = defaultShortcuts();
+    for (auto it = overrides.cbegin(); it != overrides.cend(); ++it) {
+        if (!it.value().isEmpty()) {
+            for (auto kt = m_shortcuts.begin(); kt != m_shortcuts.end(); ++kt) {
+                if (kt.key() != it.key() && kt.value() == it.value())
+                    kt.value().clear();
+            }
+        }
+        m_shortcuts[it.key()] = it.value();
+    }
+
+    m_activeKeymapPreset = id;
     QSettings settings;
     settings.beginGroup(QStringLiteral("shortcuts"));
+    settings.setValue(QStringLiteral("preset"), m_activeKeymapPreset);
     for (auto it = m_shortcuts.cbegin(); it != m_shortcuts.cend(); ++it)
         settings.setValue(it.key(), it.value());
     settings.setValue(QLatin1String(kShortcutsVersionKey), kShortcutsSchemaVersion);
     settings.endGroup();
     emit shortcutsChanged();
+    return true;
 }
 
 QString AppController::shortcutChord(int key, int modifiers) const

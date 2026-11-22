@@ -604,6 +604,7 @@ private slots:
     void videoTrackFxMasterFxAndTrackMotionCompositing();
     void audioMixerBusToBusRoutingAndCycleGuard();
     void smartRenderIdentifiesUnmodifiedProRes422();
+    void tier5SmartRenderPassThroughAndLoudnessNormalization();
 
 private:
     static QString makeColorSegmentsVideo(QTemporaryDir &dir);
@@ -19923,6 +19924,95 @@ void EngineTest::smartRenderIdentifiesUnmodifiedProRes422()
     const auto segs = Exporter::findSmartRenderSegments(project, settings);
     QCOMPARE(segs.size(), 1);
     QCOMPARE(segs.at(0).clipId, QStringLiteral("c1"));
+}
+
+void EngineTest::tier5SmartRenderPassThroughAndLoudnessNormalization()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // 1. EBU R128 loudness gain computation
+    const QString tonePath = makeToneAudio(dir);
+    QVERIFY(QFileInfo::exists(tonePath));
+
+    drift::Project audioProj;
+    audioProj.setResolution(128, 72);
+    audioProj.setFps(24);
+    audioProj.tracks()[0].type = drift::TrackType::Audio;
+    drift::Clip ac;
+    ac.id = QStringLiteral("a1");
+    ac.type = drift::ClipType::Audio;
+    ac.path = tonePath;
+    ac.timelineStart = 0;
+    ac.timelineDuration = drift::secondsToUs(1.0);
+    ac.srcIn = 0;
+    ac.srcOut = drift::secondsToUs(1.0);
+    audioProj.tracks()[0].clips.append(ac);
+
+    const double gain23 = Exporter::computeLoudnessGain(audioProj, 0, drift::secondsToUs(1.0), 48000, -23.0);
+    QVERIFY(std::isfinite(gain23));
+    QVERIFY(gain23 > 0.01 && gain23 < 1.0);
+
+    // Silence returns unity 1.0 gain.
+    drift::Project silentProj;
+    QCOMPARE(Exporter::computeLoudnessGain(silentProj, 0, drift::secondsToUs(1.0), 48000, -14.0), 1.0);
+
+    // 2. Real ProRes 422 Smart Render pass-through + loudness-normalized export
+    const QString srcMov = dir.filePath(QStringLiteral("src_prores.mov"));
+    ExportSettings srcSettings = Exporter::defaultSettings();
+    srcSettings.videoCodecId = QStringLiteral("prores");
+    srcSettings.smartRender = false;
+    QString err;
+    QVERIFY2(Exporter::run(audioProj, srcSettings, srcMov, &err), qPrintable(err));
+    QVERIFY(QFileInfo(srcMov).size() > 1000);
+
+    const MediaInfo probed = MediaProbe::probe(srcMov);
+    QVERIFY(probed.ok);
+    bool hasProResStream = false;
+    for (const StreamInfo &si : probed.streams) {
+        if (si.type == StreamInfo::Type::Video && si.codecName.contains(QLatin1String("prores"), Qt::CaseInsensitive))
+            hasProResStream = true;
+    }
+    QVERIFY(hasProResStream);
+
+    drift::Project smartProj;
+    smartProj.setResolution(128, 72);
+    smartProj.setFps(24);
+
+    drift::MediaAsset ma;
+    ma.id = QStringLiteral("asset-mov");
+    ma.kind = drift::MediaKind::Video;
+    ma.path = srcMov;
+    ma.codecName = QStringLiteral("prores");
+    ma.width = 128;
+    ma.height = 72;
+    ma.fps = 24;
+    ma.durationUs = drift::secondsToUs(1.0);
+    smartProj.assets().insert(ma.id, ma);
+
+    drift::Clip v1;
+    v1.id = QStringLiteral("v1");
+    v1.assetId = ma.id;
+    v1.path = srcMov;
+    v1.type = drift::ClipType::Video;
+    v1.timelineStart = 0;
+    v1.timelineDuration = drift::secondsToUs(0.5);
+    v1.srcIn = 0;
+    v1.srcOut = drift::secondsToUs(0.5);
+    smartProj.tracks()[0].clips.append(v1);
+
+    ExportSettings smartSettings = Exporter::defaultSettings();
+    smartSettings.videoCodecId = QStringLiteral("prores");
+    smartSettings.smartRender = true;
+    smartSettings.normalizeLoudness = true;
+    smartSettings.targetLufs = -16.0;
+
+    const auto segs = Exporter::findSmartRenderSegments(smartProj, smartSettings);
+    QCOMPARE(segs.size(), 1);
+
+    const QString outMov = dir.filePath(QStringLiteral("out_smart.mov"));
+    QVERIFY2(Exporter::run(smartProj, smartSettings, outMov, &err), qPrintable(err));
+    QVERIFY(QFileInfo(outMov).size() > 1000);
 }
 
 QTEST_MAIN(EngineTest)

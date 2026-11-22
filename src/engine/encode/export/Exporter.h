@@ -55,6 +55,8 @@ struct ExportSettings
     bool audioOnly = false;
     bool gifExport = false;
     bool smartRender = true;
+    bool normalizeLoudness = false;
+    double targetLufs = -14.0;
     QString metadataTitle;
     QString metadataArtist;
     QString metadataAlbum;
@@ -158,6 +160,11 @@ public:
     // export dimensions and frame rate that qualify for zero-recompress stream-copy pass-through.
     static QList<SmartRenderSegment> findSmartRenderSegments(const drift::Project &project,
                                                              const ExportSettings &settings);
+
+    // Measures integrated loudness over [startUs, startUs + durationUs] and returns the linear
+    // master gain needed to hit `targetLufs` while keeping True Peak <= -1.0 dBFS.
+    static double computeLoudnessGain(const drift::Project &project, drift::TimeUs startUs,
+                                      drift::TimeUs durationUs, int sampleRate, double targetLufs);
 
     // `outputPath` is a filesystem path, or — on Android — the fully encoded content:// URI of a
     // document the save picker created (AndroidUri::filePath of what FileDialogs returned).

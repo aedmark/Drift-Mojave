@@ -3,6 +3,7 @@
 #include "engine/EngineTuning.h"
 
 #include "engine/audio/AudioMixer.h"
+#include "engine/audio/analysis/LoudnessMeter.h"
 #include "engine/decode/readers/ClipReaderPool.h"
 #include "engine/compositor/FrameCompositor.h"
 #include "engine/compositor/PreviewStream.h"
@@ -14,10 +15,12 @@
 #include "core/base/Time.h"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QHash>
 #include <QImage>
 #include <QMutex>
 #include <QtGlobal>
+#include <cmath>
 
 #ifdef Q_OS_ANDROID
 #include "engine/platform/AndroidUri.h"
@@ -1150,6 +1153,10 @@ bool runAudioOnlyExport(const drift::Project &project, const ExportSettings &set
 
         AudioMixer mixer;
         mixer.setProject(&project);
+        if (settings.normalizeLoudness) {
+            mixer.setMasterVolume(Exporter::computeLoudnessGain(
+                project, rangeStartUs, durationUs, sampleRate, settings.targetLufs));
+        }
 
         std::vector<float> audioBuffer;
         int64_t audioSamplesGenerated = 0;
@@ -2005,6 +2012,10 @@ ExportSettings Exporter::settingsFromMap(const QVariantMap &map)
         s.gifExport = map.value(QStringLiteral("gifExport")).toBool();
     if (map.contains(QStringLiteral("smartRender")))
         s.smartRender = map.value(QStringLiteral("smartRender")).toBool();
+    if (map.contains(QStringLiteral("normalizeLoudness")))
+        s.normalizeLoudness = map.value(QStringLiteral("normalizeLoudness")).toBool();
+    if (map.contains(QStringLiteral("targetLufs")))
+        s.targetLufs = qBound(-40.0, map.value(QStringLiteral("targetLufs")).toDouble(), -5.0);
     if (map.contains(QStringLiteral("metadataTitle")))
         s.metadataTitle = map.value(QStringLiteral("metadataTitle")).toString();
     if (map.contains(QStringLiteral("metadataArtist")))
@@ -2376,8 +2387,13 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
             bakeRelease.pool = settings.bakes;
         }
         AudioMixer mixer;
-        if (!sink)
+        if (!sink) {
             mixer.setProject(&project);
+            if (settings.normalizeLoudness) {
+                mixer.setMasterVolume(Exporter::computeLoudnessGain(
+                    project, rangeStartUs, durationUs, sampleRate, settings.targetLufs));
+            }
+        }
 
         std::vector<float> audioBuffer;
         int64_t audioSamplesGenerated = 0;
@@ -2561,6 +2577,105 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
             return sendVideoAndAudio(job.pts);
         };
 
+        const QList<SmartRenderSegment> smartRenderSegs =
+            (!sink && settings.smartRender && settings.videoCodecId == QLatin1String("prores"))
+                ? findSmartRenderSegments(project, settings)
+                : QList<SmartRenderSegment>{};
+
+        struct SmartRenderPacketCopier
+        {
+            AVFormatContext *inFmt = nullptr;
+            int videoIdx = -1;
+            QString openPath;
+            int64_t nextExpectedPts = -1;
+            AVPacket *inPkt = nullptr;
+
+            ~SmartRenderPacketCopier()
+            {
+                close();
+                if (inPkt)
+                    av_packet_free(&inPkt);
+            }
+            void close()
+            {
+                if (inFmt)
+                    avformat_close_input(&inFmt);
+                videoIdx = -1;
+                openPath.clear();
+                nextExpectedPts = -1;
+            }
+            bool tryCopyFrame(const SmartRenderSegment &seg, drift::TimeUs timelineTimeUs, int64_t outFramePts,
+                              AVFormatContext *outFmt, AVCodecContext *vctx, AVStream *vstream)
+            {
+                if (!QFileInfo::exists(seg.sourcePath))
+                    return false;
+                if (openPath != seg.sourcePath) {
+                    close();
+                    if (avformat_open_input(&inFmt, seg.sourcePath.toUtf8().constData(), nullptr, nullptr) < 0) {
+                        close();
+                        return false;
+                    }
+                    if (avformat_find_stream_info(inFmt, nullptr) < 0) {
+                        close();
+                        return false;
+                    }
+                    videoIdx = av_find_best_stream(inFmt, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+                    if (videoIdx < 0) {
+                        close();
+                        return false;
+                    }
+                    const AVCodecParameters *cp = inFmt->streams[videoIdx]->codecpar;
+                    if (cp->codec_id != AV_CODEC_ID_PRORES || cp->width != vctx->width
+                        || cp->height != vctx->height || cp->format != vctx->pix_fmt) {
+                        close();
+                        return false;
+                    }
+                    openPath = seg.sourcePath;
+                }
+                if (!inFmt || videoIdx < 0)
+                    return false;
+                if (!inPkt) {
+                    inPkt = av_packet_alloc();
+                    if (!inPkt)
+                        return false;
+                }
+                const drift::TimeUs srcOffsetUs = seg.srcInUs + qMax<drift::TimeUs>(0, timelineTimeUs - seg.timelineStartUs);
+                const AVStream *inStream = inFmt->streams[videoIdx];
+                const int64_t targetSrcPts = av_rescale_q(srcOffsetUs, AVRational{1, 1000000}, inStream->time_base);
+                if (nextExpectedPts < 0 || qAbs(targetSrcPts - nextExpectedPts) > av_rescale_q(2, vctx->time_base, inStream->time_base)) {
+                    if (av_seek_frame(inFmt, videoIdx, targetSrcPts, AVSEEK_FLAG_BACKWARD) < 0)
+                        return false;
+                }
+                while (av_read_frame(inFmt, inPkt) >= 0) {
+                    if (inPkt->stream_index != videoIdx) {
+                        av_packet_unref(inPkt);
+                        continue;
+                    }
+                    const int64_t pktPts = (inPkt->pts != AV_NOPTS_VALUE) ? inPkt->pts : inPkt->dts;
+                    if (pktPts != AV_NOPTS_VALUE && pktPts + inPkt->duration < targetSrcPts) {
+                        av_packet_unref(inPkt);
+                        continue;
+                    }
+                    AVPacket *outPkt = av_packet_clone(inPkt);
+                    av_packet_unref(inPkt);
+                    if (!outPkt)
+                        return false;
+                    nextExpectedPts = (pktPts != AV_NOPTS_VALUE ? pktPts + qMax<int64_t>(1, outPkt->duration) : -1);
+                    outPkt->stream_index = vstream->index;
+                    outPkt->pts = av_rescale_q(outFramePts, vctx->time_base, vstream->time_base);
+                    outPkt->dts = outPkt->pts;
+                    outPkt->duration = av_rescale_q(1, vctx->time_base, vstream->time_base);
+                    outPkt->pos = -1;
+                    outPkt->flags |= AV_PKT_FLAG_KEY;
+                    const int wrc = av_interleaved_write_frame(outFmt, outPkt);
+                    av_packet_free(&outPkt);
+                    return wrc >= 0;
+                }
+                return false;
+            }
+        } smartCopier;
+        bool fedVideoEncoder = false;
+
         for (int64_t i = 0; i < totalFrames; ++i) {
             if (onProgress && !onProgress(static_cast<double>(i) / totalFrames)) {
                 cancelled = true;
@@ -2570,6 +2685,50 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
             const drift::TimeUs t = rangeStartUs + static_cast<drift::TimeUs>(
                 std::llround(static_cast<double>(i) * 1e6 * frameRate.den / frameRate.num));
 
+            if (!smartRenderSegs.isEmpty()) {
+                const SmartRenderSegment *matchedSeg = nullptr;
+                for (const SmartRenderSegment &seg : smartRenderSegs) {
+                    if (t >= seg.timelineStartUs && t < seg.timelineStartUs + seg.timelineDurationUs) {
+                        matchedSeg = &seg;
+                        break;
+                    }
+                }
+                if (matchedSeg) {
+                    if (useGpuNv12) {
+                        while (inflightCount > 0) {
+                            if (!consumeNv12Head())
+                                goto cleanup;
+                        }
+                    }
+                    if (fedVideoEncoder) {
+                        if (!encodeWriteFrame(fmt, vctx, vstream, nullptr, pkt, &error))
+                            goto cleanup;
+                        avcodec_flush_buffers(vctx);
+                        fedVideoEncoder = false;
+                    }
+                    if (smartCopier.tryCopyFrame(*matchedSeg, t, i, fmt, vctx, vstream)) {
+                        const int64_t targetSamples = qMin(
+                            totalAudioSamples,
+                            ((i + 1) * static_cast<int64_t>(sampleRate) * frameRate.den) / frameRate.num);
+                        const int need = static_cast<int>(targetSamples - audioSamplesGenerated);
+                        if (need > 0) {
+                            const size_t base = audioBuffer.size();
+                            audioBuffer.resize(base + static_cast<size_t>(need) * 2);
+                            const drift::TimeUs audioStartUs = rangeStartUs
+                                + static_cast<drift::TimeUs>(
+                                    (static_cast<int64_t>(audioSamplesGenerated) * drift::kUsPerSecond)
+                                    / sampleRate);
+                            mixer.mix(audioStartUs, need, sampleRate, audioBuffer.data() + base);
+                            audioSamplesGenerated = targetSamples;
+                        }
+                        if (!flushAudioFrames(false))
+                            goto cleanup;
+                        continue;
+                    }
+                }
+            }
+
+            fedVideoEncoder = true;
             if (useGpuNv12) {
                 if (inflightCount == GpuCompositor::kExportNv12Slots) {
                     if (!consumeNv12Head())
@@ -2961,4 +3120,35 @@ QList<Exporter::SmartRenderSegment> Exporter::findSmartRenderSegments(const drif
         return a.timelineStartUs < b.timelineStartUs;
     });
     return segments;
+}
+
+double Exporter::computeLoudnessGain(const drift::Project &project, drift::TimeUs startUs,
+                                     drift::TimeUs durationUs, int sampleRate, double targetLufs)
+{
+    if (durationUs <= 0 || sampleRate <= 0)
+        return 1.0;
+
+    AudioMixer mixer;
+    mixer.setProject(&project);
+    mixer.setMasterClipEnabled(false);
+
+    const qint64 totalFrames = qMax<qint64>(1, (durationUs * sampleRate + 500000) / 1000000);
+    const drift::LoudnessResult res = drift::measureLoudness(
+        totalFrames, sampleRate, [&](float *out, qint64 frameOffset, int maxFrames) {
+            const drift::TimeUs blockStart = startUs + (frameOffset * 1000000) / sampleRate;
+            mixer.mix(blockStart, maxFrames, sampleRate, out);
+            return maxFrames;
+        });
+
+    if (!res.ok || res.integratedLufs <= -69.5)
+        return 1.0;
+
+    const double clampedTarget = qBound(-40.0, targetLufs, -5.0);
+    double deltaDb = clampedTarget - res.integratedLufs;
+    if (res.truePeakDb > -119.0) {
+        const double maxSafeDb = -1.0 - res.truePeakDb;
+        deltaDb = qMin(deltaDb, maxSafeDb);
+    }
+    deltaDb = qBound(-24.0, deltaDb, 24.0);
+    return std::pow(10.0, deltaDb / 20.0);
 }

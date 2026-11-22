@@ -162,6 +162,14 @@ Item {
             EditorState.exportTimelineInterchange(url)
     }
 
+    function importNestedProject() {
+        var url = FileDialogs.openFile(qsTr("Import Nested Project as Composite Clip"),
+                                       [qsTr("Drift / VEGAS projects (*.drift *.veg *.json)")],
+                                       ["application/octet-stream", "application/json"])
+        if (url != "")
+            EditorState.importNestedProject(url)
+    }
+
     // Inverse of saveProjectJson. Confirms unsaved work like Open, because it replaces the
     // timeline. The JSON does not become the current project path.
     //
@@ -409,6 +417,7 @@ Item {
                 onSaveJsonRequested: root.saveProjectJson()
                 onOpenJsonRequested: root.openProjectJson()
                 onExportInterchangeRequested: root.exportTimelineInterchange()
+                onImportNestedRequested: root.importNestedProject()
                 onPropertiesRequested: projectPropertiesDialogLoader.ensure().openDialog()
             }
 

@@ -18,6 +18,7 @@ Popup {
     signal saveJsonRequested()
     signal openJsonRequested()
     signal exportInterchangeRequested()
+    signal importNestedRequested()
     // Disabled: external project imports need more fixing before shipping. Re-enable the signals
     // and ActionRows below together with the loadProject() routing in AppController.
     // signal importPremiereRequested()
@@ -256,6 +257,13 @@ Popup {
             glyph: Theme.icons.upload
             text: qsTr("Export timeline (.fcpxml / .edl / .otio / .txt)…")
             onTriggered: root.exportInterchangeRequested()
+        }
+
+        RecentProjectsActionRow {
+            popup: root
+            glyph: Theme.icons.plus
+            text: qsTr("Import nested project (.drift / .veg)…")
+            onTriggered: root.importNestedRequested()
         }
 
         // Disabled: external project imports (Premiere Pro, DaVinci Resolve/FCPXML,

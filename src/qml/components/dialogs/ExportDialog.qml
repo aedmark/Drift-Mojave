@@ -38,6 +38,8 @@ ThemedDialog {
     property bool exportWorkAreaOnly: false
     property bool useBakes: true
     property bool smartRender: true
+    property bool normalizeLoudness: false
+    property real targetLufs: -14.0
     property var staleBakes: []
 
     // Export frame rate. fpsNum 0 means "follow the project fps". Rational so the
@@ -250,6 +252,8 @@ ThemedDialog {
 
         advancedOpen = false
         smartRender = (src.smartRender !== undefined) ? (src.smartRender === true) : true
+        normalizeLoudness = (src.normalizeLoudness === true)
+        targetLufs = (src.targetLufs !== undefined && src.targetLufs !== null) ? Number(src.targetLufs) : -14.0
         exportWorkAreaOnly = EditorState.workAreaActive
                 && (remembered.exportWorkAreaOnly === true)
 
@@ -341,7 +345,9 @@ ThemedDialog {
             "gifExport": isGifExport,
             "exportWorkAreaOnly": exportWorkAreaOnly && EditorState.workAreaActive,
             "bakes": useBakes ? "all" : "none",
-            "smartRender": smartRender
+            "smartRender": smartRender,
+            "normalizeLoudness": normalizeLoudness,
+            "targetLufs": targetLufs
         }
         if (s.exportWorkAreaOnly) {
             s.startUs = Math.round(EditorState.workAreaInSeconds * 1000000)
@@ -604,11 +610,44 @@ ThemedDialog {
                     }
                     var dirUrl = FileDialogs.openDirectory(qsTr("Choose folder for Audio Stems (.wav)"))
                     if (dirUrl != "") {
-                        const res = EditorState.exportAudioStems(dirUrl, true, true, true)
+                        const res = EditorState.exportAudioStems(
+                            dirUrl, true, true, true, root.normalizeLoudness, root.targetLufs)
                         if (res && res.ok)
                             Toasts.success(qsTr("Exported %1 WAV stem(s)").arg(res.count || 0))
                         else
                             Toasts.error((res && res.error) ? res.error : qsTr("Stem export failed"))
+                    }
+                }
+            }
+
+            Column {
+                width: parent.width
+                visible: !root.isGifExport
+                spacing: Theme.spacingXs
+
+                ThemedCheckBox {
+                    text: qsTr("Normalize loudness (EBU R128: %1 LUFS)").arg(Number(root.targetLufs).toFixed(0))
+                    checked: root.normalizeLoudness
+                    tooltip: qsTr("Measure timeline loudness and auto-level master gain while protecting True Peak at -1.0 dBTP")
+                    onToggled: root.normalizeLoudness = checked
+                }
+
+                Row {
+                    visible: root.normalizeLoudness
+                    spacing: Theme.spacingXs
+
+                    Repeater {
+                        model: [
+                            { lufs: -14.0, label: qsTr("-14 LUFS (Streaming)") },
+                            { lufs: -16.0, label: qsTr("-16 LUFS (Podcast)") },
+                            { lufs: -23.0, label: qsTr("-23 LUFS (Broadcast)") }
+                        ]
+                        delegate: ThemedButton {
+                            required property var modelData
+                            variant: Math.abs(root.targetLufs - modelData.lufs) < 0.2 ? "primary" : "secondary"
+                            text: modelData.label
+                            onClicked: root.targetLufs = modelData.lufs
+                        }
                     }
                 }
             }
