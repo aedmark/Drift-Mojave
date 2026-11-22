@@ -439,6 +439,45 @@ Item {
         }
     }
 
+    // Clickable folder header badge on the first track in a Track Folder (Tier 8A).
+    Rectangle {
+        id: folderBadge
+        readonly property string folderName: (column.tracks[index] && column.tracks[index].folderName) || ""
+        readonly property bool folderCollapsed: !!(column.tracks[index] && column.tracks[index].folderCollapsed)
+        readonly property int folderCount: (column.tracks[index] && column.tracks[index].folderTrackCount) || 0
+        visible: !column.compact && column.tracks[index] && column.tracks[index].folderFirstTrack === true
+        z: 35
+        anchors.right: parent.right
+        anchors.rightMargin: 6
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 4
+        height: 18
+        width: folderBadgeLabel.implicitWidth + 12
+        radius: 4
+        color: folderBadgeMouse.containsMouse ? Theme.c.accentMuted : Theme.c.surfaceRaised
+        border.width: 1
+        border.color: Theme.c.borderSubtle
+
+        Text {
+            id: folderBadgeLabel
+            anchors.centerIn: parent
+            text: (folderBadge.folderCollapsed ? "▸ " : "▾ ")
+                  + folderBadge.folderName
+                  + " (" + folderBadge.folderCount + ")"
+            font.pixelSize: 10
+            font.weight: Font.Medium
+            color: Theme.c.textPrimary
+        }
+
+        MouseArea {
+            id: folderBadgeMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: EditorState.setTrackFolderCollapsed(folderBadge.folderName, !folderBadge.folderCollapsed)
+        }
+    }
+
     // Wheel over track headers should scroll the same track list as the
     // timeline. Alt+wheel retains DAW-style per-lane height adjustment.
     // NoButton keeps clicks, reorder drag and the context menu available.

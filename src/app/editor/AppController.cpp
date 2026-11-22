@@ -1140,6 +1140,19 @@ QVariantList AppController::tracks() const
             {QStringLiteral("lanesCollapsed"), track.lanesCollapsed},
             {QStringLiteral("folderName"), track.folderName},
             {QStringLiteral("folderCollapsed"), track.folderCollapsed},
+            {QStringLiteral("folderCollapsedChild"), isTrackCollapsedChild(ti)},
+            {QStringLiteral("folderTrackCount"),
+             track.folderName.isEmpty() ? 0 : trackFolderTrackCount(track.folderName)},
+            {QStringLiteral("folderFirstTrack"), [&]() {
+                if (track.folderName.isEmpty() || track.isAdjustmentLane())
+                    return false;
+                for (int prev = 0; prev < ti; ++prev) {
+                    const drift::Track &p = m_project.tracks().at(prev);
+                    if (!p.isAdjustmentLane() && p.folderName == track.folderName)
+                        return false;
+                }
+                return true;
+            }()},
             {QStringLiteral("showVolumeEnvelope"), track.showVolumeEnvelope},
             {QStringLiteral("showPanEnvelope"), track.showPanEnvelope},
             {QStringLiteral("showCompositeEnvelope"), track.showCompositeEnvelope},

@@ -1580,6 +1580,8 @@ int AppController::trackRowHeight(int trackIndex, const QVariantMap &metrics) co
     // addressing the rest of the app is built on.
     if (track.isAdjustmentLane())
         return 0;
+    if (isTrackCollapsedChild(trackIndex))
+        return 0;
 
     double base = baseVideo;
     switch (track.type) {
@@ -1735,6 +1737,224 @@ bool AppController::isTrackFolderCollapsed(const QString &folderName) const
             return true;
     }
     return false;
+}
+
+bool AppController::isTrackCollapsedChild(int trackIndex) const
+{
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return false;
+    const drift::Track &track = m_project.tracks().at(trackIndex);
+    if (track.isAdjustmentLane() || track.folderName.isEmpty() || !track.folderCollapsed)
+        return false;
+    for (int i = 0; i < trackIndex; ++i) {
+        const drift::Track &prev = m_project.tracks().at(i);
+        if (!prev.isAdjustmentLane() && prev.folderName == track.folderName)
+            return true;
+    }
+    return false;
+}
+
+int AppController::trackFolderTrackCount(const QString &folderName) const
+{
+    const QString cleaned = folderName.trimmed();
+    if (cleaned.isEmpty())
+        return 0;
+    int count = 0;
+    for (const drift::Track &track : m_project.tracks()) {
+        if (!track.isAdjustmentLane() && track.folderName == cleaned)
+            ++count;
+    }
+    return count;
+}
+
+bool AppController::isTrackFolderMuted(const QString &folderName) const
+{
+    const QString cleaned = folderName.trimmed();
+    if (cleaned.isEmpty())
+        return false;
+    bool found = false;
+    for (const drift::Track &track : m_project.tracks()) {
+        if (!track.isAdjustmentLane() && track.folderName == cleaned) {
+            found = true;
+            if (!track.muted)
+                return false;
+        }
+    }
+    return found;
+}
+
+bool AppController::isTrackFolderSolo(const QString &folderName) const
+{
+    const QString cleaned = folderName.trimmed();
+    if (cleaned.isEmpty())
+        return false;
+    bool found = false;
+    for (const drift::Track &track : m_project.tracks()) {
+        if (!track.isAdjustmentLane() && track.folderName == cleaned) {
+            found = true;
+            if (!track.solo)
+                return false;
+        }
+    }
+    return found;
+}
+
+void AppController::setTrackFolderMuted(const QString &folderName, bool muted)
+{
+    const QString cleaned = folderName.trimmed();
+    if (cleaned.isEmpty())
+        return;
+    bool anyChange = false;
+    for (const drift::Track &track : m_project.tracks()) {
+        if (!track.isAdjustmentLane() && track.folderName == cleaned && track.muted != muted) {
+            anyChange = true;
+            break;
+        }
+    }
+    if (!anyChange)
+        return;
+
+    const drift::Project before = m_project;
+    for (drift::Track &track : m_project.tracks()) {
+        if (!track.isAdjustmentLane() && track.folderName == cleaned)
+            track.muted = muted;
+    }
+    pushProjectEdit(before, muted ? tr("Mute folder") : tr("Unmute folder"));
+    finishEdit(muted ? tr("Muted folder “%1”").arg(cleaned)
+                     : tr("Unmuted folder “%1”").arg(cleaned));
+}
+
+void AppController::setTrackFolderSolo(const QString &folderName, bool solo)
+{
+    const QString cleaned = folderName.trimmed();
+    if (cleaned.isEmpty())
+        return;
+    bool anyChange = false;
+    for (const drift::Track &track : m_project.tracks()) {
+        if (!track.isAdjustmentLane() && track.folderName == cleaned && track.solo != solo) {
+            anyChange = true;
+            break;
+        }
+    }
+    if (!anyChange)
+        return;
+
+    const drift::Project before = m_project;
+    for (drift::Track &track : m_project.tracks()) {
+        if (!track.isAdjustmentLane() && track.folderName == cleaned)
+            track.solo = solo;
+    }
+    pushProjectEdit(before, solo ? tr("Solo folder") : tr("Unsolo folder"));
+    finishEdit(solo ? tr("Soloed folder “%1”").arg(cleaned)
+                    : tr("Unsoloed folder “%1”").arg(cleaned));
+}
+
+QVariantList AppController::searchTimeline(const QString &query) const
+{
+    const QString needle = query.trimmed();
+    if (needle.isEmpty())
+        return {};
+
+    QVariantList results;
+    const auto &tracks = m_project.tracks();
+    for (int ti = 0; ti < tracks.size(); ++ti) {
+        const drift::Track &track = tracks.at(ti);
+        if (track.isAdjustmentLane())
+            continue;
+        const QString trackLabel = !track.name.isEmpty()
+            ? track.name
+            : QStringLiteral("%1 %2").arg(drift::trackTypeToString(track.type)).arg(ti + 1);
+
+        if (trackLabel.contains(needle, Qt::CaseInsensitive)
+            || (!track.folderName.isEmpty() && track.folderName.contains(needle, Qt::CaseInsensitive))) {
+            results.append(QVariantMap{
+                {QStringLiteral("kind"), QStringLiteral("track")},
+                {QStringLiteral("label"), trackLabel},
+                {QStringLiteral("detail"), track.folderName.isEmpty() ? tr("Track") : track.folderName},
+                {QStringLiteral("timeUs"), 0},
+                {QStringLiteral("trackIndex"), ti},
+            });
+        }
+
+        for (int ci = 0; ci < track.clips.size(); ++ci) {
+            const drift::Clip &clip = track.clips.at(ci);
+            QString assetName;
+            if (!clip.assetId.isEmpty() && m_project.assets().contains(clip.assetId))
+                assetName = m_project.assets().value(clip.assetId).name;
+            const QString clipLabel = !clip.name.isEmpty()        ? clip.name
+                                    : !clip.textContent.isEmpty() ? clip.textContent
+                                    : !assetName.isEmpty()        ? assetName
+                                                                  : clip.id;
+            if (clipLabel.contains(needle, Qt::CaseInsensitive)
+                || clip.id.contains(needle, Qt::CaseInsensitive)
+                || clip.label.contains(needle, Qt::CaseInsensitive)
+                || assetName.contains(needle, Qt::CaseInsensitive)) {
+                results.append(QVariantMap{
+                    {QStringLiteral("kind"), QStringLiteral("clip")},
+                    {QStringLiteral("label"), clipLabel},
+                    {QStringLiteral("detail"), trackLabel},
+                    {QStringLiteral("timeUs"), static_cast<qint64>(clip.timelineStart)},
+                    {QStringLiteral("trackIndex"), ti},
+                    {QStringLiteral("clipIndex"), ci},
+                    {QStringLiteral("clipId"), clip.id},
+                });
+            }
+        }
+    }
+
+    for (int bi = 0; bi < m_project.bookmarks().size(); ++bi) {
+        const drift::Bookmark &bm = m_project.bookmarks().at(bi);
+        const QString bmLabel = bm.label.isEmpty() ? tr("Marker") : bm.label;
+        if (bmLabel.contains(needle, Qt::CaseInsensitive)) {
+            results.append(QVariantMap{
+                {QStringLiteral("kind"), QStringLiteral("marker")},
+                {QStringLiteral("label"), bmLabel},
+                {QStringLiteral("detail"), tr("Marker")},
+                {QStringLiteral("timeUs"), static_cast<qint64>(bm.timeUs)},
+            });
+        }
+    }
+
+    for (int ri = 0; ri < m_project.regions().size(); ++ri) {
+        const drift::Region &reg = m_project.regions().at(ri);
+        const QString regLabel = reg.label.isEmpty() ? tr("Region") : reg.label;
+        if (regLabel.contains(needle, Qt::CaseInsensitive)) {
+            results.append(QVariantMap{
+                {QStringLiteral("kind"), QStringLiteral("region")},
+                {QStringLiteral("label"), regLabel},
+                {QStringLiteral("detail"), tr("Region")},
+                {QStringLiteral("timeUs"), static_cast<qint64>(reg.startUs)},
+                {QStringLiteral("endUs"), static_cast<qint64>(reg.endUs)},
+            });
+        }
+    }
+
+    std::sort(results.begin(), results.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap().value(QStringLiteral("timeUs")).toLongLong()
+             < b.toMap().value(QStringLiteral("timeUs")).toLongLong();
+    });
+    return results;
+}
+
+void AppController::jumpToTimelineMatch(const QVariantMap &match)
+{
+    const QString kind = match.value(QStringLiteral("kind")).toString();
+    const drift::TimeUs timeUs = std::max<drift::TimeUs>(0, match.value(QStringLiteral("timeUs")).toLongLong());
+    setPlayheadUs(timeUs);
+    if (kind == QLatin1String("clip")) {
+        const int ti = match.value(QStringLiteral("trackIndex"), -1).toInt();
+        const int ci = match.value(QStringLiteral("clipIndex"), -1).toInt();
+        if (ti >= 0 && ti < m_project.tracks().size()
+            && ci >= 0 && ci < m_project.tracks().at(ti).clips.size()) {
+            selectClip(ti, ci);
+        }
+    } else if (kind == QLatin1String("track")) {
+        const int ti = match.value(QStringLiteral("trackIndex"), -1).toInt();
+        if (ti >= 0 && ti < m_project.tracks().size()) {
+            m_selectedTrack = ti;
+            emit selectionChanged();
+        }
+    }
 }
 
 double AppController::trackHeightScale(int trackIndex) const

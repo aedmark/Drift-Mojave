@@ -112,7 +112,9 @@ Item {
     // A nested lane has no header of its own: it belongs to the row above it, whose header
     // already names it.
     function trackOccupiesARow(index) {
-        return index >= 0 && index < tracks.length && !tracks[index].isAdjustmentLane
+        return index >= 0 && index < tracks.length
+               && !tracks[index].isAdjustmentLane
+               && tracks[index].folderCollapsedChild !== true
     }
 
     // Video-track clip display modes, matching Track::ClipDisplay.

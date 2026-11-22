@@ -1938,11 +1938,20 @@ public:
     Q_INVOKABLE QVariantList adjustmentLaneSpans(int parentIndex) const;
     // View-only, no undo entry. Collapsed lanes shrink to ribbons in trackRowHeight.
     Q_INVOKABLE void setTrackLanesCollapsed(int trackIndex, bool collapsed);
-    // Track Folders / Groups (Tier 7E)
+    // Track Folders / Groups (Tier 7E / 8A)
     Q_INVOKABLE void setTrackFolder(int trackIndex, const QString &folderName);
     Q_INVOKABLE void setTrackFolderCollapsed(const QString &folderName, bool collapsed);
     Q_INVOKABLE QStringList trackFolderNames() const;
     Q_INVOKABLE bool isTrackFolderCollapsed(const QString &folderName) const;
+    Q_INVOKABLE void setTrackFolderMuted(const QString &folderName, bool muted);
+    Q_INVOKABLE void setTrackFolderSolo(const QString &folderName, bool solo);
+    Q_INVOKABLE bool isTrackFolderMuted(const QString &folderName) const;
+    Q_INVOKABLE bool isTrackFolderSolo(const QString &folderName) const;
+    Q_INVOKABLE int trackFolderTrackCount(const QString &folderName) const;
+    Q_INVOKABLE bool isTrackCollapsedChild(int trackIndex) const;
+    // Timeline Find & Jump (Tier 8A)
+    Q_INVOKABLE QVariantList searchTimeline(const QString &query) const;
+    Q_INVOKABLE void jumpToTimelineMatch(const QVariantMap &match);
 
     Q_INVOKABLE double trackHeightScaleMin() const { return 0.6; }
     Q_INVOKABLE double trackHeightScaleMax() const { return 4.0; }

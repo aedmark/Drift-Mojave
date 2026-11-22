@@ -56,6 +56,18 @@ ThemedContextMenu {
         }
         ThemedMenuItem {
             visible: parent.curFolder.length > 0
+            readonly property bool folderMuted: visible && EditorState.isTrackFolderMuted(parent.curFolder)
+            text: folderMuted ? qsTr("Unmute Folder") : qsTr("Mute Folder")
+            onTriggered: EditorState.setTrackFolderMuted(parent.curFolder, !folderMuted)
+        }
+        ThemedMenuItem {
+            visible: parent.curFolder.length > 0
+            readonly property bool folderSolo: visible && EditorState.isTrackFolderSolo(parent.curFolder)
+            text: folderSolo ? qsTr("Unsolo Folder") : qsTr("Solo Folder")
+            onTriggered: EditorState.setTrackFolderSolo(parent.curFolder, !folderSolo)
+        }
+        ThemedMenuItem {
+            visible: parent.curFolder.length > 0
             text: qsTr("Remove from Folder")
             onTriggered: EditorState.setTrackFolder(header.index, "")
         }

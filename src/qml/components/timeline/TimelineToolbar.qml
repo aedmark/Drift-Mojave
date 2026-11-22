@@ -346,10 +346,107 @@ Item {
         }
 
         TimelineToolbarToolButton {
+            glyph: Theme.icons.search
+            tooltip: qsTr("Find clips, markers, regions, or tracks")
+            active: timelineFindDialog.opened
+            onClicked: {
+                timelineFindDialog.open()
+                timelineFindInput.forceActiveFocus()
+                timelineFindInput.selectAll()
+            }
+        }
+
+        TimelineToolbarToolButton {
             glyph: Theme.icons.panelTop
             tooltip: qsTr("Timeline overview — a minimap of the whole project; click or drag it to jump the view")
             active: EditorState.preferences.timelineOverviewVisible
             onClicked: EditorState.preferences.timelineOverviewVisible = !EditorState.preferences.timelineOverviewVisible
+        }
+    }
+
+    ThemedDialog {
+        id: timelineFindDialog
+        title: qsTr("Find on Timeline")
+        width: 420
+        modal: false
+        standardButtons: Dialog.Close
+
+        property var matches: []
+
+        function refreshMatches() {
+            matches = EditorState.searchTimeline(timelineFindInput.text)
+        }
+
+        Column {
+            width: parent.width
+            spacing: Theme.spacingSm
+
+            ThemedTextField {
+                id: timelineFindInput
+                width: parent.width
+                placeholderText: qsTr("Search clips, markers, regions, or tracks…")
+                onTextChanged: timelineFindDialog.refreshMatches()
+                onAccepted: {
+                    if (timelineFindDialog.matches.length > 0) {
+                        EditorState.jumpToTimelineMatch(timelineFindDialog.matches[0])
+                        timelineFindDialog.close()
+                    }
+                }
+            }
+
+            ListView {
+                width: parent.width
+                height: Math.min(240, Math.max(40, count * 32))
+                clip: true
+                model: timelineFindDialog.matches
+                delegate: Rectangle {
+                    required property var modelData
+                    width: ListView.view.width
+                    height: 32
+                    radius: 4
+                    color: matchMouse.containsMouse ? Theme.c.surfaceRaised : "transparent"
+
+                    Row {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 8
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "[" + (modelData.kind || "") + "]"
+                            font.pixelSize: 10
+                            color: Theme.c.textMuted
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.label || ""
+                            font.pixelSize: 12
+                            color: Theme.c.textPrimary
+                            elide: Text.ElideRight
+                            width: Math.max(80, parent.width - 150)
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.detail || ""
+                            font.pixelSize: 10
+                            color: Theme.c.textSecondary
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    MouseArea {
+                        id: matchMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            EditorState.jumpToTimelineMatch(modelData)
+                            timelineFindDialog.close()
+                        }
+                    }
+                }
+            }
         }
     }
 }

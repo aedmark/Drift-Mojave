@@ -135,3 +135,20 @@ Status: **Shipped in `v1.5.0`**
    - One-click per-track VEGAS Channel Strip (`utility.gate` + `utility.eq` + `utility.compressor` with Default, Dialogue Cleanup, Broadcast Voiceover, and Music Bed presets) and Dialogue Auto-Ducking writing editable volume-envelope keyframes from any driver track.
 5. **Tier 7E — Large-Timeline Ergonomics & Render Queue** — ✅ Implemented on `main`
    - Collapsible Track Folders/Groups (`folderName`/`folderCollapsed` + Track Header context menu), Batch Render Queue (`enqueueRenderJob`/`startRenderQueue` + Export dialog controls), and Workspace Layout quick-recall (`activateWorkspaceByIndex`/`cycleWorkspace`).
+
+---
+
+## Tier 8 — Visual Track Folders, Color Wipe, Smart Cut Detection, Delivery & Project Snapshots (`v1.6.0`)
+
+Status: **In Progress (`8A` implemented on `main`)**
+
+1. **Tier 8A — Visual Track Folders UI, Folder Mute/Solo & Timeline Find/Jump** — ✅ Implemented on `main`
+   - Collapsing a Track Folder hides child tracks (`trackRowHeight == 0`), adds a clickable folder header chip (`▸`/`▾` + track count) on the first track in each folder, adds folder-level Mute/Solo in `TrackHeaderContextMenu`, and adds a live Timeline Find & Jump (`searchTimeline` / `jumpToTimelineMatch`) dialog in `TimelineToolbar` across clips, markers, regions, and tracks.
+2. **Tier 8B — Color Finishing: Split-Screen A/B Wipe & Reference Still Gallery** — Planned
+   - Draggable Preview A/B wipe comparing FX Bypass vs. Graded or Reference Still, plus one-click Reference Still grab for shot-to-shot matching.
+3. **Tier 8C — Smart Scene Cut Detection & Rough-Cut Silence Trimmer** — Planned
+   - Frame-delta scene cut detection placing markers or auto-splitting, plus batch dead-air silence trimming on dialogue tracks with undo.
+4. **Tier 8D — Persistent Render Queue, Delivery Presets & Embedded Chapters** — Planned
+   - Persistent render queue across restarts, curated hardware-preferred delivery presets, and MP4/MKV embedded chapters + YouTube chapter timestamp export.
+5. **Tier 8E — `.veg` Import Summary Report & Lightweight Project Snapshots** — Planned
+   - Post-import `.veg` translation summary report with missing-media relink and one-click timestamped `.drift` milestone snapshots.

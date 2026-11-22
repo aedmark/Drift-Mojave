@@ -5701,6 +5701,50 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Mute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Muted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmuted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Soloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsoloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation type="unfinished">Theo dõi</translation>
+    </message>
+    <message>
+        <source>Marker</source>
+        <translation type="unfinished">Điểm đánh dấu</translation>
+    </message>
+    <message>
+        <source>Region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Move track</source>
         <translation>Di chuyển track</translation>
     </message>
@@ -27325,8 +27369,20 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
         <translation>Bật/tắt dải keyframe</translation>
     </message>
     <message>
+        <source>Find clips, markers, regions, or tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Timeline overview — a minimap of the whole project; click or drag it to jump the view</source>
         <translation>Tổng quan dòng thời gian — bản đồ thu nhỏ của toàn bộ dự án; nhấp hoặc kéo để nhảy đến vị trí xem</translation>
+    </message>
+    <message>
+        <source>Find on Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search clips, markers, regions, or tracks…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Allow clip overlap</source>
@@ -27999,6 +28055,22 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
     </message>
     <message>
         <source>Collapse Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo Folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

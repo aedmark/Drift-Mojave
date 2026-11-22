@@ -147,6 +147,7 @@ private slots:
     void pasteEventAttributesAndBatchFxChainPreset();
     void trackChannelStripAndAutoDucking();
     void trackFoldersRenderQueueAndWorkspaces();
+    void trackFolderCollapseMuteSoloAndTimelineSearch();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20502,6 +20503,73 @@ void EditorStateTest::trackFoldersRenderQueueAndWorkspaces()
     QCoreApplication::setOrganizationName(org);
     QCoreApplication::setApplicationName(app);
     QStandardPaths::setTestModeEnabled(false);
+}
+
+void EditorStateTest::trackFolderCollapseMuteSoloAndTimelineSearch()
+{
+    AssetLibrary library;
+    AppController state(&library);
+
+    // Ensure at least two tracks exist for folder testing
+    state.addTrack(QStringLiteral("audio"));
+    state.addTrack(QStringLiteral("audio"));
+    const int t0 = state.project()->tracks().size() - 2;
+    const int t1 = state.project()->tracks().size() - 1;
+
+    state.setTrackFolder(t0, QStringLiteral("Dialogue"));
+    state.setTrackFolder(t1, QStringLiteral("Dialogue"));
+    QCOMPARE(state.trackFolderTrackCount(QStringLiteral("Dialogue")), 2);
+    QVERIFY(!state.isTrackCollapsedChild(t0));
+    QVERIFY(!state.isTrackCollapsedChild(t1));
+    QVERIFY(state.trackRowHeight(t0, {}) > 0);
+    QVERIFY(state.trackRowHeight(t1, {}) > 0);
+
+    // Collapsing folder hides child track row height but keeps first track visible
+    state.setTrackFolderCollapsed(QStringLiteral("Dialogue"), true);
+    QVERIFY(!state.isTrackCollapsedChild(t0));
+    QVERIFY(state.isTrackCollapsedChild(t1));
+    QVERIFY(state.trackRowHeight(t0, {}) > 0);
+    QCOMPARE(state.trackRowHeight(t1, {}), 0);
+
+    // Folder-level Mute / Solo with Undo
+    state.setTrackFolderMuted(QStringLiteral("Dialogue"), true);
+    QVERIFY(state.isTrackFolderMuted(QStringLiteral("Dialogue")));
+    QVERIFY(state.project()->tracks().at(t0).muted);
+    QVERIFY(state.project()->tracks().at(t1).muted);
+    state.undo();
+    QVERIFY(!state.isTrackFolderMuted(QStringLiteral("Dialogue")));
+
+    state.setTrackFolderSolo(QStringLiteral("Dialogue"), true);
+    QVERIFY(state.isTrackFolderSolo(QStringLiteral("Dialogue")));
+    QVERIFY(state.project()->tracks().at(t0).solo);
+    QVERIFY(state.project()->tracks().at(t1).solo);
+
+    // Timeline Find & Jump across clip, marker, region, and track
+    drift::Clip c;
+    c.id = QStringLiteral("hero-clip");
+    c.type = drift::ClipType::Audio;
+    c.name = QStringLiteral("Hero Line");
+    c.timelineStart = 5 * drift::kUsPerSecond;
+    c.timelineDuration = 3 * drift::kUsPerSecond;
+    state.project()->tracks()[t0].clips.append(c);
+    state.addBookmark(12.0, QStringLiteral("Hero Marker"));
+    drift::Region reg;
+    reg.id = QStringLiteral("reg-hero");
+    reg.startUs = 20 * drift::kUsPerSecond;
+    reg.endUs = 25 * drift::kUsPerSecond;
+    reg.label = QStringLiteral("Hero Act");
+    state.project()->regions().append(reg);
+
+    const QVariantList matches = state.searchTimeline(QStringLiteral("Hero"));
+    QCOMPARE(matches.size(), 3);
+    QCOMPARE(matches.at(0).toMap().value(QStringLiteral("kind")).toString(), QStringLiteral("clip"));
+    QCOMPARE(matches.at(1).toMap().value(QStringLiteral("kind")).toString(), QStringLiteral("marker"));
+    QCOMPARE(matches.at(2).toMap().value(QStringLiteral("kind")).toString(), QStringLiteral("region"));
+
+    state.jumpToTimelineMatch(matches.at(0).toMap());
+    QCOMPARE(state.playheadUs(), 5 * drift::kUsPerSecond);
+    QCOMPARE(state.selectedTrack(), t0);
+    QCOMPARE(state.selectedClip(), 0);
 }
 
 QTEST_MAIN(EditorStateTest)

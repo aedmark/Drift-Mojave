@@ -5693,6 +5693,50 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Mute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Muted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmuted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Soloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsoloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation type="unfinished">트래킹</translation>
+    </message>
+    <message>
+        <source>Marker</source>
+        <translation type="unfinished">마커</translation>
+    </message>
+    <message>
+        <source>Region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Move track</source>
         <translation>트랙 이동</translation>
     </message>
@@ -27316,8 +27360,20 @@ If playback stutters, try another.</source>
         <translation>키프레임 스트립 전환</translation>
     </message>
     <message>
+        <source>Find clips, markers, regions, or tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Timeline overview — a minimap of the whole project; click or drag it to jump the view</source>
         <translation>타임라인 개요 — 전체 프로젝트의 미니맵입니다. 클릭하거나 드래그하여 보기를 이동할 수 있습니다</translation>
+    </message>
+    <message>
+        <source>Find on Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search clips, markers, regions, or tracks…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Allow clip overlap</source>
@@ -27990,6 +28046,22 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Collapse Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo Folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

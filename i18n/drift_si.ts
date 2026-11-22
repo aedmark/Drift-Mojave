@@ -5705,6 +5705,50 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Mute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Muted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmuted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Soloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsoloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation type="unfinished">ලුහුබඳින්න</translation>
+    </message>
+    <message>
+        <source>Marker</source>
+        <translation type="unfinished">සලකුණ</translation>
+    </message>
+    <message>
+        <source>Region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Move track</source>
         <translation>ට්‍රැකය ගෙනයන්න</translation>
     </message>
@@ -27415,8 +27459,20 @@ If playback stutters, try another.</source>
         <translation>කීෆ්‍රේම් තීරුව මාරු කරන්න</translation>
     </message>
     <message>
+        <source>Find clips, markers, regions, or tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Timeline overview — a minimap of the whole project; click or drag it to jump the view</source>
         <translation>කාලරේඛා දළ විශ්ලේෂණය — සම්පූර්ණ ව්‍යාපෘතියේ කුඩා සිතියමක් (minimap); දසුන පැනීමට එය ක්ලික් කරන්න හෝ අදින්න</translation>
+    </message>
+    <message>
+        <source>Find on Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search clips, markers, regions, or tracks…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Allow clip overlap</source>
@@ -28090,6 +28146,22 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Collapse Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo Folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

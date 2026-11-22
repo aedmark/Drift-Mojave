@@ -5713,6 +5713,50 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Mute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Muted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmuted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Soloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsoloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation type="unfinished">Rastrear</translation>
+    </message>
+    <message>
+        <source>Marker</source>
+        <translation type="unfinished">Marcador</translation>
+    </message>
+    <message>
+        <source>Region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Move track</source>
         <translation>Mover pista</translation>
     </message>
@@ -27415,8 +27459,20 @@ Si la reproducción se corta, prueba con otra opción.</translation>
         <translation>Alternar tira de fotogramas clave</translation>
     </message>
     <message>
+        <source>Find clips, markers, regions, or tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Timeline overview — a minimap of the whole project; click or drag it to jump the view</source>
         <translation>Vista general de la línea de tiempo — un minimapa de todo el proyecto; haz clic o arrástralo para saltar en la vista</translation>
+    </message>
+    <message>
+        <source>Find on Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search clips, markers, regions, or tracks…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Allow clip overlap</source>
@@ -28090,6 +28146,22 @@ Si la reproducción se corta, prueba con otra opción.</translation>
     </message>
     <message>
         <source>Collapse Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo Folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -5721,6 +5721,50 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Mute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Muted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmuted folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Soloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsoloed folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Marker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Region</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Move track</source>
         <translation type="unfinished"></translation>
     </message>
@@ -27407,7 +27451,19 @@ If playback stutters, try another.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Find clips, markers, regions, or tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Timeline overview — a minimap of the whole project; click or drag it to jump the view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Find on Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search clips, markers, regions, or tracks…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -28082,6 +28138,22 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Collapse Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unmute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mute Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unsolo Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo Folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
