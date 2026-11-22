@@ -17464,6 +17464,13 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
+    <name>PreviewController</name>
+    <message>
+        <source>Still %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PreviewOptionsDecodeDialog</name>
     <message>
         <source>Decoding on a different graphics card</source>
@@ -17560,6 +17567,42 @@ Kung nag-i-stutter ang playback, subukan ang isa pa.</translation>
     </message>
     <message>
         <source>Show live luminance histogram, waveform, RGB parade, and vectorscope over the preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split-Screen A/B Wipe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Compare graded output against FX bypass, a reference still, or the clipboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wipe Source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FX Bypass</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reference Still</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clipboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comparison source for the Split-Screen A/B Wipe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Grab Still</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear Stills</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -23,7 +23,9 @@
 #include "app/editor/AppController.h"
 #include "app/editor/AppControllerDetail.h"
 
+#include <QBuffer>
 #include <QClipboard>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QLineF>
 #include <QPolygonF>
@@ -2609,6 +2611,165 @@ void PreviewController::clearReferenceFrame()
     emit referenceFrameChanged();
     if (m_splitPreviewEnabled && m_splitPreviewSource == QStringLiteral("reference"))
         updateComparisonFrame();
+}
+
+namespace {
+QString makeThumbnailDataUrl(const QImage &img)
+{
+    if (img.isNull())
+        return {};
+    const QImage thumb = img.scaled(160, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QByteArray bytes;
+    QBuffer buf(&bytes);
+    buf.open(QIODevice::WriteOnly);
+    if (!thumb.save(&buf, "PNG"))
+        return {};
+    return QStringLiteral("data:image/png;base64,") + QString::fromLatin1(bytes.toBase64());
+}
+} // namespace
+
+QString PreviewController::appendReferenceStill(const QImage &image, const QString &label, qint64 timeUs)
+{
+    if (image.isNull())
+        return {};
+    const int seq = m_nextStillSeq++;
+    const QString id = QStringLiteral("still-%1").arg(seq);
+    const QString effectiveLabel = label.trimmed().isEmpty()
+        ? tr("Still %1").arg(seq)
+        : label.trimmed();
+
+    ReferenceStill still;
+    still.id = id;
+    still.label = effectiveLabel;
+    still.timeUs = timeUs;
+    still.image = image;
+    still.thumbnailDataUrl = makeThumbnailDataUrl(image);
+    m_referenceGallery.append(still);
+
+    m_activeReferenceStillId = id;
+    m_referenceImage = image;
+    m_hasReferenceFrame = true;
+    emit referenceFrameChanged();
+    emit referenceGalleryChanged();
+    if (m_splitPreviewEnabled && m_splitPreviewSource == QLatin1String("reference"))
+        updateComparisonFrame();
+    return id;
+}
+
+QVariantList PreviewController::referenceGallery() const
+{
+    QVariantList out;
+    out.reserve(m_referenceGallery.size());
+    for (const ReferenceStill &still : m_referenceGallery) {
+        out.append(QVariantMap{
+            {QStringLiteral("id"), still.id},
+            {QStringLiteral("label"), still.label},
+            {QStringLiteral("timeUs"), still.timeUs},
+            {QStringLiteral("thumbnail"), still.thumbnailDataUrl},
+            {QStringLiteral("active"), still.id == m_activeReferenceStillId},
+        });
+    }
+    return out;
+}
+
+QString PreviewController::grabReferenceStill(const QString &label)
+{
+    const QImage frame = captureCurrentPreviewFrame();
+    return appendReferenceStill(frame, label, m_app.playheadUs());
+}
+
+QString PreviewController::addReferenceStillFromFile(const QString &filePath, const QString &label)
+{
+    const QImage img(filePath);
+    if (img.isNull())
+        return {};
+    const QString effectiveLabel = label.trimmed().isEmpty()
+        ? QFileInfo(filePath).baseName()
+        : label.trimmed();
+    return appendReferenceStill(img, effectiveLabel, m_app.playheadUs());
+}
+
+bool PreviewController::selectReferenceStill(const QString &stillId)
+{
+    for (const ReferenceStill &still : m_referenceGallery) {
+        if (still.id == stillId) {
+            m_activeReferenceStillId = still.id;
+            m_referenceImage = still.image;
+            m_hasReferenceFrame = true;
+            m_splitPreviewSource = QStringLiteral("reference");
+            emit splitPreviewChanged();
+            emit referenceFrameChanged();
+            emit referenceGalleryChanged();
+            if (m_splitPreviewEnabled)
+                updateComparisonFrame();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool PreviewController::removeReferenceStill(const QString &stillId)
+{
+    for (int i = 0; i < m_referenceGallery.size(); ++i) {
+        if (m_referenceGallery.at(i).id != stillId)
+            continue;
+        m_referenceGallery.removeAt(i);
+        if (m_activeReferenceStillId == stillId) {
+            if (!m_referenceGallery.isEmpty()) {
+                const ReferenceStill &next = m_referenceGallery.last();
+                m_activeReferenceStillId = next.id;
+                m_referenceImage = next.image;
+                m_hasReferenceFrame = true;
+            } else {
+                m_activeReferenceStillId.clear();
+                m_referenceImage = QImage();
+                m_hasReferenceFrame = false;
+            }
+            emit referenceFrameChanged();
+        }
+        emit referenceGalleryChanged();
+        if (m_splitPreviewEnabled && m_splitPreviewSource == QLatin1String("reference"))
+            updateComparisonFrame();
+        return true;
+    }
+    return false;
+}
+
+void PreviewController::clearReferenceGallery()
+{
+    if (m_referenceGallery.isEmpty() && !m_hasReferenceFrame)
+        return;
+    m_referenceGallery.clear();
+    m_activeReferenceStillId.clear();
+    m_referenceImage = QImage();
+    m_hasReferenceFrame = false;
+    emit referenceFrameChanged();
+    emit referenceGalleryChanged();
+    if (m_splitPreviewEnabled && m_splitPreviewSource == QLatin1String("reference"))
+        updateComparisonFrame();
+}
+
+bool PreviewController::exportReferenceStill(const QString &stillId, const QString &filePath) const
+{
+    if (filePath.isEmpty())
+        return false;
+    for (const ReferenceStill &still : m_referenceGallery) {
+        if (still.id == stillId)
+            return still.image.save(filePath);
+    }
+    return false;
+}
+
+void PreviewController::toggleFxBypassWipe()
+{
+    if (m_splitPreviewEnabled && m_splitPreviewSource == QLatin1String("fxBypass")) {
+        setSplitPreviewEnabled(false);
+        return;
+    }
+    m_splitPreviewSource = QStringLiteral("fxBypass");
+    m_splitPreviewEnabled = true;
+    emit splitPreviewChanged();
+    updateComparisonFrame();
 }
 
 QImage PreviewController::currentComparisonImage() const

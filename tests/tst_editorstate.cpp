@@ -148,6 +148,7 @@ private slots:
     void trackChannelStripAndAutoDucking();
     void trackFoldersRenderQueueAndWorkspaces();
     void trackFolderCollapseMuteSoloAndTimelineSearch();
+    void referenceStillGalleryAndSplitWipe();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20570,6 +20571,54 @@ void EditorStateTest::trackFolderCollapseMuteSoloAndTimelineSearch()
     QCOMPARE(state.playheadUs(), 5 * drift::kUsPerSecond);
     QCOMPARE(state.selectedTrack(), t0);
     QCOMPARE(state.selectedClip(), 0);
+}
+
+void EditorStateTest::referenceStillGalleryAndSplitWipe()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path1 = dir.filePath(QStringLiteral("still_red.png"));
+    const QString path2 = dir.filePath(QStringLiteral("still_blue.png"));
+    QImage img1(64, 36, QImage::Format_RGBA8888);
+    img1.fill(Qt::red);
+    QVERIFY(img1.save(path1));
+    QImage img2(64, 36, QImage::Format_RGBA8888);
+    img2.fill(Qt::blue);
+    QVERIFY(img2.save(path2));
+
+    AssetLibrary library;
+    AppController state(&library);
+    PreviewController *preview = state.preview();
+    QVERIFY(preview != nullptr);
+
+    const QString id1 = preview->addReferenceStillFromFile(path1, QStringLiteral("Red Grade"));
+    const QString id2 = preview->addReferenceStillFromFile(path2, QStringLiteral("Blue Grade"));
+    QVERIFY(!id1.isEmpty() && !id2.isEmpty());
+    QCOMPARE(preview->referenceGallery().size(), 2);
+    QCOMPARE(preview->activeReferenceStillId(), id2);
+    QVERIFY(preview->hasReferenceFrame());
+    QVERIFY(preview->referenceGallery().at(0).toMap().value(QStringLiteral("thumbnail")).toString()
+                .startsWith(QStringLiteral("data:image/png;base64,")));
+
+    QVERIFY(preview->selectReferenceStill(id1));
+    QCOMPARE(preview->activeReferenceStillId(), id1);
+    QCOMPARE(preview->splitPreviewSource(), QStringLiteral("reference"));
+
+    const QString exported = dir.filePath(QStringLiteral("exported.png"));
+    QVERIFY(preview->exportReferenceStill(id1, exported));
+    QVERIFY(QFileInfo::exists(exported));
+
+    preview->toggleFxBypassWipe();
+    QVERIFY(preview->splitPreviewEnabled());
+    QCOMPARE(preview->splitPreviewSource(), QStringLiteral("fxBypass"));
+    preview->toggleFxBypassWipe();
+    QVERIFY(!preview->splitPreviewEnabled());
+
+    QVERIFY(preview->removeReferenceStill(id1));
+    QCOMPARE(preview->referenceGallery().size(), 1);
+    preview->clearReferenceGallery();
+    QVERIFY(preview->referenceGallery().isEmpty());
+    QVERIFY(!preview->hasReferenceFrame());
 }
 
 QTEST_MAIN(EditorStateTest)

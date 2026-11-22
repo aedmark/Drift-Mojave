@@ -95,6 +95,8 @@ class PreviewController : public QObject
     Q_PROPERTY(bool splitInverted READ splitInverted WRITE setSplitInverted NOTIFY splitPreviewChanged)
     Q_PROPERTY(int splitTrackIndex READ splitTrackIndex WRITE setSplitTrackIndex NOTIFY splitPreviewChanged)
     Q_PROPERTY(bool hasReferenceFrame READ hasReferenceFrame NOTIFY referenceFrameChanged)
+    Q_PROPERTY(QVariantList referenceGallery READ referenceGallery NOTIFY referenceGalleryChanged)
+    Q_PROPERTY(QString activeReferenceStillId READ activeReferenceStillId NOTIFY referenceGalleryChanged)
     Q_PROPERTY(bool hasClipboardImage READ hasClipboardImage NOTIFY clipboardImageChanged)
     Q_PROPERTY(int splitRevision READ splitRevision NOTIFY splitRevisionChanged)
     // Live Video Scopes HUD (Histogram, Luma Waveform, RGB Parade, Vectorscope)
@@ -347,6 +349,25 @@ public:
     // pointer, or for a model on the plane through its centre. Empty when the pointer is off it.
     Q_INVOKABLE QVariantMap aimDepthLight3d(int effectIndex, double canvasX, double canvasY) const;
 
+    // Reference Still Gallery & A/B Split-Screen Wipe (Tier 8B)
+    struct ReferenceStill
+    {
+        QString id;
+        QString label;
+        qint64 timeUs = 0;
+        QImage image;
+        QString thumbnailDataUrl;
+    };
+    QVariantList referenceGallery() const;
+    QString activeReferenceStillId() const { return m_activeReferenceStillId; }
+    Q_INVOKABLE QString grabReferenceStill(const QString &label = QString());
+    Q_INVOKABLE QString addReferenceStillFromFile(const QString &filePath, const QString &label = QString());
+    Q_INVOKABLE bool selectReferenceStill(const QString &stillId);
+    Q_INVOKABLE bool removeReferenceStill(const QString &stillId);
+    Q_INVOKABLE void clearReferenceGallery();
+    Q_INVOKABLE bool exportReferenceStill(const QString &stillId, const QString &filePath) const;
+    Q_INVOKABLE void toggleFxBypassWipe();
+
     // The viewpoint every preview overlay is drawn through, world -> homogeneous canvas px at
     // project scale: the free view for the editor viewport, else the scene camera when one covers
     // the playhead. False for the plain per-clip eye.
@@ -372,6 +393,7 @@ signals:
     void handlesVisibleChanged();
     void splitPreviewChanged();
     void referenceFrameChanged();
+    void referenceGalleryChanged();
     void clipboardImageChanged();
     void splitRevisionChanged();
     void videoScopesChanged();
@@ -458,6 +480,10 @@ private:
     bool m_hasClipboardImage = false;
     int m_splitRevision = 0;
     QImage m_referenceImage;
+    QList<ReferenceStill> m_referenceGallery;
+    QString m_activeReferenceStillId;
+    int m_nextStillSeq = 1;
+    QString appendReferenceStill(const QImage &image, const QString &label, qint64 timeUs);
     bool m_videoScopesVisible = false;
     QString m_videoScopeMode = QStringLiteral("histogram");
 };

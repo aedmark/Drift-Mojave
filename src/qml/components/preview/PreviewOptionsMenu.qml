@@ -120,6 +120,106 @@ Popup {
         ThemedSwitch {
             Layout.columnSpan: 2
             Layout.fillWidth: true
+            text: qsTr("Split-Screen A/B Wipe")
+            tooltip: qsTr("Compare graded output against FX bypass, a reference still, or the clipboard")
+            checked: EditorState.preview.splitPreviewEnabled
+            onToggled: EditorState.preview.splitPreviewEnabled = checked
+        }
+
+        PreviewOptionsRowLabel { text: qsTr("Wipe Source") }
+        ThemedComboBox {
+            Layout.fillWidth: true
+            Layout.minimumWidth: widestContentWidth + leftPadding + rightPadding
+            implicitHeight: Theme.controlHeightSm
+            leftPadding: Theme.spacingMd
+            rightPadding: Theme.spacing2xl
+            font.pixelSize: Theme.fontSizeXs
+            readonly property var values: ["fxBypass", "reference", "clipboard"]
+            model: [qsTr("FX Bypass"), qsTr("Reference Still"), qsTr("Clipboard")]
+            tooltip: qsTr("Comparison source for the Split-Screen A/B Wipe")
+            currentIndex: Math.max(0, values.indexOf(EditorState.preview.splitPreviewSource))
+            onActivated: EditorState.preview.splitPreviewSource = values[currentIndex]
+        }
+
+        RowLayout {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            spacing: Theme.spacingSm
+
+            ThemedButton {
+                text: qsTr("Grab Still")
+                implicitHeight: Theme.controlHeightSm
+                onClicked: EditorState.preview.grabReferenceStill()
+            }
+            ThemedButton {
+                visible: EditorState.preview.referenceGallery.length > 0
+                text: qsTr("Clear Stills")
+                implicitHeight: Theme.controlHeightSm
+                onClicked: EditorState.preview.clearReferenceGallery()
+            }
+        }
+
+        Flow {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            Layout.maximumWidth: 260
+            visible: EditorState.preview.referenceGallery.length > 0
+            spacing: Theme.spacingXs
+
+            Repeater {
+                model: EditorState.preview.referenceGallery
+                delegate: Rectangle {
+                    required property var modelData
+                    width: 60
+                    height: 36
+                    radius: 4
+                    color: Theme.c.surfaceRaised
+                    border.width: modelData.active ? 2 : 1
+                    border.color: modelData.active ? Theme.c.accent : Theme.c.borderSubtle
+                    clip: true
+
+                    Image {
+                        anchors.fill: parent
+                        anchors.margins: 1
+                        source: modelData.thumbnail || ""
+                        fillMode: Image.PreserveAspectCrop
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            EditorState.preview.selectReferenceStill(modelData.id)
+                            EditorState.preview.splitPreviewEnabled = true
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 2
+                        width: 14
+                        height: 14
+                        radius: 7
+                        color: Theme.c.surfaceOverlay
+                        Text {
+                            anchors.centerIn: parent
+                            text: "×"
+                            font.pixelSize: 10
+                            color: Theme.c.textPrimary
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: EditorState.preview.removeReferenceStill(modelData.id)
+                        }
+                    }
+                }
+            }
+        }
+
+        ThemedSwitch {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
             text: qsTr("Split Screen View (A/B Compare)")
             tooltip: qsTr("Split the preview window to compare the timeline with FX bypass, clipboard, or reference snapshot")
             checked: EditorState.preview.splitPreviewEnabled
