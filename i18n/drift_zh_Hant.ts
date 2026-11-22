@@ -5923,6 +5923,62 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>YouTube 4K (H.264 / -14 LUFS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>2160p H.264 CRF 17 with -14 LUFS loudness &amp; chapters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>YouTube 1080p (H.264 / -14 LUFS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>1080p H.264 CRF 18 with -14 LUFS loudness &amp; chapters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apple ProRes 422 HQ Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Source resolution ProRes 422 HQ intra-frame master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Archival Lossless (FFV1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bit-exact lossless FFV1 MKV with embedded chapters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Podcast Master (-16 LUFS WAV)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio-only PCM WAV normalized to -16 LUFS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Chapter %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Intro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No markers or regions to copy as chapters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copied YouTube chapters to clipboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Opening your video…</source>
         <translation>正在開啟你的視頻…</translation>
     </message>
@@ -10851,6 +10907,14 @@
     </message>
     <message>
         <source>-23 LUFS (Broadcast)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delivery Preset…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy YouTube Chapters</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

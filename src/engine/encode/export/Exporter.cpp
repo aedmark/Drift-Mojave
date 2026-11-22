@@ -1037,6 +1037,72 @@ void applyExportMetadata(AVFormatContext *fmt, const ExportSettings &settings)
     setIf("comment", settings.metadataComment);
 }
 
+void applyExportChapters(AVFormatContext *fmt, const drift::Project &project, const ExportSettings &settings,
+                         drift::TimeUs sliceStartUs, drift::TimeUs sliceEndUs)
+{
+    if (!fmt || !settings.embedChapters || settings.gifExport)
+        return;
+
+    struct ChapterItem
+    {
+        int64_t startMs = 0;
+        int64_t endMs = 0;
+        QString title;
+    };
+    QList<ChapterItem> chapters;
+    const int64_t minUs = sliceStartUs;
+    const int64_t maxUs = sliceEndUs > sliceStartUs ? sliceEndUs : project.durationUs();
+
+    if (!project.regions().isEmpty()) {
+        QList<drift::Region> regs = project.regions();
+        std::sort(regs.begin(), regs.end(), [](const drift::Region &a, const drift::Region &b) {
+            return a.startUs < b.startUs;
+        });
+        for (const drift::Region &r : regs) {
+            const int64_t s = std::max<int64_t>(r.startUs, minUs);
+            const int64_t e = std::min<int64_t>(r.endUs, maxUs);
+            if (e <= s)
+                continue;
+            chapters.append({(s - minUs) / 1000, (e - minUs) / 1000,
+                             r.label.isEmpty() ? QStringLiteral("Chapter") : r.label});
+        }
+    } else if (!project.bookmarks().isEmpty()) {
+        QList<drift::Bookmark> bms = project.bookmarks();
+        std::sort(bms.begin(), bms.end(), [](const drift::Bookmark &a, const drift::Bookmark &b) {
+            return a.timeUs < b.timeUs;
+        });
+        for (int i = 0; i < bms.size(); ++i) {
+            const int64_t s = std::max<int64_t>(bms.at(i).timeUs, minUs);
+            const int64_t nextUs = (i + 1 < bms.size()) ? bms.at(i + 1).timeUs : maxUs;
+            const int64_t e = std::min<int64_t>(nextUs, maxUs);
+            if (e <= s)
+                continue;
+            chapters.append({(s - minUs) / 1000, (e - minUs) / 1000,
+                             bms.at(i).label.isEmpty() ? QStringLiteral("Chapter %1").arg(i + 1) : bms.at(i).label});
+        }
+    }
+
+    if (chapters.isEmpty())
+        return;
+
+    fmt->chapters = static_cast<AVChapter **>(av_calloc(size_t(chapters.size()), sizeof(AVChapter *)));
+    if (!fmt->chapters)
+        return;
+    fmt->nb_chapters = 0;
+    for (int i = 0; i < chapters.size(); ++i) {
+        AVChapter *ch = static_cast<AVChapter *>(av_mallocz(sizeof(AVChapter)));
+        if (!ch)
+            continue;
+        ch->id = i + 1;
+        ch->time_base = AVRational{1, 1000};
+        ch->start = chapters.at(i).startMs;
+        ch->end = chapters.at(i).endMs;
+        const QByteArray utf8 = chapters.at(i).title.toUtf8();
+        av_dict_set(&ch->metadata, "title", utf8.constData(), 0);
+        fmt->chapters[fmt->nb_chapters++] = ch;
+    }
+}
+
 bool runAudioOnlyExport(const drift::Project &project, const ExportSettings &settings, const QString &outputPath,
                         QString *errorOut, const Exporter::ProgressFn &onProgress)
 {
@@ -1128,6 +1194,7 @@ bool runAudioOnlyExport(const drift::Project &project, const ExportSettings &set
         }
 
         applyExportMetadata(fmt, settings);
+        applyExportChapters(fmt, project, settings, settings.startUs, settings.endUs);
 
         if (avformat_write_header(fmt, nullptr) < 0) {
             error = QStringLiteral("Could not write the file header");
@@ -2016,6 +2083,8 @@ ExportSettings Exporter::settingsFromMap(const QVariantMap &map)
         s.normalizeLoudness = map.value(QStringLiteral("normalizeLoudness")).toBool();
     if (map.contains(QStringLiteral("targetLufs")))
         s.targetLufs = qBound(-40.0, map.value(QStringLiteral("targetLufs")).toDouble(), -5.0);
+    if (map.contains(QStringLiteral("embedChapters")))
+        s.embedChapters = map.value(QStringLiteral("embedChapters")).toBool();
     if (map.contains(QStringLiteral("metadataTitle")))
         s.metadataTitle = map.value(QStringLiteral("metadataTitle")).toString();
     if (map.contains(QStringLiteral("metadataArtist")))
@@ -2307,6 +2376,7 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
         }
 
         if (fmt) {
+            applyExportChapters(fmt, project, settings, settings.startUs, settings.endUs);
             if (avformat_write_header(fmt, nullptr) < 0) {
                 error = QStringLiteral("Could not write the file header");
                 goto cleanup;

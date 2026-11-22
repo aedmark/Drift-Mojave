@@ -33,6 +33,10 @@
 #include <QClipboard>
 #include <QDesktopServices>
 #include <QGuiApplication>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSettings>
 
 #include <QFileInfo>
 #include <QMimeDatabase>
@@ -1042,6 +1046,7 @@ QString AppController::enqueueRenderJob(const QString &label, const QUrl &output
     job.status = QStringLiteral("queued");
     m_renderQueue.append(job);
     emit renderQueueChanged();
+    saveRenderQueue();
     setLastMessage(tr("Queued “%1” for batch render").arg(job.label), QStringLiteral("success"));
     return job.id;
 }
@@ -1054,6 +1059,7 @@ bool AppController::removeRenderJob(const QString &jobId)
                 return false;
             m_renderQueue.removeAt(i);
             emit renderQueueChanged();
+            saveRenderQueue();
             return true;
         }
     }
@@ -1069,8 +1075,10 @@ void AppController::clearRenderQueue()
             changed = true;
         }
     }
-    if (changed)
+    if (changed) {
         emit renderQueueChanged();
+        saveRenderQueue();
+    }
 }
 
 bool AppController::startRenderQueue()
@@ -1206,6 +1214,7 @@ bool AppController::startRenderQueue()
                 m_renderQueueRunning = false;
                 m_exportProgress = allOk ? 1.0 : 0.0;
                 emit renderQueueChanged();
+                saveRenderQueue();
                 emit exportProgressChanged();
                 emit exportInProgressChanged();
                 if (cancelled) {
@@ -1223,6 +1232,211 @@ bool AppController::startRenderQueue()
             Qt::QueuedConnection);
     });
     return true;
+}
+
+void AppController::saveRenderQueue() const
+{
+    QJsonArray arr;
+    for (const RenderQueueJob &job : m_renderQueue) {
+        QJsonObject obj;
+        obj.insert(QStringLiteral("id"), job.id);
+        obj.insert(QStringLiteral("label"), job.label);
+        obj.insert(QStringLiteral("outputPath"), job.outputPath);
+        obj.insert(QStringLiteral("sequenceId"), job.sequenceId);
+        obj.insert(QStringLiteral("status"),
+                   job.status == QLatin1String("running") ? QStringLiteral("queued") : job.status);
+        obj.insert(QStringLiteral("error"), job.error);
+        obj.insert(QStringLiteral("settings"), QJsonObject::fromVariantMap(job.settings));
+        arr.append(obj);
+    }
+    QSettings().setValue(QStringLiteral("renderQueue/jobs"),
+                         QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact)));
+}
+
+void AppController::loadRenderQueue()
+{
+    const QString raw = QSettings().value(QStringLiteral("renderQueue/jobs")).toString();
+    m_renderQueue.clear();
+    if (!raw.isEmpty()) {
+        const QJsonDocument doc = QJsonDocument::fromJson(raw.toUtf8());
+        if (doc.isArray()) {
+            const QJsonArray arr = doc.array();
+            for (const QJsonValue &val : arr) {
+                if (!val.isObject())
+                    continue;
+                const QJsonObject obj = val.toObject();
+                RenderQueueJob job;
+                job.id = obj.value(QStringLiteral("id")).toString();
+                job.label = obj.value(QStringLiteral("label")).toString();
+                job.outputPath = obj.value(QStringLiteral("outputPath")).toString();
+                job.sequenceId = obj.value(QStringLiteral("sequenceId")).toString();
+                job.status = obj.value(QStringLiteral("status")).toString(QStringLiteral("queued"));
+                if (job.status == QLatin1String("running"))
+                    job.status = QStringLiteral("queued");
+                job.error = obj.value(QStringLiteral("error")).toString();
+                job.settings = obj.value(QStringLiteral("settings")).toObject().toVariantMap();
+                if (!job.id.isEmpty() && !job.outputPath.isEmpty())
+                    m_renderQueue.append(job);
+            }
+        }
+    }
+    emit renderQueueChanged();
+}
+
+QVariantList AppController::deliveryPresets() const
+{
+    return QVariantList{
+        QVariantMap{
+            {QStringLiteral("id"), QStringLiteral("youtube_4k")},
+            {QStringLiteral("name"), tr("YouTube 4K (H.264 / -14 LUFS)")},
+            {QStringLiteral("description"), tr("2160p H.264 CRF 17 with -14 LUFS loudness & chapters")},
+            {QStringLiteral("videoCodecId"), QStringLiteral("h264")},
+            {QStringLiteral("audioCodecId"), QStringLiteral("aac")},
+            {QStringLiteral("targetHeight"), 2160},
+            {QStringLiteral("crf"), 17},
+            {QStringLiteral("rateControl"), QStringLiteral("crf")},
+            {QStringLiteral("audioBitrateKbps"), 256},
+            {QStringLiteral("audioOnly"), false},
+            {QStringLiteral("normalizeLoudness"), true},
+            {QStringLiteral("targetLufs"), -14.0},
+            {QStringLiteral("embedChapters"), true},
+        },
+        QVariantMap{
+            {QStringLiteral("id"), QStringLiteral("youtube_1080p")},
+            {QStringLiteral("name"), tr("YouTube 1080p (H.264 / -14 LUFS)")},
+            {QStringLiteral("description"), tr("1080p H.264 CRF 18 with -14 LUFS loudness & chapters")},
+            {QStringLiteral("videoCodecId"), QStringLiteral("h264")},
+            {QStringLiteral("audioCodecId"), QStringLiteral("aac")},
+            {QStringLiteral("targetHeight"), 1080},
+            {QStringLiteral("crf"), 18},
+            {QStringLiteral("rateControl"), QStringLiteral("crf")},
+            {QStringLiteral("audioBitrateKbps"), 192},
+            {QStringLiteral("audioOnly"), false},
+            {QStringLiteral("normalizeLoudness"), true},
+            {QStringLiteral("targetLufs"), -14.0},
+            {QStringLiteral("embedChapters"), true},
+        },
+        QVariantMap{
+            {QStringLiteral("id"), QStringLiteral("prores_422_hq")},
+            {QStringLiteral("name"), tr("Apple ProRes 422 HQ Master")},
+            {QStringLiteral("description"), tr("Source resolution ProRes 422 HQ intra-frame master")},
+            {QStringLiteral("videoCodecId"), QStringLiteral("prores_hq")},
+            {QStringLiteral("audioCodecId"), QStringLiteral("pcm_s24le")},
+            {QStringLiteral("targetHeight"), 0},
+            {QStringLiteral("crf"), 18},
+            {QStringLiteral("rateControl"), QStringLiteral("crf")},
+            {QStringLiteral("audioBitrateKbps"), 320},
+            {QStringLiteral("audioOnly"), false},
+            {QStringLiteral("normalizeLoudness"), false},
+            {QStringLiteral("targetLufs"), -23.0},
+            {QStringLiteral("embedChapters"), true},
+        },
+        QVariantMap{
+            {QStringLiteral("id"), QStringLiteral("archival_ffv1")},
+            {QStringLiteral("name"), tr("Archival Lossless (FFV1)")},
+            {QStringLiteral("description"), tr("Bit-exact lossless FFV1 MKV with embedded chapters")},
+            {QStringLiteral("videoCodecId"), QStringLiteral("ffv1")},
+            {QStringLiteral("audioCodecId"), QStringLiteral("flac")},
+            {QStringLiteral("targetHeight"), 0},
+            {QStringLiteral("crf"), 0},
+            {QStringLiteral("rateControl"), QStringLiteral("crf")},
+            {QStringLiteral("audioBitrateKbps"), 320},
+            {QStringLiteral("audioOnly"), false},
+            {QStringLiteral("normalizeLoudness"), false},
+            {QStringLiteral("targetLufs"), -23.0},
+            {QStringLiteral("embedChapters"), true},
+        },
+        QVariantMap{
+            {QStringLiteral("id"), QStringLiteral("podcast_wav")},
+            {QStringLiteral("name"), tr("Podcast Master (-16 LUFS WAV)")},
+            {QStringLiteral("description"), tr("Audio-only PCM WAV normalized to -16 LUFS")},
+            {QStringLiteral("videoCodecId"), QStringLiteral("h264")},
+            {QStringLiteral("audioCodecId"), QStringLiteral("pcm_s16le")},
+            {QStringLiteral("targetHeight"), 0},
+            {QStringLiteral("crf"), 18},
+            {QStringLiteral("rateControl"), QStringLiteral("crf")},
+            {QStringLiteral("audioBitrateKbps"), 320},
+            {QStringLiteral("audioOnly"), true},
+            {QStringLiteral("normalizeLoudness"), true},
+            {QStringLiteral("targetLufs"), -16.0},
+            {QStringLiteral("embedChapters"), true},
+        },
+    };
+}
+
+QString AppController::formatYouTubeChapters() const
+{
+    struct Entry
+    {
+        drift::TimeUs timeUs = 0;
+        QString label;
+    };
+    QList<Entry> entries;
+
+    if (!m_project.regions().isEmpty()) {
+        QList<drift::Region> regs = m_project.regions();
+        std::sort(regs.begin(), regs.end(), [](const drift::Region &a, const drift::Region &b) {
+            return a.startUs < b.startUs;
+        });
+        for (int i = 0; i < regs.size(); ++i) {
+            const drift::Region &r = regs.at(i);
+            entries.append({std::max<drift::TimeUs>(0, r.startUs),
+                            r.label.trimmed().isEmpty() ? tr("Chapter %1").arg(i + 1)
+                                                        : r.label.trimmed()});
+        }
+    } else if (!m_project.bookmarks().isEmpty()) {
+        QList<drift::Bookmark> bms = m_project.bookmarks();
+        std::sort(bms.begin(), bms.end(), [](const drift::Bookmark &a, const drift::Bookmark &b) {
+            return a.timeUs < b.timeUs;
+        });
+        for (int i = 0; i < bms.size(); ++i) {
+            const drift::Bookmark &bm = bms.at(i);
+            entries.append({std::max<drift::TimeUs>(0, bm.timeUs),
+                            bm.label.trimmed().isEmpty() ? tr("Chapter %1").arg(i + 1)
+                                                         : bm.label.trimmed()});
+        }
+    }
+
+    if (entries.isEmpty())
+        return {};
+
+    if (entries.first().timeUs >= drift::kUsPerSecond)
+        entries.prepend({0, tr("Intro")});
+
+    const bool useHours = entries.last().timeUs >= 3600 * drift::kUsPerSecond;
+    QStringList lines;
+    lines.reserve(entries.size());
+    for (const Entry &e : entries) {
+        const qint64 totalSec = e.timeUs / drift::kUsPerSecond;
+        const qint64 h = totalSec / 3600;
+        const qint64 m = (totalSec % 3600) / 60;
+        const qint64 s = totalSec % 60;
+        const QString stamp = useHours
+            ? QStringLiteral("%1:%2:%3")
+                  .arg(h)
+                  .arg(m, 2, 10, QLatin1Char('0'))
+                  .arg(s, 2, 10, QLatin1Char('0'))
+            : QStringLiteral("%1:%2")
+                  .arg(m, 2, 10, QLatin1Char('0'))
+                  .arg(s, 2, 10, QLatin1Char('0'));
+        lines.append(stamp + QLatin1Char(' ') + e.label);
+    }
+    return lines.join(QLatin1Char('\n'));
+}
+
+bool AppController::copyYouTubeChaptersToClipboard()
+{
+    const QString text = formatYouTubeChapters();
+    if (text.isEmpty()) {
+        setLastMessage(tr("No markers or regions to copy as chapters"), QStringLiteral("warning"));
+        return false;
+    }
+    if (QClipboard *cb = QGuiApplication::clipboard()) {
+        cb->setText(text);
+        setLastMessage(tr("Copied YouTube chapters to clipboard"), QStringLiteral("success"));
+        return true;
+    }
+    return false;
 }
 
 void AppController::recordExport(const QUrl &url, double durationSeconds, qint64 sizeBytes,

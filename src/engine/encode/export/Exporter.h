@@ -57,6 +57,7 @@ struct ExportSettings
     bool smartRender = true;
     bool normalizeLoudness = false;
     double targetLufs = -14.0;
+    bool embedChapters = true;
     QString metadataTitle;
     QString metadataArtist;
     QString metadataAlbum;

@@ -671,6 +671,49 @@ ThemedDialog {
                 width: parent.width
                 spacing: Theme.spacingMd
 
+                ThemedComboBox {
+                    id: deliveryPresetCombo
+                    width: 240
+                    implicitHeight: Theme.controlHeightSm
+                    readonly property var presets: EditorState.deliveryPresets()
+                    model: {
+                        var items = [qsTr("Delivery Preset…")]
+                        for (var i = 0; i < presets.length; ++i)
+                            items.push(presets[i].name)
+                        return items
+                    }
+                    onActivated: {
+                        if (currentIndex <= 0)
+                            return
+                        const p = presets[currentIndex - 1]
+                        if (!p)
+                            return
+                        root.exportMode = p.audioOnly ? "audio" : "video"
+                        root.videoCodecId = p.videoCodecId || root.videoCodecId
+                        root.audioCodecId = p.audioCodecId || root.audioCodecId
+                        root.targetHeight = p.targetHeight !== undefined ? p.targetHeight : 0
+                        root.scaleId = root.targetHeight > 0 ? String(root.targetHeight) : "source"
+                        root.crf = p.crf !== undefined ? p.crf : root.crf
+                        root.rateControl = p.rateControl || "crf"
+                        root.audioBitrateKbps = p.audioBitrateKbps || root.audioBitrateKbps
+                        root.normalizeLoudness = !!p.normalizeLoudness
+                        root.targetLufs = p.targetLufs !== undefined ? p.targetLufs : -14.0
+                        root.syncComboIndices()
+                    }
+                }
+
+                ThemedButton {
+                    visible: EditorState.formatYouTubeChapters().length > 0
+                    variant: "secondary"
+                    text: qsTr("Copy YouTube Chapters")
+                    onClicked: EditorState.copyYouTubeChaptersToClipboard()
+                }
+            }
+
+            Row {
+                width: parent.width
+                spacing: Theme.spacingMd
+
                 ThemedButton {
                     variant: "secondary"
                     text: qsTr("Add to Render Queue…")

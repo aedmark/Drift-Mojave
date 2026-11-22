@@ -150,6 +150,7 @@ private slots:
     void trackFolderCollapseMuteSoloAndTimelineSearch();
     void referenceStillGalleryAndSplitWipe();
     void sceneCutMarkSplitAndSilencePresets();
+    void persistentRenderQueueDeliveryPresetsAndChapters();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20668,6 +20669,55 @@ void EditorStateTest::sceneCutMarkSplitAndSilencePresets()
     state.undo();
     QCOMPARE(state.project()->tracks().at(0).clips.size(), 1);
     QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineDuration, 10 * drift::kUsPerSecond);
+}
+
+void EditorStateTest::persistentRenderQueueDeliveryPresetsAndChapters()
+{
+    QStandardPaths::setTestModeEnabled(true);
+    const QString org = QCoreApplication::organizationName();
+    const QString app = QCoreApplication::applicationName();
+    QCoreApplication::setOrganizationName(QStringLiteral("DriftTest"));
+    QCoreApplication::setApplicationName(QStringLiteral("RenderQueueTest8D"));
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    {
+        AssetLibrary lib1;
+        AppController s1(&lib1);
+        s1.clearRenderQueue();
+        s1.enqueueRenderJob(QStringLiteral("Ep1"), QUrl::fromLocalFile(dir.filePath(QStringLiteral("ep1.mp4"))), {});
+        s1.enqueueRenderJob(QStringLiteral("Ep2"), QUrl::fromLocalFile(dir.filePath(QStringLiteral("ep2.mp4"))), {});
+        QCOMPARE(s1.renderQueue().size(), 2);
+    }
+    {
+        AssetLibrary lib2;
+        AppController s2(&lib2);
+        QCOMPARE(s2.renderQueue().size(), 2);
+        QCOMPARE(s2.renderQueue().at(0).toMap().value(QStringLiteral("label")).toString(), QStringLiteral("Ep1"));
+        QCOMPARE(s2.renderQueue().at(1).toMap().value(QStringLiteral("label")).toString(), QStringLiteral("Ep2"));
+        s2.clearRenderQueue();
+        QVERIFY(s2.renderQueue().isEmpty());
+    }
+
+    AssetLibrary library;
+    AppController state(&library);
+    const QVariantList presets = state.deliveryPresets();
+    QVERIFY(presets.size() >= 5);
+    QCOMPARE(presets.at(0).toMap().value(QStringLiteral("id")).toString(), QStringLiteral("youtube_4k"));
+    QCOMPARE(presets.at(2).toMap().value(QStringLiteral("id")).toString(), QStringLiteral("prores_422_hq"));
+
+    state.addBookmark(0.0, QStringLiteral("Intro"));
+    state.addBookmark(65.0, QStringLiteral("Part One"));
+    state.addBookmark(3661.0, QStringLiteral("Finale"));
+    QCOMPARE(state.formatYouTubeChapters(),
+             QStringLiteral("0:00:00 Intro\n0:01:05 Part One\n1:01:01 Finale"));
+
+    QVERIFY(Exporter::defaultSettings().embedChapters);
+    QVERIFY(!Exporter::settingsFromMap({{QStringLiteral("embedChapters"), false}}).embedChapters);
+
+    QCoreApplication::setOrganizationName(org);
+    QCoreApplication::setApplicationName(app);
+    QStandardPaths::setTestModeEnabled(false);
 }
 
 QTEST_MAIN(EditorStateTest)

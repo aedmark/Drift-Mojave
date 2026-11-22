@@ -2000,7 +2000,7 @@ public:
     Q_INVOKABLE bool batchExportRegions(const QUrl &outputDirUrl, const QString &filenameTemplate,
                                         const QVariantList &regionIds, const QVariantMap &settings);
 
-    // Batch Render Queue (Tier 7E)
+    // Batch Render Queue (Tier 7E / 8D)
     QVariantList renderQueue() const;
     bool renderQueueRunning() const { return m_renderQueueRunning; }
     Q_INVOKABLE QString enqueueRenderJob(const QString &label, const QUrl &outputUrl,
@@ -2009,6 +2009,11 @@ public:
     Q_INVOKABLE bool removeRenderJob(const QString &jobId);
     Q_INVOKABLE void clearRenderQueue();
     Q_INVOKABLE bool startRenderQueue();
+    Q_INVOKABLE void saveRenderQueue() const;
+    Q_INVOKABLE void loadRenderQueue();
+    Q_INVOKABLE QVariantList deliveryPresets() const;
+    Q_INVOKABLE QString formatYouTubeChapters() const;
+    Q_INVOKABLE bool copyYouTubeChaptersToClipboard();
 
     // Trimmer Subclipping & Dynamic RAM Preview (Tier 3B)
     Q_INVOKABLE bool insertSubclipFromTrimmer(int assetIndex, double inSeconds, double outSeconds,

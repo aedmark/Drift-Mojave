@@ -862,6 +862,7 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
             &AppController::invalidateExtraSnapTargets);
     connect(this, &AppController::beatAnalysisChanged, this,
             &AppController::invalidateExtraSnapTargets);
+    loadRenderQueue();
 
     connect(this, &AppController::tracksChanged, this, [this] {
         if (m_multicamActive && !m_multicamSnaps.isEmpty()) {
