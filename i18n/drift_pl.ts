@@ -15893,12 +15893,24 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
             <numerusform></numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>Transcoded %n clip(s) to Apple ProRes 422, but could not relink (unlock locked tracks first)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
         <source>ProRes transcoding cancelled</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>ProRes transcoding failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ProRes transcoding failed: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
