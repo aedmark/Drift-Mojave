@@ -6722,8 +6722,12 @@
         <translation>已消除 %1 秒的靜音</translation>
     </message>
     <message>
-        <source>Select exactly two clips with audio to sync</source>
-        <translation>選取恰好兩個帶有音訊的片段進行同步</translation>
+        <source>Synced %1 clip(s) by audio (%2 could not be matched)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Synced %1 clip(s) by audio</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Clips with changed speed or reversed playback can&apos;t be synced. Reset their speed and direction first.</source>
@@ -6758,12 +6762,16 @@
         <translation>分析時片段已變更</translation>
     </message>
     <message>
-        <source>The clips are already in sync</source>
-        <translation>片段已同步</translation>
+        <source>Select at least two clips with audio to sync</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Syncing would move the clip before the start of the timeline</source>
-        <translation>同步將使片段移動到時間軸起點之前</translation>
+        <source>No clear audio match found for any selected clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clips are already in sync</source>
+        <translation>片段已同步</translation>
     </message>
     <message>
         <source>There is no room to move the clip there</source>
@@ -26544,6 +26552,18 @@ If playback stutters, try another.</source>
     <message>
         <source>Sync by audio</source>
         <translation>依音訊同步</translation>
+    </message>
+    <message>
+        <source>Align clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align and Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align, Group, and Mute Camera Scratch Audio</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Cancel audio analysis</source>

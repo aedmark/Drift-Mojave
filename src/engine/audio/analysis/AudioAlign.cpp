@@ -170,6 +170,9 @@ AudioOffsetResult findAudioOffset(const std::vector<float> &anchorIn, const std:
             continue;
         const double ea = sumA[size_t(n1 + k)] - sumA[size_t(n0 + k)];
         const double eb = sumB[size_t(n1)] - sumB[size_t(n0)];
+        const double minEnergy = double(n1 - n0) * params.silentRms * params.silentRms;
+        if (ea < minEnergy || eb < minEnergy)
+            continue;
         const double denom = std::sqrt(ea * eb);
         if (denom <= 0.0)
             continue;

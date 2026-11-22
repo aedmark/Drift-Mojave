@@ -6,6 +6,11 @@ Tracks work done on `main` **since the last public release**. Use this to see wh
 
 ---
 
+## ✨ Added
+
+- **True fractional frame rates & SMPTE timecode (Tier 7A)** (`Project`, `VegasReader`, `Exporter`, `VideoSizeControls`): Native rational `24000/1001` (`23.976`), `30000/1001` (`29.97`), and `60000/1001` (`59.94`) project rates, SMPTE Drop-Frame (`;`) and Non-Drop-Frame (`:`) timecode formatting, and project setup FPS presets.
+- **Multi-clip audio waveform auto-sync (Tier 7B)** (`AudioAlignController`, `TimelineClipContextMenu`): Sync 2+ selected clips (dual-system audio or multicam angles) by audio waveform with negative-start shift protection, optional auto-grouping, and camera scratch-audio muting.
+
 ## ✅ Fixed
 
 - **AVCHD / MPEG-TS `start_time` offset in ProRes transcoding & media editing** (`MediaEditor.cpp`): Subtract `stream->start_time` when reading frame PTS, seeking, keyframe lookup, and remuxing so MPEG-TS inputs (e.g. Sony `.MTS` with `start_time = 1.0417 s`) no longer prepend ~1.04 s of padded video frames during ProRes transcoding.

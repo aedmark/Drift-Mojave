@@ -6747,8 +6747,12 @@
         <translation>Rimossi %1 s di silenzio</translation>
     </message>
     <message>
-        <source>Select exactly two clips with audio to sync</source>
-        <translation>Seleziona esattamente due clip con audio da sincronizzare</translation>
+        <source>Synced %1 clip(s) by audio (%2 could not be matched)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Synced %1 clip(s) by audio</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Clips with changed speed or reversed playback can&apos;t be synced. Reset their speed and direction first.</source>
@@ -6783,12 +6787,16 @@
         <translation>Le clip sono cambiate durante l&apos;analisi</translation>
     </message>
     <message>
-        <source>The clips are already in sync</source>
-        <translation>Le clip sono già sincronizzate</translation>
+        <source>Select at least two clips with audio to sync</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Syncing would move the clip before the start of the timeline</source>
-        <translation>La sincronizzazione sposterebbe la clip prima dell&apos;inizio della timeline</translation>
+        <source>No clear audio match found for any selected clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clips are already in sync</source>
+        <translation>Le clip sono già sincronizzate</translation>
     </message>
     <message>
         <source>There is no room to move the clip there</source>
@@ -26631,6 +26639,18 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Sync by audio</source>
         <translation>Sincronizza tramite audio</translation>
+    </message>
+    <message>
+        <source>Align clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align and Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align, Group, and Mute Camera Scratch Audio</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Cancel audio analysis</source>

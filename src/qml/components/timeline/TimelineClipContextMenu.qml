@@ -435,12 +435,24 @@ ThemedContextMenu {
         enabled: !EditorState.audioAlign.running
         onTriggered: EditorState.audioAlign.removeSilence(owner.trackIndex, owner.clipIndex)
     }
-    ThemedMenuItem {
-        text: qsTr("Sync by audio")
+    ThemedContextMenu {
+        title: qsTr("Sync by audio")
         icon.name: Theme.icons.audioLines
         visible: clipContextMenu.canSyncByAudio
         enabled: !EditorState.audioAlign.running
-        onTriggered: EditorState.audioAlign.syncByAudio()
+
+        ThemedMenuItem {
+            text: qsTr("Align clips")
+            onTriggered: EditorState.audioAlign.syncByAudio(false, false)
+        }
+        ThemedMenuItem {
+            text: qsTr("Align and Group")
+            onTriggered: EditorState.audioAlign.syncByAudio(true, false)
+        }
+        ThemedMenuItem {
+            text: qsTr("Align, Group, and Mute Camera Scratch Audio")
+            onTriggered: EditorState.audioAlign.syncByAudio(true, true)
+        }
     }
     ThemedMenuItem {
         text: qsTr("Cancel audio analysis")

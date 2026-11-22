@@ -6747,8 +6747,12 @@
         <translation>Naalis ang %1 s ng katahimikan</translation>
     </message>
     <message>
-        <source>Select exactly two clips with audio to sync</source>
-        <translation>Pumili ng eksaktong dalawang clip na may audio upang i-sync</translation>
+        <source>Synced %1 clip(s) by audio (%2 could not be matched)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Synced %1 clip(s) by audio</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Clips with changed speed or reversed playback can&apos;t be synced. Reset their speed and direction first.</source>
@@ -6783,12 +6787,16 @@
         <translation>Nagbago ang mga clip habang sinusuri ang mga ito</translation>
     </message>
     <message>
-        <source>The clips are already in sync</source>
-        <translation>Naka-sync na ang mga clip</translation>
+        <source>Select at least two clips with audio to sync</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Syncing would move the clip before the start of the timeline</source>
-        <translation>Ililipat ng pag-sync ang clip bago ang simula ng timeline</translation>
+        <source>No clear audio match found for any selected clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clips are already in sync</source>
+        <translation>Naka-sync na ang mga clip</translation>
     </message>
     <message>
         <source>There is no room to move the clip there</source>
@@ -26632,6 +26640,18 @@ Kung nag-i-stutter ang playback, subukan ang isa pa.</translation>
     <message>
         <source>Sync by audio</source>
         <translation>I-sync ayon sa audio</translation>
+    </message>
+    <message>
+        <source>Align clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align and Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align, Group, and Mute Camera Scratch Audio</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Cancel audio analysis</source>

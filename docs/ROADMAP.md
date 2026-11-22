@@ -123,12 +123,12 @@ Status: **Shipped in `v1.4.0`**
 
 ## Tier 7 — Broadcast Timing, Auto-Sync, Event Attributes & Finishing Workflows (`v1.5.0`)
 
-Status: **In Progress (7A)**
+Status: **In Progress (7A–7B implemented)**
 
 1. **Tier 7A — True Fractional Frame Rates & Broadcast Timecode (`23.976` / `29.97` / `59.94`)** — ✅ Implemented on `main`
    - Rational project frame rate (`fpsNum`/`fpsDen`) across `Project`, `.veg`/OTIO/EDL/Kdenlive/Resolve interchange, `Exporter`, `BakeWriter`, `PlaybackEngine`, and timeline quantization, plus SMPTE Drop-Frame (`;`) / Non-Drop-Frame (`:`) timecode formatting and project setup presets.
-2. **Tier 7B — Audio Waveform Auto-Sync (Dual-System & Multicam)**
-   - Synchronize 2+ selected clips by audio waveform using FFT cross-correlation for sample-accurate alignment, with optional auto-group/link and scratch-audio mute.
+2. **Tier 7B — Audio Waveform Auto-Sync (Dual-System & Multicam)** — ✅ Implemented on `main`
+   - Synchronize 2+ selected clips by audio waveform using FFT cross-correlation for sample-accurate alignment, with negative-start shift-all-right protection, optional auto-group/link (`Align and Group`), and camera scratch-audio muting (`Align, Group, and Mute Camera Scratch Audio`).
 3. **Tier 7C — Selective "Paste Event Attributes…" & Reusable FX Chains**
    - Selective Paste Event Attributes dialog (Video FX, Audio FX, Color Grade, Pan/Crop, Opacity/Gain, Speed/Velocity, Event Switches) and named reusable FX Chain Presets across projects.
 4. **Tier 7D — Classic VEGAS Audio Finishing (Track Channel Strip & Auto-Ducking)**

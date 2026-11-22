@@ -142,6 +142,7 @@ class EditorStateTest : public QObject
 
 private slots:
     void bakeFingerprintTracksRangeEdits();
+    void syncByAudioMultiClipGroupsAndMutesScratch();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20010,6 +20011,172 @@ void EditorStateTest::tier6VideoScopesEnvelopeCurvesMediaSweepAndConsolidation()
     QCOMPARE(consRes.value(QStringLiteral("ok")).toBool(), true);
     QVERIFY(consRes.value(QStringLiteral("copiedCount")).toInt() >= 1);
     QVERIFY(QFileInfo::exists(QDir(consDir).filePath(QStringLiteral("used.png"))));
+}
+
+void EditorStateTest::syncByAudioMultiClipGroupsAndMutesScratch()
+{
+    const QString ffmpeg = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    if (ffmpeg.isEmpty())
+        QSKIP("ffmpeg not available to generate test fixtures");
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    // Generate a distinctive non-periodic chirp/pulse pattern so cross-correlation has a sharp peak.
+    auto runFfmpeg = [&](const QStringList &args) {
+        QProcess proc;
+        proc.start(ffmpeg, args);
+        return proc.waitForFinished(15000) && proc.exitCode() == 0;
+    };
+
+    const QString burstWav = dir.filePath(QStringLiteral("burst.wav"));
+    const QString anchorMp4 = dir.filePath(QStringLiteral("cam_anchor.mov"));
+    const QString lateWav = dir.filePath(QStringLiteral("zoom_late.wav"));
+    const QString earlyWav = dir.filePath(QStringLiteral("zoom_early.wav"));
+
+    QVERIFY(runFfmpeg({QStringLiteral("-y"), QStringLiteral("-loglevel"), QStringLiteral("error"),
+                       QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+                       QStringLiteral("anoisesrc=color=white:seed=42:r=48000:d=2"),
+                       QStringLiteral("-ac"), QStringLiteral("2"), burstWav}));
+
+    // Anchor: 2s white noise burst at t = 3.0..5.0s (duration 8s)
+    QVERIFY(runFfmpeg({QStringLiteral("-y"), QStringLiteral("-loglevel"), QStringLiteral("error"),
+                       QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+                       QStringLiteral("color=c=black:s=320x180:r=24:d=8"),
+                       QStringLiteral("-i"), burstWav,
+                       QStringLiteral("-af"), QStringLiteral("adelay=3000:all=1,apad=whole_dur=8"),
+                       QStringLiteral("-c:v"), QStringLiteral("libx264"), QStringLiteral("-pix_fmt"), QStringLiteral("yuv420p"),
+                       QStringLiteral("-c:a"), QStringLiteral("pcm_s16le"), QStringLiteral("-shortest"), anchorMp4}));
+
+    // Late WAV: same burst at t = 2.0..4.0s (1.0s earlier in file -> needs to move +1.0s right relative to anchor)
+    QVERIFY(runFfmpeg({QStringLiteral("-y"), QStringLiteral("-loglevel"), QStringLiteral("error"),
+                       QStringLiteral("-i"), burstWav,
+                       QStringLiteral("-af"), QStringLiteral("adelay=2000:all=1,apad=whole_dur=8"),
+                       lateWav}));
+
+    // Early WAV: same burst at t = 3.5..5.5s (0.5s later in file -> would move -0.5s, triggering global +0.5s shift)
+    QVERIFY(runFfmpeg({QStringLiteral("-y"), QStringLiteral("-loglevel"), QStringLiteral("error"),
+                       QStringLiteral("-i"), burstWav,
+                       QStringLiteral("-af"), QStringLiteral("adelay=3500:all=1,apad=whole_dur=8"),
+                       earlyWav}));
+
+    AssetLibrary library;
+    AppController controller(&library);
+
+    drift::MediaAsset anchorAsset;
+    anchorAsset.name = QStringLiteral("Anchor");
+    anchorAsset.path = anchorMp4;
+    anchorAsset.kind = drift::MediaKind::Video;
+    anchorAsset.durationUs = 8 * drift::kUsPerSecond;
+    anchorAsset.hasAudio = true;
+    const QString anchorAssetId = library.addGeneratedAsset(anchorAsset);
+
+    drift::MediaAsset lateAsset;
+    lateAsset.name = QStringLiteral("Late");
+    lateAsset.path = lateWav;
+    lateAsset.kind = drift::MediaKind::Audio;
+    lateAsset.durationUs = 8 * drift::kUsPerSecond;
+    lateAsset.hasAudio = true;
+    const QString lateAssetId = library.addGeneratedAsset(lateAsset);
+
+    drift::MediaAsset earlyAsset;
+    earlyAsset.name = QStringLiteral("Early");
+    earlyAsset.path = earlyWav;
+    earlyAsset.kind = drift::MediaKind::Audio;
+    earlyAsset.durationUs = 8 * drift::kUsPerSecond;
+    earlyAsset.hasAudio = true;
+    const QString earlyAssetId = library.addGeneratedAsset(earlyAsset);
+    QVERIFY(!anchorAssetId.isEmpty() && !lateAssetId.isEmpty() && !earlyAssetId.isEmpty());
+
+    // Add 3 clips at t = 0 on V1 (track 0), A1 (track 1), A2 (track 2)
+    controller.project()->tracks().clear();
+    drift::Track v1;
+    v1.id = QStringLiteral("v1");
+    v1.name = QStringLiteral("V1");
+    v1.type = drift::TrackType::Video;
+    drift::Clip cAnchor;
+    cAnchor.id = QStringLiteral("c_anchor");
+    cAnchor.type = drift::ClipType::Video;
+    cAnchor.assetId = anchorAssetId;
+    cAnchor.path = anchorMp4;
+    cAnchor.timelineStart = 0;
+    cAnchor.timelineDuration = 8 * drift::kUsPerSecond;
+    cAnchor.srcIn = 0;
+    cAnchor.srcOut = 8 * drift::kUsPerSecond;
+    v1.clips.append(cAnchor);
+
+    drift::Track a1;
+    a1.id = QStringLiteral("a1");
+    a1.name = QStringLiteral("A1");
+    a1.type = drift::TrackType::Audio;
+    drift::Clip cLate;
+    cLate.id = QStringLiteral("c_late");
+    cLate.type = drift::ClipType::Audio;
+    cLate.assetId = lateAssetId;
+    cLate.path = lateWav;
+    cLate.timelineStart = 0;
+    cLate.timelineDuration = 8 * drift::kUsPerSecond;
+    cLate.srcIn = 0;
+    cLate.srcOut = 8 * drift::kUsPerSecond;
+    a1.clips.append(cLate);
+
+    drift::Track a2;
+    a2.id = QStringLiteral("a2");
+    a2.name = QStringLiteral("A2");
+    a2.type = drift::TrackType::Audio;
+    drift::Clip cEarly;
+    cEarly.id = QStringLiteral("c_early");
+    cEarly.type = drift::ClipType::Audio;
+    cEarly.assetId = earlyAssetId;
+    cEarly.path = earlyWav;
+    cEarly.timelineStart = 0;
+    cEarly.timelineDuration = 8 * drift::kUsPerSecond;
+    cEarly.srcIn = 0;
+    cEarly.srcOut = 8 * drift::kUsPerSecond;
+    a2.clips.append(cEarly);
+
+    controller.project()->tracks().append(v1);
+    controller.project()->tracks().append(a1);
+    controller.project()->tracks().append(a2);
+
+    auto clipPair = [](int t, int c) {
+        return QVariantMap{{QStringLiteral("track"), t}, {QStringLiteral("clip"), c}};
+    };
+    controller.setSelection({clipPair(0, 0), clipPair(1, 0), clipPair(2, 0)});
+    QVERIFY(controller.audioAlign()->canSyncByAudio());
+
+    controller.audioAlign()->syncByAudio(true, true);
+    QTRY_VERIFY_WITH_TIMEOUT(!controller.audioAlign()->running(), 15000);
+
+    const auto &tracks = controller.project()->tracks();
+    const drift::Clip &syncedAnchor = tracks.at(0).clips.at(0);
+    const drift::Clip &syncedLate = tracks.at(1).clips.at(0);
+    const drift::Clip &syncedEarly = tracks.at(2).clips.at(0);
+
+    // Anchor shifted +0.5s, late shifted +1.5s, early stayed at 0.0s
+    QVERIFY2(qAbs((syncedLate.timelineStart - syncedAnchor.timelineStart) - 1'000'000) <= 50'000,
+             qPrintable(QStringLiteral("msg='%1' anchor=%2 late=%3 early=%4")
+                            .arg(controller.lastMessage())
+                            .arg(syncedAnchor.timelineStart)
+                            .arg(syncedLate.timelineStart)
+                            .arg(syncedEarly.timelineStart)));
+    QVERIFY(syncedAnchor.timelineStart >= 0);
+    QVERIFY(syncedEarly.timelineStart >= 0);
+    QVERIFY(qAbs((syncedEarly.timelineStart - syncedAnchor.timelineStart) - (-500'000)) <= 50'000);
+
+    // Grouped and scratch audio muted
+    QVERIFY(!syncedAnchor.linkId.isEmpty());
+    QCOMPARE(syncedLate.linkId, syncedAnchor.linkId);
+    QCOMPARE(syncedEarly.linkId, syncedAnchor.linkId);
+    QVERIFY(syncedAnchor.suppressEmbeddedAudio);
+
+    // Undo restores all three clips
+    controller.undo();
+    QCOMPARE(controller.project()->tracks().at(0).clips.at(0).timelineStart, drift::TimeUs(0));
+    QCOMPARE(controller.project()->tracks().at(1).clips.at(0).timelineStart, drift::TimeUs(0));
+    QCOMPARE(controller.project()->tracks().at(2).clips.at(0).timelineStart, drift::TimeUs(0));
+    QVERIFY(controller.project()->tracks().at(0).clips.at(0).linkId.isEmpty());
+    QVERIFY(!controller.project()->tracks().at(0).clips.at(0).suppressEmbeddedAudio);
 }
 
 QTEST_MAIN(EditorStateTest)

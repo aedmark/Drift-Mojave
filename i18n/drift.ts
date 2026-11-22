@@ -6747,7 +6747,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Select exactly two clips with audio to sync</source>
+        <source>Synced %1 clip(s) by audio (%2 could not be matched)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Synced %1 clip(s) by audio</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6783,11 +6787,15 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The clips are already in sync</source>
+        <source>Select at least two clips with audio to sync</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Syncing would move the clip before the start of the timeline</source>
+        <source>No clear audio match found for any selected clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clips are already in sync</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -26622,6 +26630,18 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Sync by audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align and Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Align, Group, and Mute Camera Scratch Audio</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

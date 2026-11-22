@@ -30,12 +30,13 @@ public:
     // within its span. RMS 0.02, at least 0.5 s quiet, 0.08 s of sound kept either side.
     Q_INVOKABLE void removeSilence(int trackIndex, int clipIndex);
 
-    // True when the selection holds exactly two audio-bearing items (a linked video and its audio
-    // count as one).
+    // True when the selection holds two or more audio-bearing items (a linked video and its
+    // audio count as one).
     Q_INVOKABLE bool canSyncByAudio() const;
-    // The first selected item is the anchor and stays put; the other, with its linked partners,
-    // moves so its sound lines up with the anchor's.
-    Q_INVOKABLE void syncByAudio();
+    // The first selected item is the anchor and stays put (unless another item would move
+    // before t = 0, in which case all items shift right together); the others, with their linked
+    // partners, move so their sound lines up with the anchor's.
+    Q_INVOKABLE void syncByAudio(bool groupSynced = false, bool muteScratchAudio = false);
 
     Q_INVOKABLE void cancel();
 
@@ -46,13 +47,14 @@ signals:
 
 private:
     struct SyncUnit;
+    struct SyncMatch;
     bool begin(const QString &message);
     void end();
     void reportProgress(double fraction, const QString &status);
     void applySilence(const QString &clipId, qint64 startUs, qint64 durationUs,
                       const QList<QPair<double, double>> &silences);
-    void applySync(const QString &anchorId, const QString &otherId, qint64 anchorStartUs,
-                   qint64 otherStartUs, double lagSeconds);
+    void applyMultiSync(const SyncUnit &anchor, const QList<SyncMatch> &matches,
+                        bool groupSynced, bool muteScratchAudio);
 
     AppController *m_app = nullptr;
     bool m_running = false;
