@@ -14,6 +14,7 @@ Popup {
     signal closeProjectRequested()
     signal openRecentRequested(string path)
     signal saveAsRequested()
+    signal saveSnapshotRequested()
     signal packageRequested()
     signal saveJsonRequested()
     signal openJsonRequested()
@@ -229,6 +230,13 @@ Popup {
             glyph: Theme.icons.copy
             text: qsTr("Save as…")
             onTriggered: root.saveAsRequested()
+        }
+
+        RecentProjectsActionRow {
+            popup: root
+            glyph: Theme.icons.save
+            text: qsTr("Save milestone snapshot")
+            onTriggered: root.saveSnapshotRequested()
         }
 
         RecentProjectsActionRow {

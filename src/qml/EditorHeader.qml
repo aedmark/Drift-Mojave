@@ -413,6 +413,7 @@ Item {
                 onOpenRecentRequested: (path) => root.openRecent(path)
                 onCloseProjectRequested: root.closeProject()
                 onSaveAsRequested: root.saveProjectAs()
+                onSaveSnapshotRequested: EditorState.projectFile.saveProjectSnapshot()
                 onPackageRequested: root.packageProject()
                 onSaveJsonRequested: root.saveProjectJson()
                 onOpenJsonRequested: root.openProjectJson()

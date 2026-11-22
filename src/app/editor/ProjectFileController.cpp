@@ -31,6 +31,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
 #include <QImage>
 #include <QFile>
 #include <QFileInfo>
@@ -41,6 +42,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTimer>
@@ -48,6 +50,7 @@
 #include <QtConcurrent>
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 
 // Shared with export and asset replace, which stay in AppController.cpp.
@@ -1696,6 +1699,10 @@ void ProjectFileController::finishLoad(int generation, const QUrl &url,
         m_app->setLastMessage(message, missing > 0 ? QStringLiteral("warning") : QStringLiteral("success"));
         finishProjectLoad(true, message);
 
+        m_lastVegasImportReport = buildVegasImportReport(url.toLocalFile(), autoRemap.size());
+        emit lastVegasImportReportChanged();
+        emit vegasImportSummaryReady(m_lastVegasImportReport);
+
         QStringList unconvertedIds;
         for (const auto &asset : m_app->m_project.assets()) {
             if (asset.kind == drift::MediaKind::Video && !asset.editFriendly && !asset.path.isEmpty()
@@ -2490,6 +2497,293 @@ void ProjectFileController::discardUnsavedChanges()
     // the window is closing (or the caller is about to replace the project).
     setDirty(false);
     deleteRecoveryFile();
+}
+
+namespace {
+
+QString sanitizeSnapshotToken(QString text)
+{
+    text = text.trimmed();
+    text.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9_-]+")), QStringLiteral("_"));
+    text.replace(QRegularExpression(QStringLiteral("_+")), QStringLiteral("_"));
+    while (text.startsWith(QLatin1Char('_')))
+        text.remove(0, 1);
+    while (text.endsWith(QLatin1Char('_')))
+        text.chop(1);
+    return text;
+}
+
+} // namespace
+
+QVariantMap ProjectFileController::buildVegasImportReport(const QString &sourcePath, int autoRemappedProRes) const
+{
+    const drift::Project &project = m_app->m_project;
+    int videoTracks = 0;
+    int audioTracks = 0;
+    int totalClips = 0;
+    for (const drift::Track &track : project.tracks()) {
+        if (track.type == drift::TrackType::Audio)
+            ++audioTracks;
+        else
+            ++videoTracks;
+        totalClips += track.clips.size();
+    }
+
+    int onlineAssets = 0;
+    int missingAssets = 0;
+    int unconvertedVideoCount = 0;
+    QStringList missingFiles;
+    for (const drift::MediaAsset &asset : project.assets()) {
+        if (asset.path.isEmpty())
+            continue;
+        if (QFileInfo::exists(asset.path)) {
+            ++onlineAssets;
+            if (asset.kind == drift::MediaKind::Video && !asset.editFriendly)
+                ++unconvertedVideoCount;
+        } else {
+            ++missingAssets;
+            if (missingFiles.size() < 50)
+                missingFiles.append(asset.path);
+        }
+    }
+
+    const double fps = project.fps();
+    const QString fpsStr = (std::abs(fps - std::round(fps)) < 0.01
+                                ? QString::number(fps, 'f', 0)
+                                : QString::number(fps, 'f', 3))
+                           + QStringLiteral(" fps");
+
+    QVariantMap report;
+    report.insert(QStringLiteral("projectName"), project.name());
+    report.insert(QStringLiteral("sourcePath"), sourcePath);
+    report.insert(QStringLiteral("resolution"),
+                  QStringLiteral("%1×%2").arg(project.width()).arg(project.height()));
+    report.insert(QStringLiteral("frameRate"), fpsStr);
+    report.insert(QStringLiteral("videoTracks"), videoTracks);
+    report.insert(QStringLiteral("audioTracks"), audioTracks);
+    report.insert(QStringLiteral("totalTracks"), videoTracks + audioTracks);
+    report.insert(QStringLiteral("totalClips"), totalClips);
+    report.insert(QStringLiteral("markers"), project.bookmarks().size());
+    report.insert(QStringLiteral("regions"), project.regions().size());
+    report.insert(QStringLiteral("totalAssets"), onlineAssets + missingAssets);
+    report.insert(QStringLiteral("onlineAssets"), onlineAssets);
+    report.insert(QStringLiteral("missingAssets"), missingAssets);
+    report.insert(QStringLiteral("missingFiles"), missingFiles);
+    report.insert(QStringLiteral("autoRemappedProRes"), autoRemappedProRes);
+    report.insert(QStringLiteral("unconvertedVideoCount"), unconvertedVideoCount);
+    return report;
+}
+
+QVariantMap ProjectFileController::buildVegasImportReportForCurrentProject(const QString &sourcePath,
+                                                                           int autoRemappedProRes) const
+{
+    return buildVegasImportReport(sourcePath, autoRemappedProRes);
+}
+
+QVariantMap ProjectFileController::relinkMissingMediaInFolder(const QUrl &folderUrl)
+{
+    const QString folderPath = folderUrl.isLocalFile() ? folderUrl.toLocalFile() : folderUrl.toString();
+    if (folderPath.isEmpty() || !QFileInfo(folderPath).isDir()) {
+        const QString msg = tr("That folder isn’t valid");
+        m_app->setLastMessage(msg, QStringLiteral("error"));
+        return QVariantMap{{QStringLiteral("ok"), false},
+                           {QStringLiteral("relinked"), 0},
+                           {QStringLiteral("stillMissing"), 0},
+                           {QStringLiteral("message"), msg}};
+    }
+
+    QList<const drift::MediaAsset *> missingAssets;
+    QSet<QString> existingAssetPaths;
+    for (const drift::MediaAsset &asset : m_app->m_project.assets()) {
+        if (asset.path.isEmpty())
+            continue;
+        if (QFileInfo::exists(asset.path))
+            existingAssetPaths.insert(QDir::cleanPath(asset.path));
+        else
+            missingAssets.append(&asset);
+    }
+
+    if (missingAssets.isEmpty()) {
+        const QString msg = tr("All project media is already online");
+        m_app->setLastMessage(msg, QStringLiteral("success"));
+        return QVariantMap{{QStringLiteral("ok"), true},
+                           {QStringLiteral("relinked"), 0},
+                           {QStringLiteral("stillMissing"), 0},
+                           {QStringLiteral("message"), msg}};
+    }
+
+    QHash<QString, QStringList> candidatesByFileName;
+    QDirIterator it(folderPath, QDir::Files | QDir::Readable, QDirIterator::Subdirectories);
+    constexpr int kMaxWalkFiles = 50000;
+    int walked = 0;
+    while (it.hasNext() && walked < kMaxWalkFiles) {
+        const QString candidate = QDir::cleanPath(it.next());
+        candidatesByFileName[QFileInfo(candidate).fileName().toLower()].append(candidate);
+        ++walked;
+    }
+
+    QHash<QString, QString> remap;
+    QSet<QString> claimed;
+    for (const drift::MediaAsset *asset : missingAssets) {
+        const QString fileName = QFileInfo(asset->path).fileName().toLower();
+        const QStringList candidates = candidatesByFileName.value(fileName);
+        if (candidates.isEmpty())
+            continue;
+
+        QString chosen;
+        QString fallback;
+        for (const QString &cand : candidates) {
+            if (existingAssetPaths.contains(cand) || claimed.contains(cand))
+                continue;
+            if (asset->sourceSize > 0 && QFileInfo(cand).size() == asset->sourceSize) {
+                chosen = cand;
+                break;
+            }
+            if (fallback.isEmpty())
+                fallback = cand;
+        }
+        if (chosen.isEmpty())
+            chosen = fallback;
+        if (!chosen.isEmpty()) {
+            remap.insert(asset->path, chosen);
+            claimed.insert(chosen);
+        }
+    }
+
+    int relinked = 0;
+    if (!remap.isEmpty() && m_app->m_bin->relinkPaths(remap, tr("Relink missing media"))) {
+        relinked = remap.size();
+    }
+
+    int stillMissing = 0;
+    for (const drift::MediaAsset &asset : m_app->m_project.assets()) {
+        if (!asset.path.isEmpty() && !QFileInfo::exists(asset.path))
+            ++stillMissing;
+    }
+
+    if (!m_lastVegasImportReport.isEmpty()) {
+        const QString sourcePath = m_lastVegasImportReport.value(QStringLiteral("sourcePath")).toString();
+        const int autoRemappedProRes = m_lastVegasImportReport.value(QStringLiteral("autoRemappedProRes")).toInt();
+        m_lastVegasImportReport = buildVegasImportReport(sourcePath, autoRemappedProRes);
+        emit lastVegasImportReportChanged();
+    }
+
+    const QString msg = relinked > 0
+        ? tr("Relinked %n missing media file(s)", nullptr, relinked)
+        : tr("No matching missing media files found in %1").arg(QFileInfo(folderPath).fileName());
+    m_app->setLastMessage(msg, relinked > 0 ? QStringLiteral("success") : QStringLiteral("warning"));
+
+    return QVariantMap{{QStringLiteral("ok"), relinked > 0},
+                       {QStringLiteral("relinked"), relinked},
+                       {QStringLiteral("stillMissing"), stillMissing},
+                       {QStringLiteral("message"), msg}};
+}
+
+QString ProjectFileController::snapshotDirectory(const QString &directoryOverride) const
+{
+    if (!directoryOverride.isEmpty())
+        return QDir::cleanPath(directoryOverride);
+
+    if (!m_currentProjectPath.isEmpty()
+        && !AndroidUri::isContentUri(QUrl(m_currentProjectPath))) {
+        const QFileInfo info(m_currentProjectPath);
+        return info.dir().filePath(info.completeBaseName() + QStringLiteral(".snapshots"));
+    }
+
+    QString stem = sanitizeSnapshotToken(m_app->m_project.name());
+    if (stem.isEmpty())
+        stem = QStringLiteral("Untitled_Project");
+    const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    return QDir(base).filePath(QStringLiteral("snapshots/") + stem);
+}
+
+QVariantMap ProjectFileController::saveProjectSnapshot(const QString &label,
+                                                       const QString &directoryOverride)
+{
+    const QString dirPath = snapshotDirectory(directoryOverride);
+    if (dirPath.isEmpty() || !QDir().mkpath(dirPath)) {
+        const QString err = tr("Could not create snapshot folder");
+        m_app->setLastMessage(err, QStringLiteral("error"));
+        return QVariantMap{{QStringLiteral("ok"), false}, {QStringLiteral("error"), err}};
+    }
+
+    QString stem = sanitizeSnapshotToken(
+        !m_currentProjectPath.isEmpty() && !AndroidUri::isContentUri(QUrl(m_currentProjectPath))
+            ? QFileInfo(m_currentProjectPath).completeBaseName()
+            : m_app->m_project.name());
+    if (stem.isEmpty())
+        stem = QStringLiteral("snapshot");
+
+    const QString sanitizedLabel = sanitizeSnapshotToken(label);
+    const QDateTime now = QDateTime::currentDateTime();
+    const QString timestamp = now.toString(QStringLiteral("yyyyMMdd_HHmmss"));
+    QString baseName = QStringLiteral("%1_%2").arg(stem, timestamp);
+    if (!sanitizedLabel.isEmpty())
+        baseName += QStringLiteral("_") + sanitizedLabel;
+
+    QDir dir(dirPath);
+    QString fileName = baseName + QStringLiteral(".drift");
+    int suffix = 2;
+    while (dir.exists(fileName)) {
+        fileName = QStringLiteral("%1_%2.drift").arg(baseName).arg(suffix++);
+    }
+    const QString targetPath = dir.filePath(fileName);
+
+    const SaveCapture capture = captureSave(/*embedSource=*/false);
+    const drift::bundle::WriteRequest request = completeRequest(capture);
+    QString error;
+    if (!drift::bundle::write(targetPath, request, nullptr, &error)) {
+        const QString err = error.isEmpty() ? tr("Failed to write snapshot") : error;
+        m_app->setLastMessage(err, QStringLiteral("error"));
+        return QVariantMap{{QStringLiteral("ok"), false}, {QStringLiteral("error"), err}};
+    }
+
+    emit projectSnapshotsChanged();
+    m_app->setLastMessage(tr("Snapshot saved: %1").arg(fileName), QStringLiteral("success"));
+
+    const QFileInfo info(targetPath);
+    return QVariantMap{{QStringLiteral("ok"), true},
+                       {QStringLiteral("path"), targetPath},
+                       {QStringLiteral("fileName"), fileName},
+                       {QStringLiteral("label"), label},
+                       {QStringLiteral("createdAt"), now.toString(Qt::ISODate)},
+                       {QStringLiteral("sizeBytes"), info.size()}};
+}
+
+QVariantList ProjectFileController::listProjectSnapshots(const QString &directoryOverride) const
+{
+    QVariantList result;
+    const QString dirPath = snapshotDirectory(directoryOverride);
+    if (dirPath.isEmpty())
+        return result;
+
+    const QDir dir(dirPath);
+    if (!dir.exists())
+        return result;
+
+    const QFileInfoList entries =
+        dir.entryInfoList({QStringLiteral("*.drift")}, QDir::Files | QDir::Readable, QDir::Time);
+    for (const QFileInfo &info : entries) {
+        result.append(QVariantMap{
+            {QStringLiteral("path"), info.absoluteFilePath()},
+            {QStringLiteral("fileName"), info.fileName()},
+            {QStringLiteral("createdAt"), info.lastModified().toString(Qt::ISODate)},
+            {QStringLiteral("sizeBytes"), info.size()},
+        });
+    }
+    return result;
+}
+
+bool ProjectFileController::deleteProjectSnapshot(const QString &snapshotPath)
+{
+    if (snapshotPath.isEmpty() || !snapshotPath.endsWith(QLatin1String(".drift"), Qt::CaseInsensitive))
+        return false;
+    if (!QFile::exists(snapshotPath))
+        return false;
+    if (!QFile::remove(snapshotPath))
+        return false;
+    emit projectSnapshotsChanged();
+    return true;
 }
 
 #include "moc_ProjectFileController.cpp"

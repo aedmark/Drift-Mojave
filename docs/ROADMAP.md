@@ -140,7 +140,7 @@ Status: **Shipped in `v1.5.0`**
 
 ## Tier 8 — Visual Track Folders, Color Wipe, Smart Cut Detection, Delivery & Project Snapshots (`v1.6.0`)
 
-Status: **In Progress (`8A–8D` implemented on `main`)**
+Status: **Implemented on `main` (`8A–8E`)**
 
 1. **Tier 8A — Visual Track Folders UI, Folder Mute/Solo & Timeline Find/Jump** — ✅ Implemented on `main`
    - Collapsing a Track Folder hides child tracks (`trackRowHeight == 0`), adds a clickable folder header chip (`▸`/`▾` + track count) on the first track in each folder, adds folder-level Mute/Solo in `TrackHeaderContextMenu`, and adds a live Timeline Find & Jump (`searchTimeline` / `jumpToTimelineMatch`) dialog in `TimelineToolbar` across clips, markers, regions, and tracks.
@@ -150,5 +150,5 @@ Status: **In Progress (`8A–8D` implemented on `main`)**
    - `SceneDetectController::markDetectedScenes()` & `splitClipAtDetectedScenes()`, `AudioAlignController::removeSilenceWithOptions()` with dB threshold / min-silence / padding presets, and `TimelineClipContextMenu` submenus for Scene Cut Detection & Remove Silence presets.
 4. **Tier 8D — Persistent Render Queue, Delivery Presets & Embedded Chapters** — ✅ Implemented on `main`
    - `QSettings`-backed persistent render queue (`saveRenderQueue` / `loadRenderQueue`), curated `deliveryPresets()` (*YouTube 4K*, *YouTube 1080p*, *ProRes 422 HQ*, *Archival FFV1*, *Podcast WAV*), FFmpeg `AVChapter` embedding in `Exporter`, and `formatYouTubeChapters()` / `copyYouTubeChaptersToClipboard()` in `ExportDialog`.
-5. **Tier 8E — `.veg` Import Summary Report & Lightweight Project Snapshots** — Planned
-   - Post-import `.veg` translation summary report with missing-media relink and one-click timestamped `.drift` milestone snapshots.
+5. **Tier 8E — `.veg` Import Summary Report & Lightweight Project Snapshots** — ✅ Implemented on `main`
+   - Post-import `VegasImportSummaryDialog` (`lastVegasImportReport`, `vegasImportSummaryReady`) with track/clip/marker/region/media breakdown and one-click `relinkMissingMediaInFolder()`, plus lightweight timestamped `.drift` milestone snapshots (`saveProjectSnapshot`, `listProjectSnapshots`, `deleteProjectSnapshot`) from the Projects menu.

@@ -18562,6 +18562,36 @@ If playback stutters, try another.</source>
         <translation>미디어를 복사하고 링크를 다시 설정함</translation>
     </message>
     <message>
+        <source>All project media is already online</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Relink missing media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Relinked %n missing media file(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No matching missing media files found in %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create snapshot folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to write snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Snapshot saved: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>That save location isn’t valid</source>
         <translation>해당 저장 위치가 올바르지 않습니다</translation>
     </message>
@@ -19657,6 +19687,10 @@ If playback stutters, try another.</source>
     <message>
         <source>Save as…</source>
         <translation>다른 이름으로 저장…</translation>
+    </message>
+    <message>
+        <source>Save milestone snapshot</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Save with media…</source>
@@ -30529,6 +30563,75 @@ If playback stutters, try another.</source>
     <message>
         <source>Back to the drawing&apos;s own %1</source>
         <translation>그림 자체의 %1로 되돌리기</translation>
+    </message>
+</context>
+<context>
+    <name>VegasImportSummaryDialog</name>
+    <message>
+        <source>VEGAS Pro Import Summary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Imported VEGAS Project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Format:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 • %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timeline:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 video, %2 audio track(s) • %3 clip(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Annotations:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 marker(s) • %2 region(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Media:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 online • %2 missing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 file(s) online</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Automatically matched %n existing ProRes 422 transcode(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Missing media files:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locate Missing Media Folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locate Missing Media Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">닫기</translation>
     </message>
 </context>
 <context>

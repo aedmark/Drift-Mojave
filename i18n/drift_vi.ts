@@ -18569,6 +18569,36 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
         <translation>Phương tiện được sao chép và liên kết lại</translation>
     </message>
     <message>
+        <source>All project media is already online</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Relink missing media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Relinked %n missing media file(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No matching missing media files found in %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create snapshot folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to write snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Snapshot saved: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>That save location isn’t valid</source>
         <translation>Vị trí lưu đó không hợp lệ</translation>
     </message>
@@ -19665,6 +19695,10 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
     <message>
         <source>Save as…</source>
         <translation>Lưu dưới dạng…</translation>
+    </message>
+    <message>
+        <source>Save milestone snapshot</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Save with media…</source>
@@ -30538,6 +30572,75 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
     <message>
         <source>Back to the drawing&apos;s own %1</source>
         <translation>Quay về %1 của chính hình vẽ</translation>
+    </message>
+</context>
+<context>
+    <name>VegasImportSummaryDialog</name>
+    <message>
+        <source>VEGAS Pro Import Summary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Imported VEGAS Project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Format:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 • %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timeline:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 video, %2 audio track(s) • %3 clip(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Annotations:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 marker(s) • %2 region(s)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Media:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 online • %2 missing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 file(s) online</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Automatically matched %n existing ProRes 422 transcode(s).</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Missing media files:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locate Missing Media Folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locate Missing Media Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">Đóng</translation>
     </message>
 </context>
 <context>

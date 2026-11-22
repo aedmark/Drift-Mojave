@@ -151,6 +151,7 @@ private slots:
     void referenceStillGalleryAndSplitWipe();
     void sceneCutMarkSplitAndSilencePresets();
     void persistentRenderQueueDeliveryPresetsAndChapters();
+    void vegasImportSummaryAndProjectSnapshots();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20718,6 +20719,113 @@ void EditorStateTest::persistentRenderQueueDeliveryPresetsAndChapters()
     QCoreApplication::setOrganizationName(org);
     QCoreApplication::setApplicationName(app);
     QStandardPaths::setTestModeEnabled(false);
+}
+
+void EditorStateTest::vegasImportSummaryAndProjectSnapshots()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString onlinePath = dir.filePath(QStringLiteral("online_clip.mp4"));
+    {
+        QFile f(onlinePath);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("dummy");
+    }
+    const QString missingOriginalPath = QStringLiteral("/nonexistent/original/missing_clip.mp4");
+    const QString relinkSubdir = dir.filePath(QStringLiteral("relocated"));
+    QVERIFY(QDir().mkpath(relinkSubdir));
+    const QString relocatedPath = QDir(relinkSubdir).filePath(QStringLiteral("missing_clip.mp4"));
+    {
+        QFile f(relocatedPath);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("relocated-media-bytes");
+    }
+
+    AssetLibrary library;
+    AppController state(&library);
+
+    drift::Project proj;
+    proj.setName(QStringLiteral("Vegas Import Test"));
+    proj.setResolution(1920, 1080);
+    proj.setFps(24);
+
+    drift::MediaAsset a1;
+    a1.id = QStringLiteral("a1");
+    a1.name = QStringLiteral("online_clip.mp4");
+    a1.path = onlinePath;
+    a1.kind = drift::MediaKind::Video;
+    a1.durationUs = 5 * drift::kUsPerSecond;
+    proj.addAsset(a1);
+
+    drift::MediaAsset a2;
+    a2.id = QStringLiteral("a2");
+    a2.name = QStringLiteral("missing_clip.mp4");
+    a2.path = missingOriginalPath;
+    a2.kind = drift::MediaKind::Video;
+    a2.durationUs = 5 * drift::kUsPerSecond;
+    proj.addAsset(a2);
+
+    drift::Track v1;
+    v1.id = QStringLiteral("v1");
+    v1.name = QStringLiteral("Video 1");
+    v1.type = drift::TrackType::Video;
+    drift::Clip c1;
+    c1.id = QStringLiteral("c1");
+    c1.assetId = QStringLiteral("a1");
+    c1.timelineStart = 0;
+    c1.timelineDuration = 2 * drift::kUsPerSecond;
+    v1.clips.append(c1);
+    proj.tracks().clear();
+    proj.tracks().append(v1);
+
+    drift::Bookmark bm;
+    bm.label = QStringLiteral("Intro");
+    bm.timeUs = 1 * drift::kUsPerSecond;
+    proj.bookmarks().append(bm);
+
+    QString err;
+    QVERIFY(state.applyProjectJson(QJsonDocument(proj.toJson()).toJson(QJsonDocument::Compact), &err));
+
+    const QVariantMap report =
+        state.projectFile()->buildVegasImportReportForCurrentProject(QStringLiteral("/tmp/test.veg"), 1);
+    QCOMPARE(report.value(QStringLiteral("projectName")).toString(), QStringLiteral("Vegas Import Test"));
+    QCOMPARE(report.value(QStringLiteral("videoTracks")).toInt(), 1);
+    QCOMPARE(report.value(QStringLiteral("totalClips")).toInt(), 1);
+    QCOMPARE(report.value(QStringLiteral("markers")).toInt(), 1);
+    QCOMPARE(report.value(QStringLiteral("onlineAssets")).toInt(), 1);
+    QCOMPARE(report.value(QStringLiteral("missingAssets")).toInt(), 1);
+    QCOMPARE(report.value(QStringLiteral("autoRemappedProRes")).toInt(), 1);
+
+    const QVariantMap relinkRes = state.projectFile()->relinkMissingMediaInFolder(QUrl::fromLocalFile(dir.path()));
+    QVERIFY(relinkRes.value(QStringLiteral("ok")).toBool());
+    QCOMPARE(relinkRes.value(QStringLiteral("relinked")).toInt(), 1);
+    QCOMPARE(relinkRes.value(QStringLiteral("stillMissing")).toInt(), 0);
+    QCOMPARE(state.projectFile()->buildVegasImportReportForCurrentProject().value(QStringLiteral("missingAssets")).toInt(), 0);
+
+    // Undo restores the original missing path cleanly.
+    state.undo();
+    QCOMPARE(state.projectFile()->buildVegasImportReportForCurrentProject().value(QStringLiteral("missingAssets")).toInt(), 1);
+
+    // Lightweight milestone snapshots do not alter currentProjectPath or dirty state.
+    const QString snapDir = dir.filePath(QStringLiteral("snaps"));
+    const QString prevPath = state.projectFile()->currentProjectPath();
+    const bool prevDirty = state.projectFile()->hasUnsavedChanges();
+
+    const QVariantMap snap = state.projectFile()->saveProjectSnapshot(QStringLiteral("Rough Cut"), snapDir);
+    QVERIFY(snap.value(QStringLiteral("ok")).toBool());
+    const QString snapPath = snap.value(QStringLiteral("path")).toString();
+    QVERIFY(QFileInfo::exists(snapPath));
+    QCOMPARE(state.projectFile()->currentProjectPath(), prevPath);
+    QCOMPARE(state.projectFile()->hasUnsavedChanges(), prevDirty);
+
+    const QVariantList listed = state.projectFile()->listProjectSnapshots(snapDir);
+    QCOMPARE(listed.size(), 1);
+    QCOMPARE(listed.at(0).toMap().value(QStringLiteral("path")).toString(), snapPath);
+
+    QVERIFY(state.projectFile()->deleteProjectSnapshot(snapPath));
+    QVERIFY(!QFileInfo::exists(snapPath));
+    QCOMPARE(state.projectFile()->listProjectSnapshots(snapDir).size(), 0);
 }
 
 QTEST_MAIN(EditorStateTest)

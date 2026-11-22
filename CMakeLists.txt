@@ -2312,6 +2312,7 @@ qt_add_qml_module(drift
         src/qml/components/shell/LazyLoader.qml
         src/qml/components/android/AndroidLifecycle.qml
         src/qml/components/dialogs/AccelerationFailedDialog.qml
+        src/qml/components/dialogs/VegasImportSummaryDialog.qml
         src/qml/components/dialogs/VegasTranscodeDialog.qml
         src/qml/components/dialogs/MissingAddonsDialog.qml
         src/qml/components/dialogs/AboutDialog.qml

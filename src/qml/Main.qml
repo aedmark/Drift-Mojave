@@ -535,6 +535,13 @@ ApplicationWindow {
         }
     }
 
+    LazyLoader {
+        id: vegasImportSummaryDialogLoader
+        sourceComponent: Component {
+            VegasImportSummaryDialog { }
+        }
+    }
+
     Connections {
         target: EditorState.bin
 
@@ -1394,6 +1401,10 @@ ApplicationWindow {
                         function () {
                             EditorState.bin.convertToProRes(assetIds, projectUrl)
                         })
+        }
+
+        function onVegasImportSummaryReady(report) {
+            vegasImportSummaryDialogLoader.ensure().openWithReport(report)
         }
 
         // An agent's close_project (true) / new_project or load_project (false). The agent already discarded

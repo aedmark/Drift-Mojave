@@ -54,6 +54,7 @@ class ProjectFileController : public QObject
     Q_PROPERTY(bool recoveryAvailable READ recoveryAvailable NOTIFY recoveryChanged)
     Q_PROPERTY(QVariantMap recoveryInfo READ recoveryInfo NOTIFY recoveryChanged)
     Q_PROPERTY(QVariantList recentProjects READ recentProjects NOTIFY recentProjectsChanged)
+    Q_PROPERTY(QVariantMap lastVegasImportReport READ lastVegasImportReport NOTIFY lastVegasImportReportChanged)
     // An instance an agent launched next to the user's editor (--isolated-session). It must
     // not restore or prompt for the user's last session, and must leave the per-user state
     // that session relies on alone: the crash-recovery file, lastSessionPath, recents. Set
@@ -144,6 +145,17 @@ public:
     Q_INVOKABLE void loadOtioTimeline(const QUrl &url);
     // Imports a Sony/MAGIX VEGAS Pro project (.veg), mapping tracks, events, takes, and media pool.
     Q_INVOKABLE void loadVegasProject(const QUrl &url);
+    QVariantMap lastVegasImportReport() const { return m_lastVegasImportReport; }
+    Q_INVOKABLE QVariantMap buildVegasImportReportForCurrentProject(const QString &sourcePath = QString(),
+                                                                   int autoRemappedProRes = 0) const;
+    // Walks `folderUrl` recursively and relinks missing project assets by filename (and size when ambiguous).
+    Q_INVOKABLE QVariantMap relinkMissingMediaInFolder(const QUrl &folderUrl);
+    // Saves a lightweight timestamped .drift milestone snapshot (referenced media, no media copy)
+    // without changing currentProjectPath, dirty state, or recent projects.
+    Q_INVOKABLE QVariantMap saveProjectSnapshot(const QString &label = QString(),
+                                                const QString &directoryOverride = QString());
+    Q_INVOKABLE QVariantList listProjectSnapshots(const QString &directoryOverride = QString()) const;
+    Q_INVOKABLE bool deleteProjectSnapshot(const QString &snapshotPath);
     // Copies (or moves) every file the project uses — bin media, the images Lottie/SVG documents
     // load, textures and the derived mattes, face tracks, depth maps and stabilized renders — into
     // Video/Audio/Images/Derived/Other under the chosen folder, then relinks the project to them.
@@ -228,6 +240,9 @@ signals:
     // which fires for that progress message too.
     void projectLoadFinished(bool ok, const QString &message);
     void vegasTranscodeSuggested(const QStringList &assetIds, const QUrl &projectUrl);
+    void lastVegasImportReportChanged();
+    void vegasImportSummaryReady(const QVariantMap &report);
+    void projectSnapshotsChanged();
     void projectLoadPendingChanged();
     void projectLoadProgressChanged();
     void backgroundChanged();
@@ -300,6 +315,8 @@ private:
     void writeRecoveryFile(bool synchronous = false);
     void deleteRecoveryFile();
     static QString recoveryFilePath();
+    QVariantMap buildVegasImportReport(const QString &sourcePath, int autoRemappedProRes = 0) const;
+    QString snapshotDirectory(const QString &directoryOverride = QString()) const;
 
     AppController *m_app = nullptr;
 
@@ -361,6 +378,7 @@ private:
     QUrl m_lastExternalProject;
     bool m_uiReady = false;
     bool m_isolatedSession = false;
+    QVariantMap m_lastVegasImportReport;
 
     static constexpr int kAutosaveIntervalMs = 15000;
     static constexpr int kMaxRecentProjects = 10;
