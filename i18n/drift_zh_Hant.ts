@@ -5361,6 +5361,14 @@
         <translation>效果預設已導入</translation>
     </message>
     <message>
+        <source>Track channel strip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track channel strip updated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Track mute</source>
         <translation>軌道靜音</translation>
     </message>
@@ -6740,6 +6748,40 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Select a different target and driver track for auto-ducking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The driver track has no clips to analyze</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Analyzing dialogue for auto-ducking…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detecting speech regions…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto-ducking cancelled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No active audio detected on “%1” to duck against</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto-duck audio track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Auto-ducked “%1” under “%2” (%n region(s))</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Clips with changed speed or reversed playback can&apos;t be synced. Reset their speed and direction first.</source>
         <translation>變速或反向播放的片段無法同步。請先重設其速度和方向。</translation>
     </message>
@@ -7281,6 +7323,34 @@
     </message>
     <message>
         <source>Add audio effect…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>VEGAS Channel Strip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default (Gate + EQ + Compressor)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dialogue Cleanup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Broadcast Voiceover</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Music Bed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto-Duck Under Track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

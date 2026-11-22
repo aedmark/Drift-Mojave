@@ -1739,6 +1739,8 @@ public:
     Q_INVOKABLE void previewSetTrackAudioEffectParam(int trackIndex, int effectIndex,
                                                      const QString &key, double value);
     Q_INVOKABLE QVariantList trackAudioEffects(int trackIndex) const;
+    Q_INVOKABLE bool ensureTrackChannelStrip(int trackIndex, const QString &preset = QString());
+    Q_INVOKABLE QVariantMap trackChannelStripState(int trackIndex) const;
 
     // Master Bus Audio FX (P10-01)
     Q_INVOKABLE void addMasterAudioEffect(const QString &effectId);

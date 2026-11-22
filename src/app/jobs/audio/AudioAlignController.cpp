@@ -556,4 +556,165 @@ void AudioAlignController::applyMultiSync(const SyncUnit &anchor, const QList<Sy
     }
 }
 
+void AudioAlignController::autoDuckTrack(int targetTrackIndex, int driverTrackIndex,
+                                         double duckDb, double thresholdRms,
+                                         double attackSec, double releaseSec)
+{
+    const auto &tracks = m_app->m_project.tracks();
+    if (targetTrackIndex < 0 || targetTrackIndex >= tracks.size()
+        || driverTrackIndex < 0 || driverTrackIndex >= tracks.size()
+        || targetTrackIndex == driverTrackIndex) {
+        m_app->setLastMessage(tr("Select a different target and driver track for auto-ducking"),
+                              QStringLiteral("warning"));
+        return;
+    }
+
+    const drift::Track &targetTrack = tracks.at(targetTrackIndex);
+    const drift::Track &driverTrack = tracks.at(driverTrackIndex);
+    if (driverTrack.clips.isEmpty()) {
+        m_app->setLastMessage(tr("The driver track has no clips to analyze"),
+                              QStringLiteral("warning"));
+        return;
+    }
+
+    drift::TimeUs driverEndUs = 0;
+    for (const drift::Clip &clip : driverTrack.clips)
+        driverEndUs = std::max(driverEndUs, clip.timelineEnd());
+    driverEndUs = std::min<drift::TimeUs>(driverEndUs, drift::secondsToUs(3600.0));
+    if (driverEndUs <= 0)
+        return;
+
+    const QString targetTrackId = targetTrack.id;
+    const QString driverName = driverTrack.name;
+    const double effThresh = qBound(0.001, thresholdRms, 0.5);
+    const double effAttack = qBound(0.01, attackSec, 2.0);
+    const double effRelease = qBound(0.02, releaseSec, 5.0);
+
+    drift::Project driverSnap = m_app->m_project.detachedCopy();
+    for (int i = 0; i < driverSnap.tracks().size(); ++i) {
+        drift::Track &t = driverSnap.tracks()[i];
+        t.muted = (i != driverTrackIndex);
+        t.solo = false;
+    }
+
+    if (!begin(tr("Analyzing dialogue for auto-ducking…")))
+        return;
+
+    (void)QtConcurrent::run([this, driverSnap, driverEndUs, targetTrackId, driverName,
+                             duckDb, effThresh, effAttack, effRelease]() {
+        const qint64 totalFrames = qMax<qint64>(1, (driverEndUs * kAnalysisRate) / drift::kUsPerSecond);
+        const auto alive = [this]() { return m_cancel.loadRelaxed() == 0; };
+        const std::vector<float> mono = mixMono(driverSnap, 0, totalFrames, [this, &alive](double f) {
+            reportProgress(0.85 * f, {});
+            return alive();
+        });
+        const bool cancelled = !alive() || mono.empty();
+
+        QList<QPair<double, double>> spans;
+        if (!cancelled) {
+            reportProgress(0.9, tr("Detecting speech regions…"));
+            const int hop = kAnalysisRate / 20; // 50 ms windows
+            const double winSec = double(hop) / double(kAnalysisRate);
+            QList<QPair<double, double>> rawSpans;
+            bool inSpan = false;
+            double spanStart = 0.0;
+
+            for (size_t off = 0; off + size_t(hop) <= mono.size(); off += size_t(hop)) {
+                double sumSq = 0.0;
+                for (int i = 0; i < hop; ++i) {
+                    const double v = mono[off + size_t(i)];
+                    sumSq += v * v;
+                }
+                const double rms = std::sqrt(sumSq / double(hop));
+                const double tSec = double(off) / double(kAnalysisRate);
+                if (rms >= effThresh) {
+                    if (!inSpan) {
+                        inSpan = true;
+                        spanStart = tSec;
+                    }
+                } else if (inSpan) {
+                    inSpan = false;
+                    rawSpans.append({spanStart, tSec});
+                }
+            }
+            if (inSpan)
+                rawSpans.append({spanStart, double(mono.size()) / double(kAnalysisRate)});
+
+            for (const auto &s : rawSpans) {
+                if (s.second - s.first < winSec * 0.5)
+                    continue;
+                if (!spans.isEmpty() && s.first - spans.last().second < effRelease) {
+                    spans.last().second = s.second;
+                } else {
+                    spans.append(s);
+                }
+            }
+        }
+
+        QMetaObject::invokeMethod(
+            this,
+            [this, cancelled, targetTrackId, driverName, spans, duckDb, effAttack, effRelease]() {
+                end();
+                if (m_cancel.loadRelaxed() != 0 || cancelled) {
+                    m_app->setLastMessage(tr("Auto-ducking cancelled"));
+                    return;
+                }
+                applyAutoDuck(targetTrackId, driverName, spans, duckDb, effAttack, effRelease);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void AudioAlignController::applyAutoDuck(const QString &targetTrackId, const QString &driverName,
+                                         const QList<QPair<double, double>> &speechSpans,
+                                         double duckDb, double attackSec, double releaseSec)
+{
+    int targetIdx = -1;
+    for (int i = 0; i < m_app->m_project.tracks().size(); ++i) {
+        if (m_app->m_project.tracks().at(i).id == targetTrackId) {
+            targetIdx = i;
+            break;
+        }
+    }
+    if (targetIdx < 0)
+        return;
+
+    if (speechSpans.isEmpty()) {
+        m_app->setLastMessage(tr("No active audio detected on “%1” to duck against").arg(driverName),
+                              QStringLiteral("warning"));
+        return;
+    }
+
+    const double duckLinear = std::pow(10.0, qBound(-48.0, duckDb, -0.5) / 20.0);
+    const drift::Project before = m_app->m_project;
+
+    drift::Track &targetTrack = m_app->m_project.tracks()[targetIdx];
+    targetTrack.volumeEnvelope = drift::KeyframeTrack<double>();
+    targetTrack.showVolumeEnvelope = true;
+
+    double prevEnd = -1.0;
+    if (speechSpans.first().first > attackSec)
+        targetTrack.volumeEnvelope.setKeyframe(0, 1.0);
+
+    for (const auto &span : speechSpans) {
+        const double s = span.first;
+        const double e = span.second;
+        const double downStart = std::max(0.0, s - attackSec);
+        if (downStart > prevEnd + 0.001)
+            targetTrack.volumeEnvelope.setKeyframe(drift::secondsToUs(downStart), 1.0);
+        targetTrack.volumeEnvelope.setKeyframe(drift::secondsToUs(s), duckLinear);
+        targetTrack.volumeEnvelope.setKeyframe(drift::secondsToUs(e), duckLinear);
+        const double upEnd = e + releaseSec;
+        targetTrack.volumeEnvelope.setKeyframe(drift::secondsToUs(upEnd), 1.0);
+        prevEnd = upEnd;
+    }
+
+    m_app->pushProjectEdit(before, tr("Auto-duck audio track"));
+    m_app->finishEdit(tr("Auto-duck audio track"));
+    m_app->setLastMessage(
+        tr("Auto-ducked “%1” under “%2” (%n region(s))", "", speechSpans.size())
+            .arg(targetTrack.name, driverName),
+        QStringLiteral("success"));
+}
+
 #include "moc_AudioAlignController.cpp"

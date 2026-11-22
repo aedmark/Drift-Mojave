@@ -38,6 +38,12 @@ public:
     // partners, move so their sound lines up with the anchor's.
     Q_INVOKABLE void syncByAudio(bool groupSynced = false, bool muteScratchAudio = false);
 
+    // Analyzes `driverTrackIndex` for active speech/audio regions and writes editable
+    // volume-envelope keyframes onto `targetTrackIndex` to duck it during dialogue.
+    Q_INVOKABLE void autoDuckTrack(int targetTrackIndex, int driverTrackIndex,
+                                   double duckDb = -12.0, double thresholdRms = 0.02,
+                                   double attackSec = 0.15, double releaseSec = 0.40);
+
     Q_INVOKABLE void cancel();
 
 signals:
@@ -55,6 +61,9 @@ private:
                       const QList<QPair<double, double>> &silences);
     void applyMultiSync(const SyncUnit &anchor, const QList<SyncMatch> &matches,
                         bool groupSynced, bool muteScratchAudio);
+    void applyAutoDuck(const QString &targetTrackId, const QString &driverName,
+                       const QList<QPair<double, double>> &speechSpans,
+                       double duckDb, double attackSec, double releaseSec);
 
     AppController *m_app = nullptr;
     bool m_running = false;

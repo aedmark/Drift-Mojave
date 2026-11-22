@@ -957,6 +957,47 @@ Rectangle {
             }
         }
 
+        ThemedContextMenu {
+            title: qsTr("VEGAS Channel Strip")
+            visible: !fxContextMenu.isMaster && !fxContextMenu.isBus && fxContextMenu.targetTrackIndex >= 0
+
+            ThemedMenuItem {
+                text: qsTr("Default (Gate + EQ + Compressor)")
+                onTriggered: EditorState.ensureTrackChannelStrip(fxContextMenu.targetTrackIndex, "default")
+            }
+            ThemedMenuItem {
+                text: qsTr("Dialogue Cleanup")
+                onTriggered: EditorState.ensureTrackChannelStrip(fxContextMenu.targetTrackIndex, "dialogue")
+            }
+            ThemedMenuItem {
+                text: qsTr("Broadcast Voiceover")
+                onTriggered: EditorState.ensureTrackChannelStrip(fxContextMenu.targetTrackIndex, "voiceover")
+            }
+            ThemedMenuItem {
+                text: qsTr("Music Bed")
+                onTriggered: EditorState.ensureTrackChannelStrip(fxContextMenu.targetTrackIndex, "music_bed")
+            }
+        }
+
+        ThemedContextMenu {
+            title: qsTr("Auto-Duck Under Track")
+            visible: !fxContextMenu.isMaster && !fxContextMenu.isBus
+                     && fxContextMenu.targetTrackIndex >= 0
+                     && content.audioTracksList.length > 1
+            enabled: !EditorState.audioAlign.running
+
+            Repeater {
+                model: content.audioTracksList
+                delegate: ThemedMenuItem {
+                    required property var modelData
+                    visible: modelData.trackIndex !== fxContextMenu.targetTrackIndex
+                    text: modelData.name || qsTr("Track %1").arg(modelData.trackIndex + 1)
+                    onTriggered: EditorState.audioAlign.autoDuckTrack(fxContextMenu.targetTrackIndex,
+                                                                      modelData.trackIndex)
+                }
+            }
+        }
+
         ThemedMenuItem {
             visible: fxContextMenu.targetEffects.length > 0
             text: qsTr("Remove all effects")

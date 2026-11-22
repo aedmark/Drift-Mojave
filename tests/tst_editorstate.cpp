@@ -144,6 +144,7 @@ private slots:
     void bakeFingerprintTracksRangeEdits();
     void syncByAudioMultiClipGroupsAndMutesScratch();
     void pasteEventAttributesAndBatchFxChainPreset();
+    void trackChannelStripAndAutoDucking();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20307,6 +20308,120 @@ void EditorStateTest::pasteEventAttributesAndBatchFxChainPreset()
     QCoreApplication::setOrganizationName(org);
     QCoreApplication::setApplicationName(app);
     QStandardPaths::setTestModeEnabled(false);
+}
+
+void EditorStateTest::trackChannelStripAndAutoDucking()
+{
+    const QString ffmpeg = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    if (ffmpeg.isEmpty())
+        QSKIP("ffmpeg not available to generate test fixtures");
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString dialogueWav = dir.filePath(QStringLiteral("dialogue.wav"));
+    const QString musicWav = dir.filePath(QStringLiteral("music.wav"));
+    auto runFfmpeg = [&](const QStringList &args) {
+        QProcess proc;
+        proc.start(ffmpeg, args);
+        return proc.waitForFinished(15000) && proc.exitCode() == 0;
+    };
+
+    // 6s dialogue clip with a strong 440Hz burst at t = 2.0..4.0s
+    QVERIFY(runFfmpeg({QStringLiteral("-y"), QStringLiteral("-loglevel"), QStringLiteral("error"),
+                       QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+                       QStringLiteral("sine=frequency=440:duration=2:sample_rate=48000"),
+                       QStringLiteral("-af"), QStringLiteral("adelay=2000:all=1,apad=whole_dur=6"),
+                       dialogueWav}));
+    QVERIFY(runFfmpeg({QStringLiteral("-y"), QStringLiteral("-loglevel"), QStringLiteral("error"),
+                       QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+                       QStringLiteral("sine=frequency=220:duration=6:sample_rate=48000"),
+                       musicWav}));
+
+    AssetLibrary library;
+    AppController state(&library);
+
+    drift::MediaAsset dlgAsset;
+    dlgAsset.name = QStringLiteral("Dialogue");
+    dlgAsset.path = dialogueWav;
+    dlgAsset.kind = drift::MediaKind::Audio;
+    dlgAsset.durationUs = 6 * drift::kUsPerSecond;
+    dlgAsset.hasAudio = true;
+    const QString dlgAssetId = library.addGeneratedAsset(dlgAsset);
+
+    drift::MediaAsset musAsset;
+    musAsset.name = QStringLiteral("Music");
+    musAsset.path = musicWav;
+    musAsset.kind = drift::MediaKind::Audio;
+    musAsset.durationUs = 6 * drift::kUsPerSecond;
+    musAsset.hasAudio = true;
+    const QString musAssetId = library.addGeneratedAsset(musAsset);
+
+    state.project()->tracks().clear();
+    drift::Track a1;
+    a1.id = QStringLiteral("a1");
+    a1.name = QStringLiteral("Dialogue");
+    a1.type = drift::TrackType::Audio;
+    drift::Clip cDlg;
+    cDlg.id = QStringLiteral("c_dlg");
+    cDlg.type = drift::ClipType::Audio;
+    cDlg.assetId = dlgAssetId;
+    cDlg.path = dialogueWav;
+    cDlg.timelineStart = 0;
+    cDlg.timelineDuration = 6 * drift::kUsPerSecond;
+    cDlg.srcIn = 0;
+    cDlg.srcOut = 6 * drift::kUsPerSecond;
+    a1.clips.append(cDlg);
+
+    drift::Track a2;
+    a2.id = QStringLiteral("a2");
+    a2.name = QStringLiteral("Music");
+    a2.type = drift::TrackType::Audio;
+    drift::Clip cMus;
+    cMus.id = QStringLiteral("c_mus");
+    cMus.type = drift::ClipType::Audio;
+    cMus.assetId = musAssetId;
+    cMus.path = musicWav;
+    cMus.timelineStart = 0;
+    cMus.timelineDuration = 6 * drift::kUsPerSecond;
+    cMus.srcIn = 0;
+    cMus.srcOut = 6 * drift::kUsPerSecond;
+    a2.clips.append(cMus);
+
+    state.project()->tracks().append(a1);
+    state.project()->tracks().append(a2);
+
+    // 1. VEGAS Track Channel Strip
+    QVERIFY(state.ensureTrackChannelStrip(0, QStringLiteral("dialogue")));
+    QCOMPARE(state.project()->tracks().at(0).audioEffects.size(), 3);
+    const QVariantMap strip = state.trackChannelStripState(0);
+    QVERIFY(strip.value(QStringLiteral("hasGate")).toBool());
+    QVERIFY(strip.value(QStringLiteral("hasEq")).toBool());
+    QVERIFY(strip.value(QStringLiteral("hasComp")).toBool());
+    QCOMPARE(strip.value(QStringLiteral("eqMid")).toDouble(), 2.5);
+
+    // Re-applying updates without duplicating effects
+    QVERIFY(state.ensureTrackChannelStrip(0, QStringLiteral("voiceover")));
+    QCOMPARE(state.project()->tracks().at(0).audioEffects.size(), 3);
+    QCOMPARE(state.trackChannelStripState(0).value(QStringLiteral("eqMid")).toDouble(), 2.0);
+
+    state.undo();
+    state.undo();
+    QVERIFY(state.project()->tracks().at(0).audioEffects.isEmpty());
+
+    // 2. Dialogue Auto-Ducking
+    state.audioAlign()->autoDuckTrack(1, 0, -12.0, 0.02, 0.15, 0.30);
+    QTRY_VERIFY_WITH_TIMEOUT(!state.audioAlign()->running(), 15000);
+
+    const drift::Track &ducked = state.project()->tracks().at(1);
+    QVERIFY(!ducked.volumeEnvelope.isEmpty());
+    QVERIFY(ducked.showVolumeEnvelope);
+    QVERIFY(qAbs(ducked.volumeEnvelope.evaluateAt(drift::secondsToUs(0.5)) - 1.0) < 0.02);
+    QVERIFY(qAbs(ducked.volumeEnvelope.evaluateAt(drift::secondsToUs(3.0)) - 0.2512) < 0.03);
+    QVERIFY(qAbs(ducked.volumeEnvelope.evaluateAt(drift::secondsToUs(5.5)) - 1.0) < 0.02);
+
+    state.undo();
+    QVERIFY(state.project()->tracks().at(1).volumeEnvelope.isEmpty());
 }
 
 QTEST_MAIN(EditorStateTest)

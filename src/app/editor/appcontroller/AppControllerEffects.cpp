@@ -3520,3 +3520,142 @@ bool AppController::importUserEffectPreset(const QUrl &fileUrl)
     setLastMessage(tr("Effect preset imported"), QStringLiteral("success"));
     return true;
 }
+
+bool AppController::ensureTrackChannelStrip(int trackIndex, const QString &preset)
+{
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return false;
+    const drift::TrackType tt = m_project.tracks().at(trackIndex).type;
+    if (tt != drift::TrackType::Audio && tt != drift::TrackType::Video)
+        return false;
+
+    const drift::Project before = m_project;
+    QList<drift::Effect> &fxList = m_project.tracks()[trackIndex].audioEffects;
+
+    auto findOrAppend = [&](const QString &catalogId) -> int {
+        for (int i = 0; i < fxList.size(); ++i) {
+            if (fxList.at(i).catalogId == catalogId)
+                return i;
+        }
+        drift::Effect fx;
+        if (const AudioEffectEntry *def = audioEffectDefForId(catalogId)) {
+            fx = audioEffectFromCatalogEntry(*def, {});
+        } else {
+            fx.catalogId = catalogId;
+            fx.name = catalogId;
+        }
+        fx.enabled = true;
+        fxList.append(fx);
+        return fxList.size() - 1;
+    };
+
+    const int gateIdx = findOrAppend(QStringLiteral("utility.gate"));
+    const int eqIdx = findOrAppend(QStringLiteral("utility.eq"));
+    const int compIdx = findOrAppend(QStringLiteral("utility.compressor"));
+
+    const QString key = preset.trimmed().toLower();
+    drift::Effect &gate = fxList[gateIdx];
+    drift::Effect &eq = fxList[eqIdx];
+    drift::Effect &comp = fxList[compIdx];
+
+    if (key == QLatin1String("dialogue")) {
+        gate.enabled = true;
+        gate.parameters.insert(QStringLiteral("threshold"), 0.02);
+        gate.parameters.insert(QStringLiteral("ratio"), 4.0);
+        gate.parameters.insert(QStringLiteral("attack"), 8.0);
+        gate.parameters.insert(QStringLiteral("release"), 180.0);
+        eq.enabled = true;
+        eq.parameters.insert(QStringLiteral("low"), -3.0);
+        eq.parameters.insert(QStringLiteral("mid"), 2.5);
+        eq.parameters.insert(QStringLiteral("high"), 1.5);
+        comp.enabled = true;
+        comp.parameters.insert(QStringLiteral("threshold"), -18.0);
+        comp.parameters.insert(QStringLiteral("ratio"), 3.5);
+        comp.parameters.insert(QStringLiteral("attack"), 12.0);
+        comp.parameters.insert(QStringLiteral("release"), 180.0);
+        comp.parameters.insert(QStringLiteral("makeup"), 1.4);
+    } else if (key == QLatin1String("voiceover")) {
+        gate.enabled = true;
+        gate.parameters.insert(QStringLiteral("threshold"), 0.025);
+        gate.parameters.insert(QStringLiteral("ratio"), 5.0);
+        gate.parameters.insert(QStringLiteral("attack"), 6.0);
+        gate.parameters.insert(QStringLiteral("release"), 150.0);
+        eq.enabled = true;
+        eq.parameters.insert(QStringLiteral("low"), -2.0);
+        eq.parameters.insert(QStringLiteral("mid"), 2.0);
+        eq.parameters.insert(QStringLiteral("high"), 2.5);
+        comp.enabled = true;
+        comp.parameters.insert(QStringLiteral("threshold"), -20.0);
+        comp.parameters.insert(QStringLiteral("ratio"), 4.5);
+        comp.parameters.insert(QStringLiteral("attack"), 10.0);
+        comp.parameters.insert(QStringLiteral("release"), 150.0);
+        comp.parameters.insert(QStringLiteral("makeup"), 1.6);
+    } else if (key == QLatin1String("music_bed")) {
+        gate.enabled = false;
+        eq.enabled = true;
+        eq.parameters.insert(QStringLiteral("low"), -1.5);
+        eq.parameters.insert(QStringLiteral("mid"), -2.5);
+        eq.parameters.insert(QStringLiteral("high"), 0.0);
+        comp.enabled = true;
+        comp.parameters.insert(QStringLiteral("threshold"), -16.0);
+        comp.parameters.insert(QStringLiteral("ratio"), 2.0);
+        comp.parameters.insert(QStringLiteral("attack"), 30.0);
+        comp.parameters.insert(QStringLiteral("release"), 300.0);
+        comp.parameters.insert(QStringLiteral("makeup"), 1.0);
+    } else {
+        gate.enabled = true;
+        gate.parameters.insert(QStringLiteral("threshold"), 0.015);
+        gate.parameters.insert(QStringLiteral("ratio"), 3.0);
+        gate.parameters.insert(QStringLiteral("attack"), 10.0);
+        gate.parameters.insert(QStringLiteral("release"), 200.0);
+        eq.enabled = true;
+        eq.parameters.insert(QStringLiteral("low"), 0.0);
+        eq.parameters.insert(QStringLiteral("mid"), 0.0);
+        eq.parameters.insert(QStringLiteral("high"), 0.0);
+        comp.enabled = true;
+        comp.parameters.insert(QStringLiteral("threshold"), -18.0);
+        comp.parameters.insert(QStringLiteral("ratio"), 2.5);
+        comp.parameters.insert(QStringLiteral("attack"), 20.0);
+        comp.parameters.insert(QStringLiteral("release"), 250.0);
+        comp.parameters.insert(QStringLiteral("makeup"), 1.0);
+    }
+
+    pushProjectEdit(before, tr("Track channel strip"));
+    finishEdit(tr("Track channel strip updated"));
+    return true;
+}
+
+QVariantMap AppController::trackChannelStripState(int trackIndex) const
+{
+    QVariantMap out;
+    out.insert(QStringLiteral("hasGate"), false);
+    out.insert(QStringLiteral("hasEq"), false);
+    out.insert(QStringLiteral("hasComp"), false);
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return out;
+
+    const QList<drift::Effect> &fxList = m_project.tracks().at(trackIndex).audioEffects;
+    for (int i = 0; i < fxList.size(); ++i) {
+        const drift::Effect &fx = fxList.at(i);
+        if (fx.catalogId == QLatin1String("utility.gate") && !out.value(QStringLiteral("hasGate")).toBool()) {
+            out.insert(QStringLiteral("hasGate"), true);
+            out.insert(QStringLiteral("gateIndex"), i);
+            out.insert(QStringLiteral("gateEnabled"), fx.enabled);
+            out.insert(QStringLiteral("gateThreshold"), fx.parameters.value(QStringLiteral("threshold"), 0.02).toDouble());
+        } else if (fx.catalogId == QLatin1String("utility.eq") && !out.value(QStringLiteral("hasEq")).toBool()) {
+            out.insert(QStringLiteral("hasEq"), true);
+            out.insert(QStringLiteral("eqIndex"), i);
+            out.insert(QStringLiteral("eqEnabled"), fx.enabled);
+            out.insert(QStringLiteral("eqLow"), fx.parameters.value(QStringLiteral("low"), 0.0).toDouble());
+            out.insert(QStringLiteral("eqMid"), fx.parameters.value(QStringLiteral("mid"), 0.0).toDouble());
+            out.insert(QStringLiteral("eqHigh"), fx.parameters.value(QStringLiteral("high"), 0.0).toDouble());
+        } else if (fx.catalogId == QLatin1String("utility.compressor") && !out.value(QStringLiteral("hasComp")).toBool()) {
+            out.insert(QStringLiteral("hasComp"), true);
+            out.insert(QStringLiteral("compIndex"), i);
+            out.insert(QStringLiteral("compEnabled"), fx.enabled);
+            out.insert(QStringLiteral("compThreshold"), fx.parameters.value(QStringLiteral("threshold"), -18.0).toDouble());
+            out.insert(QStringLiteral("compRatio"), fx.parameters.value(QStringLiteral("ratio"), 3.0).toDouble());
+        }
+    }
+    return out;
+}
