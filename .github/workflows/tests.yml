@@ -10,7 +10,21 @@ name: Tests
 # job below.
 on:
   push:
+    paths-ignore:
+      - "site/**"
+      - "docs/**"
+      - "README.md"
+      - "README-i18n/**"
+      - "CHANGELOG.md"
+      - "ROADMAP.md"
   pull_request:
+    paths-ignore:
+      - "site/**"
+      - "docs/**"
+      - "README.md"
+      - "README-i18n/**"
+      - "CHANGELOG.md"
+      - "ROADMAP.md"
 
 # A second push to the same ref makes the in-flight run irrelevant.
 concurrency:
@@ -436,6 +450,7 @@ jobs:
             -DFETCHCONTENT_BASE_DIR="${FETCHCONTENT_BASE_DIR}" \
             -DDRIFT_BUNDLE_ONNXRUNTIME=OFF \
             -DDRIFT_WITH_SKIA=ON \
+            -DDRIFT_QML_CACHEGEN=OFF \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
@@ -650,6 +665,7 @@ jobs:
             -DZLIB_LIBRARY="$zlibLib" `
             -DDRIFT_BUNDLE_ONNXRUNTIME=OFF `
             -DDRIFT_WITH_SKIA=ON `
+            -DDRIFT_QML_CACHEGEN=OFF `
             -DCMAKE_C_COMPILER_LAUNCHER=ccache `
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
             -DDRIFT_PCH=OFF `
