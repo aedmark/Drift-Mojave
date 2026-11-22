@@ -9,128 +9,102 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.1.0--mojave-feb504?style=flat&labelColor=28272f" alt="Version 1.1.0 Mojave">
-  <img src="https://img.shields.io/badge/license-GPL--3.0-feb504?style=flat&labelColor=28272f" alt="License: GPL-3.0">
+  <a href="https://github.com/aedmark/Drift-Mojave/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/version-1.4.0--mojave-feb504?style=flat&labelColor=28272f" alt="Version 1.4.0 Mojave"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-feb504?style=flat&labelColor=28272f" alt="License: GPL-3.0"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android-feb504?style=flat&labelColor=28272f" alt="Platform: Linux | Windows | macOS | Android">
   <img src="https://img.shields.io/badge/interchange-Sony%20%2F%20MAGIX%20VEGAS%20(.veg)-feb504?style=flat&labelColor=28272f" alt="VEGAS Pro Interchange">
 </p>
 
+<p align="center">
+  <a href="https://aedmark.github.io/Drift-Mojave/">Website</a> ·
+  <a href="https://github.com/aedmark/Drift-Mojave/releases/tag/v1.4.0">Download v1.4.0</a> ·
+  <a href="docs/ROADMAP.md">Roadmap</a> ·
+  <a href="#building-from-source">Build from Source</a>
+</p>
+
 ---
 
-**Drift Mojave** is a definitive, high-velocity fork of Drift built for editors who crave uncompromising timeline responsiveness, edit-friendly intra-frame workflows, and signature desktop editing mechanics.
-
-Born from the need to bring the lightning-quick tactile feel and project compatibility of classic **Sony / MAGIX VEGAS Pro** to a modern, GPU-native, cross-platform video editor, Drift Mojave preserves the best of both worlds: full modern 3D compositing, GPU shaders, on-device Whisper AI, and deep MCP agent control—paired with legendary NLE muscle memory and zero-friction timeline editing.
+**Drift Mojave** is a high-velocity, cross-platform fork of [Drift](https://github.com/CutWire-Studios/Drift) built for editors who want native **Sony / MAGIX VEGAS Pro (`.veg`)** compatibility, edit-friendly **Apple ProRes 422** intra-frame workflows, and classic VEGAS timeline muscle memory—paired with Drift's GPU compositor, 3D scene layers, on-device Whisper AI, and MCP agent automation.
 
 No subscriptions, no accounts, no watermarks, no cloud lock-in.
+
+---
+
+## Download Prebuilt Binaries (`v1.4.0`)
+
+| Platform | Package | Link |
+|---|---|---|
+| **Linux (x86_64)** | AppImage + `.zsync` | [Drift-1.4.0-x86_64.AppImage](https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-1.4.0-x86_64.AppImage) · [`.zsync`](https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-1.4.0-x86_64.AppImage.zsync) |
+| **Windows (x64)** | Installer (`.exe`) | [Drift-Setup-1.4.0-x64.exe](https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-Setup-1.4.0-x64.exe) |
+| **Windows (x64)** | Portable Archive (`.zip`) | [Drift-Portable-1.4.0-x64.zip](https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-Portable-1.4.0-x64.zip) |
+| **macOS (Apple Silicon)** | Disk Image (`.dmg`) | [Drift-1.4.0-arm64.dmg](https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-1.4.0-arm64.dmg) |
+| **Verification** | Checksums | [SHA256SUMS](https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/SHA256SUMS) |
 
 ---
 
 ## What Makes Mojave Different
 
 ### 1. Native Sony / MAGIX VEGAS Pro Binary Interchange (`.veg`)
-Open and edit legacy and active VEGAS Pro projects directly inside Drift Mojave without needing intermediate XML or EDL exports:
-- **In-Engine Wave64 / Compound Binary Parser**: Reads compound RIFF binary `.veg` streams natively (tested across VEGAS 14 through 21).
-- **Sample-Accurate Time Conversion**: Translates VEGAS 100ns internal ticks to microsecond timeline positions with sample-accurate alignment.
-- **Nested Timelines**: Recursively imports nested child `.veg` projects as composite sequence tabs.
-- **Titles & Text Extraction**: Parses rich-text RTF payloads, fonts, styles, tracking, and colors directly into native Drift Text clips.
-- **Core Video FX Translation**: Translates VEGAS Levels, 3-Way Color Corrector, Vignette, Softlight Glow, and Sharpen into native GPU shaders.
-- **Event Pan/Crop & Keyframe Motion**: Extracts source crop rectangles and 2D pan/zoom animation paths into native transforms.
+Open and edit VEGAS Pro projects directly inside Drift Mojave without intermediate XML or EDL exports:
+- **In-Engine Compound RIFF Binary Parser**: Reads VEGAS 14–21 `.veg` streams natively (`VegasReader`).
+- **Sample-Accurate Timing**: Translates VEGAS 100ns internal ticks to microsecond timeline positions.
+- **Nested Timelines & Project Nesting**: Imports nested `.veg`, `.drift`, or `.json` timelines onto the active timeline as reusable `Composite` clips.
+- **Titles, FX, Pan/Crop & Automation**: Extracts RTF titles, Levels / 3-Way Color Corrector / Vignette / Softlight Glow / Sharpen FX, Event Pan/Crop motion, Velocity Envelopes, Track Envelopes, Bezier Masks, Event Mute/Lock flags, Blend Modes, Markers, and Regions.
 - **Event Grouping & Companion Linking**: Reconstructs symmetric multi-track audio/video link groups (`G` / `U` / `Ctrl+Shift+U`).
-- **Track & Project Metadata**: Honors track Mute, Solo, Volume dB, Pan, timeline Markers, Regions, and RIFF summary metadata (`INAM`, `IART`, `ICMT`).
 
-### 2. Automated Edit-Friendly Intra-Frame Pipeline
-Modern editors shouldn't choke on inter-frame Long-GOP codecs:
-- **Zero-Prompt Intra-Frame Detection**: Automatically detects Apple ProRes (422, HQ, LT, Proxy, 4444), Avid DNxHD/DNxHR, FFV1, and uncompressed video as edit-friendly on import.
-- **Background Batch ProRes 422 Transcoder**: Background multi-threaded conversion of non-edit-friendly media (e.g., AVCHD, H.264/HEVC camera files) into Apple ProRes 422 with automatic timeline clip relinking.
-- **Subdirectory Collision Protection**: Preserves multi-day camera folder structures (`Day 1/00001.MTS`, `Day 2/00001.MTS`) during batch transcode.
+### 2. Edit-Friendly Apple ProRes 422 & Smart Render Pipeline
+- **Zero-Prompt Intra-Frame Detection**: Automatically recognizes Apple ProRes (422, HQ, LT, Proxy, 4444), Avid DNxHD/DNxHR, FFV1, and uncompressed codecs as edit-friendly on import.
+- **Native In-Process Batch ProRes 422 Transcoder**: Parallel multi-threaded `libav*` conversion of AVCHD/H.264/HEVC camera files into `Transcodes_ProRes/` with subdirectory collision protection (`Day 1/00001.MTS`, `Day 2/00001.MTS`), automatic timeline relinking, live progress dialog, and clickable top-header progress badge.
+- **True Zero-Generation ProRes 422 Smart Render**: `AVPacket` stream-copy pass-through in `Exporter::run` for unmodified ProRes 422 `.mov` segments with seamless fallback for composited segments.
 
-### 3. Classic VEGAS Editing Ergonomics
-Edit at the speed of thought with classic NLE timeline mechanics:
-- **Interactive Drag-to-Crossfade**: Drag clips into overlapping positions on the same track to automatically create and resize transition junctions without track splitting.
-- **Fade & Transition Curve Selector**: Right-click fade handles or transition junctions to choose between Linear, Smooth / S-Curve, Fast, Slow, Sharp, and Natural curves.
-- **Elastic Time-Stretching**: Hold `Ctrl` while dragging clip start or end edges to elastic time-stretch or compress speed with audio pitch preservation.
-- **Cursorless Razor Split & Slip Editing**: Tap `S` to instantly slice clips at the playhead without switching tools. Hold `Alt` and drag within a clip to slip its source in/out boundaries.
-- **Interactive Velocity Envelopes**: Add spline velocity envelopes to clips with keyframe handles for reverse playback (-100%), freeze-frames (0%), and hyper-speed (up to 1000%).
+### 3. Classic VEGAS Pro Timeline Muscle Memory & Multi-NLE Keymaps
+- **Multi-NLE Keymap Presets**: Ships with **VEGAS Pro** as the Mojave default alongside **Drift Classic**, **Premiere Pro**, **DaVinci Resolve**, **Final Cut Pro**, **CapCut**, **Kdenlive**, and **Shotcut** in Settings.
+- **Drag-to-Crossfade & Curve Shapes**: Overlap clips to create transitions with 6 curve shapes (*Linear*, *Smooth/Spline*, *Fast*, *Slow*, *Sharp*, *Hold*).
+- **Elastic Time-Stretching & Razor Split**: `Ctrl+drag` clip edges to stretch with SoundTouch pitch preservation; tap `S` for cursorless split; `Alt+drag` to slip source bounds; `D` cycles *Select → Cut → Slip → Roll (`Shift+R`) → Slide (`Shift+Y`)*.
+- **Expanded Edit Mode (`F5`)**: A/B roll split-track cut inspection with `-1f / +1f` cut trimming.
+- **Event Lock (`Alt+Shift+L`), Event Mute (`Alt+Shift+Q`) & Frame Quantize (`Alt+F8`)**.
 
-### 4. Advanced Production Features
-- **VEGAS 3-Mode Auto-Ripple (`Ctrl+L`)**: Switch between *Affected Tracks*, *All Tracks*, and *Tracks + Markers & Regions* auto-ripple modes. Close gaps instantly with Ripple Delete (`Shift+Delete`).
-- **Interactive Multi-Take Switching (`T` / `Shift+T`)**: Cycle through takes on grouped event takes seamlessly.
-- **A/B Split-Screen Video Compare**: Compare live footage against FX bypass, clipboard snapshots, reference frames, or adjacent video tracks with draggable vertical/horizontal wipe splitters.
-- **Media Pool FX**: Apply non-destructive GPU effect chains directly to source media assets before they reach the timeline.
+### 4. Pro Audio, Mixing & Mastering
+- **Track & Clip Automation Envelopes**: Track Volume (`Shift+V`), Pan (`Shift+P`), Composite Level (`Alt+Shift+V`), Mute (`Alt+Shift+M`), and interactive on-clip Audio Gain Envelopes—all supporting Bezier curve presets (*Linear*, *Smooth*, *Fast*, *Slow*, *Sharp*, *Hold*).
+- **Audio Switches, Pitch & Peak Normalize**: Top-edge clip opacity/gain drag handles, Pitch Shift (`Alt+Shift+=`/`-`), Lock Pitch to Stretch, Invert Phase, Channel Modes, and Peak Normalize (`Shift+N`).
+- **Sub-Buses, Stem Export & EBU R128 Loudness**: Cycle-guarded bus-to-bus routing, multi-track/bus/master WAV stem export, live ITU-R BS.1770 LUFS metering, and target loudness mastering (`-14`, `-16`, `-23` LUFS with `-1.0 dBTP` ceiling).
 
-### 5. New in v1.1.0 (VEGAS Parity Tiers 1–3)
-- **Top-Edge Handles & Track Envelopes**: Drag top-edge opacity/gain handles (`Shift+drag` fine trim, double-click reset) and automate track Volume (`Shift+V`), Pan (`Shift+P`), Composite Level (`Alt+Shift+V`), and Mute (`Alt+Shift+M`).
-- **Audio Switches, Pitch & Peak Normalize**: Per-clip Invert Phase, Mono Mixdown, Left/Right Only, Channel Swap, Pitch Shift (`Alt+Shift+=`/`-`), and Peak Normalize (`Shift+N`).
-- **Roll & Slide Trim Tools**: Precision dual-roller Roll (`Shift+R`) and Slide (`Shift+Y`) editing with linked group synchronization.
-- **Sub-Buses, Aux Sends & Live LUFS Metering**: Dedicated audio sub-buses with FX racks, pre/post-fader aux sends, and real-time ITU-R BS.1770 / EBU R128 LUFS + True Peak hold.
-- **Track Compositing, Track FX & Track Motion**: Video Track FX, Master Video Output FX, 2D/3D Track Motion, and cycle-guarded Parent/Child Track Compositing blend trees.
-- **Inline Multicamera (`Alt+Shift+C`)**: Split-grid angle preview right in the monitor with keys `1–9` or click-to-cut in a single undo step.
-- **Timeline Regions, Trimmer & Dynamic RAM Preview**: Named span Regions (`Alt+Shift+R`) with Batch Region Render templates, dedicated Trimmer window (`Alt+Shift+T`, `I`/`O`, `J`/`K`/`L`), Dynamic RAM Preview (`Shift+B`), and deeper `.veg` import (Regions, Track Envelopes, Bezier Masks, and Track Audio FX).
+### 5. Finishing, Scopes, Generators & Bidirectional Interchange
+- **Live Video Scopes HUD**: Dockable preview scopes for Rec.709 RGB/Luma Histogram, Luma Waveform, RGB Parade, and Vectorscope.
+- **8 Built-In VEGAS-Style Media Generators**: SMPTE Color Bars, Solid Color, Color Gradient, Credit Roll, Timecode Burn-In, Checkerboard Pattern, Calibration Grid & Safe Zones, and Film Grain / Noise Texture.
+- **Media Bin Audit, Sweep & Consolidation**: Smart Bin Filters (*Unused*, *Unconverted*, *Missing*, *Subclips*), timeline usage counts, undoable *Remove Unused Media*, and *Consolidate Project Media*.
+- **Bidirectional Timeline Export**: Export active sequences to `.fcpxml` (Final Cut Pro XML), `.edl` (CMX 3600 EDL), `.otio` (OpenTimelineIO), and `.txt` (VEGAS Marker/Region TSV).
 
-> See the **[Drift Mojave Roadmap](docs/ROADMAP.md)** for upcoming VEGAS Pro parity tiers (`v1.1+` through `v1.3+`).
+> See **[docs/ROADMAP.md](docs/ROADMAP.md)** for the full tier-by-tier changelog from `v1.0.0` through `v1.4.0`.
 
 ---
 
-## Drift Mojave Versioning Scheme
+## Honest Limits
 
-Drift Mojave follows **Semantic Versioning 2.0.0** (`MAJOR.MINOR.PATCH`):
-
-```
-MAJOR . MINOR . PATCH
-  1   .   0   .   0
-```
-
-- **MAJOR (e.g., 1.x -> 2.x)**: Major generational milestones, fundamental timeline architecture shifts, or format breaking changes.
-- **MINOR (e.g., 1.0.x -> 1.1.x)**: New interchange formats, substantial timeline tool additions, major render pipeline enhancements, or UI paradigm evolutions.
-- **PATCH (e.g., 1.0.0 -> 1.0.1)**: Targeted bug fixes, stability updates, performance optimizations, and codec compatibility refinements.
-
-### Codename Tradition
-Drift Mojave's 1.0 release series is codenamed **Mojave**. Subsequent feature branches and minor milestone series carry desert and southwestern landmark designations celebrating endurance, vast horizons, and high-velocity workflow.
-
----
-
-## Core Features Inherited from Drift
-
-- **Agent Access (MCP)**: Edit the open project via an autonomous LLM agent or run fully headless.
-- **3D on the Timeline**: Tilt clips in 3D space, position scene lights, orbit cameras, and drop in `.glb` models or gaussian splats.
-- **Skia GPU Vector Engine**: Ultra-crisp vector shapes, text styles, and Lottie animations rendered via GPU.
-- **Local Machine AI**: On-device Whisper subtitle generation, background matte removal, live face retouch, and voice synthesis—no API keys required.
-- **Color Grading**: 3-Way color wheels, Curves, HSL, 3D LUTs (`.cube`), vectorscopes, histograms, and waveform monitors.
-- **Professional Audio**: Equalizer, compressor, loudness meter, voiceover recording, pitch correction, track FX racks, and master bus processing.
+- **Proprietary VEGAS Plugins**: DirectShow / OFX third-party VEGAS plugins that have no built-in Drift equivalent are skipped safely rather than emulated; core VEGAS Levels, 3-Way Color Corrector, Vignette, Glow, Sharpen, Pan/Crop, envelopes, blend modes, and generators are translated.
+- **External Media Files**: `.veg` project files store timeline structure and paths, not embedded raw video; if source media moved drives, Drift Mojave probes `Transcodes_ProRes/` and adjacent folders automatically or lets you relink missing media in the bin.
+- **Smart Render Scope**: Zero-generation `AVPacket` stream-copy pass-through applies to unmodified single-layer Apple ProRes 422 `.mov` segments matching the export resolution and frame rate; segments with compositing, speed ramps, or color effects fall back cleanly to full encode.
 
 ---
 
 ## Building from Source
 
 ### Prerequisites
-- **C++20** compatible compiler (GCC 12+, Clang 15+, MSVC 2022)
-- **CMake** 3.21 or later
-- **Ninja** build system
-- **Qt 6.10+** (Quick, QuickControls2, Multimedia, OpenGL, Widgets, Concurrent, Svg, Xml)
-- **FFmpeg 6.0+** (libavcodec, libavformat, libavutil, libswscale, libswresample)
-
-### Build Steps
+- **C++20** compiler (GCC 12+, Clang 15+, or MSVC 2022)
+- **CMake** 3.21+ and **Ninja**
+- **Qt 6.10+** (`Quick`, `QuickControls2`, `Multimedia`, `OpenGL`, `Widgets`, `Concurrent`, `Svg`, `Xml`)
+- **FFmpeg 6.0+** (`libavcodec`, `libavformat`, `libavutil`, `libswscale`, `libswresample`)
 
 ```bash
-# Clone the repository
-git clone https://github.com/aedmark/Drift.git drift-mojave
+git clone https://github.com/aedmark/Drift-Mojave.git drift-mojave
 cd drift-mojave
 
-# Configure build with Ninja
 cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DDRIFT_BUILD_TESTS=ON
 
-# Compile the executable
-ninja -C build drift
-
-# Run tests
-ninja -C build test
-```
-
-### Launching
-
-```bash
+cmake --build build --target drift -j$(nproc)
+ctest --test-dir build --output-on-failure
 ./build/drift
 ```
 

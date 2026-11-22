@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aedmark.github.io/Drift-Mojave/sitemap.xml
