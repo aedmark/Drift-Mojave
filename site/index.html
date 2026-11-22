@@ -35,10 +35,10 @@
       "name": "Drift Mojave",
       "applicationCategory": "MultimediaApplication",
       "operatingSystem": "Linux, Windows, macOS, Android",
-      "softwareVersion": "1.4.0",
+      "softwareVersion": "1.5.0",
       "license": "https://www.gnu.org/licenses/gpl-3.0.html",
       "url": "https://oopismcgoopis.com/drift-mojave/",
-      "downloadUrl": "https://github.com/aedmark/Drift-Mojave/releases/tag/v1.4.0",
+      "downloadUrl": "https://github.com/aedmark/Drift-Mojave/releases/tag/v1.5.0",
       "description": "GPU-native cross-platform non-linear video editor with native Sony/MAGIX VEGAS Pro (.veg) project import, Apple ProRes 422 batch transcoding & Smart Render pass-through, live video scopes, and local Whisper AI.",
       "author": {
         "@type": "Person",
@@ -62,7 +62,7 @@
         },
         {
           "@type": "Question",
-          "name": "What platforms does Drift Mojave v1.4.0 support?",
+          "name": "What platforms does Drift Mojave v1.5.0 support?",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Prebuilt releases are published for Linux (x86_64 AppImage), Windows (x64 Installer and Portable ZIP), and macOS (Apple Silicon arm64 DMG)."
@@ -87,7 +87,7 @@
     <div class="wrap">
         <a class="brand" href="index.html" aria-label="Drift Mojave Home">
             <img src="assets/drift-icon.png" alt="" width="20" height="20" style="image-rendering:auto;">
-            Drift Mojave <small>/ v1.4.0</small>
+            Drift Mojave <small>/ v1.5.0</small>
         </a>
         <nav class="nav" aria-label="Site">
             <a href="#why">Why Mojave</a>
@@ -112,7 +112,7 @@
                 No subscriptions, no accounts, no watermarks, and no cloud lock-in. Open your existing <code>.veg</code> timelines, convert Long-GOP camera footage to Apple ProRes 422 in-process, grade with live scopes, and export with zero-generation ProRes Smart Render.
             </p>
             <div class="links">
-                <a class="btn primary" href="#downloads">Download v1.4.0</a>
+                <a class="btn primary" href="#downloads">Download v1.5.0</a>
                 <a class="btn" href="https://github.com/aedmark/Drift-Mojave">GitHub Source</a>
                 <a class="btn" href="https://github.com/aedmark/Drift-Mojave/blob/main/docs/ROADMAP.md">Roadmap</a>
             </div>
@@ -165,7 +165,7 @@
         <div class="wrap">
             <div class="sec-head">
                 <span class="idx">02</span>
-                <h2>Shipped Highlights (v1.0.0 – v1.4.0)</h2>
+                <h2>Shipped Highlights (v1.0.0 – v1.5.0)</h2>
             </div>
 
             <article class="spot featured">
@@ -175,19 +175,24 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="tag">VEGAS Parity Tiers 1–6 · Native C++20 / Qt 6 / FFmpeg</p>
+                    <p class="tag">VEGAS Parity Tiers 1–7 · Native C++20 / Qt 6 / FFmpeg</p>
                     <h3>Built for Fast Desktop Cutting</h3>
                     <p class="one">Every VEGAS Pro editing habit—from overlapping crossfades to <code>S</code> razor splits and Bezier volume envelopes—works out of the box.</p>
                     <ul class="hi">
                         <li><b>Multi-NLE Keymaps.</b> VEGAS Pro shortcuts by default, or switch in one click to Drift Classic, Premiere Pro, DaVinci Resolve, Final Cut Pro, CapCut, Kdenlive, or Shotcut.</li>
+                        <li><b>Broadcast Timing &amp; Waveform Auto-Sync.</b> Native fractional frame rates (<code>23.976</code> / <code>29.97</code> / <code>59.94</code>), SMPTE Drop-Frame (<code>;</code>) timecode, and multi-clip audio waveform auto-sync with auto-group and scratch-audio mute.</li>
+                        <li><b>Audio Channel Strip, Event Attributes &amp; Render Queue.</b> One-click VEGAS Track Channel Strip presets (Gate + EQ + Compressor), Dialogue Auto-Ducking, selective Paste Event Attributes, collapsible Track Folders, and sequential Batch Render Queue.</li>
                         <li><b>Live Video Scopes HUD.</b> Dockable Rec.709 RGB/Luma Histogram, Luma Waveform, RGB Parade, and Vectorscope right inside the Preview window.</li>
                         <li><b>Envelope Curve Shapes.</b> Right-click any track automation or clip gain node to switch between Linear, Smooth/Spline, Fast, Slow, Sharp, and Hold curves.</li>
                         <li><b>Project Nesting &amp; Consolidation.</b> Import <code>.drift</code>, <code>.veg</code>, or <code>.json</code> timelines as nested Composite clips, sweep unused media, or consolidate used files to one folder.</li>
                     </ul>
                     <ul class="chips">
                         <li>.veg Binary Parser</li>
+                        <li>23.976 / 29.97 Drop-Frame</li>
+                        <li>Waveform Auto-Sync</li>
                         <li>ProRes 422 Smart Render</li>
                         <li>EBU R128 Loudness (-14/-16/-23 LUFS)</li>
+                        <li>Batch Render Queue</li>
                         <li>FCPXML / EDL / OTIO Export</li>
                         <li>8 Media Generators</li>
                     </ul>
@@ -206,25 +211,25 @@
                 <thead>
                     <tr>
                         <th>Workflow Area</th>
-                        <th>Capabilities in Drift Mojave v1.4.0</th>
+                        <th>Capabilities in Drift Mojave v1.5.0</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td><strong>Project Import</strong></td>
-                        <td>Native <code>.veg</code> (VEGAS 14–21) tracks, clips, nested timelines, RTF titles, Levels/Color/Vignette/Glow/Sharpen FX, Pan/Crop, markers &amp; regions.</td>
+                        <td>Native <code>.veg</code> (VEGAS 14–21) tracks, clips, playback rate &amp; active take selection, nested timelines, RTF titles, Levels/Color/Vignette/Glow/Sharpen FX, Pan/Crop, markers &amp; regions.</td>
                     </tr>
                     <tr>
                         <td><strong>Timeline Muscle Memory</strong></td>
-                        <td>Drag-to-crossfade, <code>Ctrl+drag</code> elastic stretch, <code>S</code> split, <code>Alt+drag</code> slip, <code>F5</code> Expanded Edit, <code>Shift+R/Y</code> Roll/Slide, <code>Alt+Shift+L/Q</code> Lock/Mute.</td>
+                        <td>Drag-to-crossfade, <code>Ctrl+drag</code> elastic stretch, <code>S</code> split, <code>Alt+drag</code> slip, <code>F5</code> Expanded Edit, <code>Shift+R/Y</code> Roll/Slide, <code>Alt+Shift+L/Q</code> Lock/Mute, Track Folders, selective Paste Event Attributes, and Workspace Quick-Recall.</td>
                     </tr>
                     <tr>
                         <td><strong>Audio &amp; Mastering</strong></td>
-                        <td>Track Volume/Pan/Composite/Mute envelopes, clip gain envelopes, 6 Bezier curve presets, sub-bus routing, WAV stems, EBU R128 loudness normalization.</td>
+                        <td>Multi-clip Waveform Auto-Sync, VEGAS Track Channel Strip presets (Gate/EQ/Compressor), Dialogue Auto-Ducking, Track &amp; clip gain envelopes (6 Bezier presets), sub-bus routing, WAV stems, EBU R128 loudness normalization.</td>
                     </tr>
                     <tr>
                         <td><strong>Media &amp; Finishing</strong></td>
-                        <td>Parallel ProRes 422 transcoder with live progress dialog &amp; header badge, ProRes Smart Render, live Video Scopes HUD, 8 generators, Remove Unused &amp; Consolidate.</td>
+                        <td>23.976/29.97/59.94 fractional frame rates &amp; SMPTE Drop-Frame timecode, Batch Render Queue, parallel ProRes 422 transcoder with live progress, ProRes Smart Render, Video Scopes HUD, 8 generators, Remove Unused &amp; Consolidate.</td>
                     </tr>
                     <tr>
                         <td><strong>Interchange Export</strong></td>
@@ -239,7 +244,7 @@
         <div class="wrap">
             <div class="sec-head">
                 <span class="idx">04</span>
-                <h2>Downloads — v1.4.0</h2>
+                <h2>Downloads — v1.5.0</h2>
             </div>
             <table class="dl-table">
                 <thead>
@@ -253,27 +258,27 @@
                     <tr>
                         <td>Linux (x86_64)</td>
                         <td>AppImage</td>
-                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-1.4.0-x86_64.AppImage">Drift-1.4.0-x86_64.AppImage</a> (<a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-1.4.0-x86_64.AppImage.zsync">.zsync</a>)</td>
+                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.5.0/Drift-1.5.0-x86_64.AppImage">Drift-1.5.0-x86_64.AppImage</a> (<a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.5.0/Drift-1.5.0-x86_64.AppImage.zsync">.zsync</a>)</td>
                     </tr>
                     <tr>
                         <td>Windows (x64)</td>
                         <td>Installer (.exe)</td>
-                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-Setup-1.4.0-x64.exe">Drift-Setup-1.4.0-x64.exe</a></td>
+                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.5.0/Drift-Setup-1.5.0-x64.exe">Drift-Setup-1.5.0-x64.exe</a></td>
                     </tr>
                     <tr>
                         <td>Windows (x64)</td>
                         <td>Portable (.zip)</td>
-                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-Portable-1.4.0-x64.zip">Drift-Portable-1.4.0-x64.zip</a></td>
+                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.5.0/Drift-Portable-1.5.0-x64.zip">Drift-Portable-1.5.0-x64.zip</a></td>
                     </tr>
                     <tr>
                         <td>macOS (Apple Silicon)</td>
                         <td>Disk Image (.dmg)</td>
-                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/Drift-1.4.0-arm64.dmg">Drift-1.4.0-arm64.dmg</a></td>
+                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.5.0/Drift-1.5.0-arm64.dmg">Drift-1.5.0-arm64.dmg</a></td>
                     </tr>
                     <tr>
                         <td>Checksums</td>
                         <td>SHA-256</td>
-                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.4.0/SHA256SUMS">SHA256SUMS</a></td>
+                        <td><a href="https://github.com/aedmark/Drift-Mojave/releases/download/v1.5.0/SHA256SUMS">SHA256SUMS</a></td>
                     </tr>
                 </tbody>
             </table>
