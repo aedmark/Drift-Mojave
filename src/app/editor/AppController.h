@@ -1817,6 +1817,7 @@ public:
     Q_INVOKABLE QString saveClipEffectsAsPreset(int trackIndex, int clipIndex,
                                                 const QString &label);
     Q_INVOKABLE void applyEffectPreset(int trackIndex, int clipIndex, const QString &presetId);
+    Q_INVOKABLE int applyEffectPresetToSelection(const QString &presetId, bool replaceExisting = false);
     Q_INVOKABLE bool renameUserEffectPreset(const QString &presetId, const QString &label);
     Q_INVOKABLE bool deleteUserEffectPreset(const QString &presetId);
     // My Effects: how many effects in the project use the imported package `effectId`, and

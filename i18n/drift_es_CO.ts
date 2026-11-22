@@ -5326,6 +5326,17 @@
         <translation>Aplicar ajuste predeterminado de efecto</translation>
     </message>
     <message>
+        <source>Apply FX chain preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Applied “%1” to %n clip(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Could not rename the effect preset</source>
         <translation>No se pudo cambiar el nombre del ajuste predeterminado de efecto</translation>
     </message>
@@ -16931,6 +16942,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <source>Audio Effects (none)</source>
         <translation>Efectos de audio (ninguno)</translation>
     </message>
+    <message>
+        <source>Audio Switches &amp; Pitch (pitch shift, phase, channels, normalize)</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>PasteAttributesDialog</name>
@@ -17020,6 +17035,18 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Video Effects (none)</source>
         <translation>Efectos de vídeo (ninguno)</translation>
+    </message>
+    <message>
+        <source>Color Grade only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Velocity Envelope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Event Switches (mute, lock, loop, blend mode)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -26765,8 +26792,16 @@ Si la reproducción se corta, prueba con otra opción.</translation>
         <translation>Pegar efectos</translation>
     </message>
     <message>
+        <source>Paste Event Attributes…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Save effects as preset…</source>
         <translation>Guardar efectos como ajuste predeterminado…</translation>
+    </message>
+    <message>
+        <source>Apply FX Chain Preset</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Color grade…</source>

@@ -5307,6 +5307,16 @@
         <translation>효과 프리셋 적용</translation>
     </message>
     <message>
+        <source>Apply FX chain preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Applied “%1” to %n clip(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Could not rename the effect preset</source>
         <translation>효과 프리셋 이름을 변경할 수 없습니다</translation>
     </message>
@@ -16860,6 +16870,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <source>Audio Effects (none)</source>
         <translation>오디오 효과(없음)</translation>
     </message>
+    <message>
+        <source>Audio Switches &amp; Pitch (pitch shift, phase, channels, normalize)</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>PasteAttributesDialog</name>
@@ -16946,6 +16960,18 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Video Effects (none)</source>
         <translation>동영상 효과(없음)</translation>
+    </message>
+    <message>
+        <source>Color Grade only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Velocity Envelope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Event Switches (mute, lock, loop, blend mode)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -26669,8 +26695,16 @@ If playback stutters, try another.</source>
         <translation>효과 붙여넣기</translation>
     </message>
     <message>
+        <source>Paste Event Attributes…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Save effects as preset…</source>
         <translation>효과를 프리셋으로 저장…</translation>
+    </message>
+    <message>
+        <source>Apply FX Chain Preset</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Color grade…</source>

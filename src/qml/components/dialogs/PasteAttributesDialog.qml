@@ -20,10 +20,16 @@ ThemedDialog {
     property bool pasteEffects: true
     property bool pasteAudioEffects: false
     property bool pasteTransitions: false
+    property bool pasteColorGrade: false
+    property bool pasteVelocity: false
+    property bool pasteAudioSwitches: false
+    property bool pasteEventSwitches: false
     property bool replaceEffects: false
 
     readonly property bool hasAnySelected: pasteTransform || pasteSpeed || pasteVolume
                                            || pasteEffects || pasteAudioEffects || pasteTransitions
+                                           || pasteColorGrade || pasteVelocity || pasteAudioSwitches
+                                           || pasteEventSwitches
 
     showAccept: hasAnySelected
 
@@ -38,6 +44,10 @@ ThemedDialog {
         pasteEffects = (clipAttrs.hasEffects === true)
         pasteAudioEffects = (clipAttrs.hasAudioEffects === true)
         pasteTransitions = (clipAttrs.hasTransitions === true)
+        pasteColorGrade = false
+        pasteVelocity = (clipAttrs.hasVelocity === true)
+        pasteAudioSwitches = (clipAttrs.hasAudioSwitches === true)
+        pasteEventSwitches = (clipAttrs.hasEventSwitches === true)
         replaceEffects = false
 
         open()
@@ -56,6 +66,14 @@ ThemedDialog {
             pasteAudioEffects = true
         if (clipAttrs.hasTransitions === true)
             pasteTransitions = true
+        if (clipAttrs.hasColorGrade === true && !pasteEffects)
+            pasteColorGrade = true
+        if (clipAttrs.hasVelocity === true)
+            pasteVelocity = true
+        if (clipAttrs.isAudioOrVideo !== false)
+            pasteAudioSwitches = true
+        if (clipAttrs.hasClip === true)
+            pasteEventSwitches = true
     }
 
     function selectNone() {
@@ -65,6 +83,10 @@ ThemedDialog {
         pasteEffects = false
         pasteAudioEffects = false
         pasteTransitions = false
+        pasteColorGrade = false
+        pasteVelocity = false
+        pasteAudioSwitches = false
+        pasteEventSwitches = false
     }
 
     onAccepted: {
@@ -75,6 +97,10 @@ ThemedDialog {
             "effects": root.pasteEffects,
             "audioEffects": root.pasteAudioEffects,
             "transitions": root.pasteTransitions,
+            "colorGrade": root.pasteColorGrade,
+            "velocity": root.pasteVelocity,
+            "audioSwitches": root.pasteAudioSwitches,
+            "eventSwitches": root.pasteEventSwitches,
             "replaceEffects": root.replaceEffects
         })
     }
@@ -115,7 +141,7 @@ ThemedDialog {
             width: parent.width
             text: qsTr("Replace existing effects (instead of appending)")
             checked: root.replaceEffects
-            enabled: root.pasteEffects || root.pasteAudioEffects
+            enabled: root.pasteEffects || root.pasteAudioEffects || root.pasteColorGrade
             onToggled: root.replaceEffects = checked
         }
 

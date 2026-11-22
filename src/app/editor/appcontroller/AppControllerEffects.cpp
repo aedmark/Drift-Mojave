@@ -2879,6 +2879,28 @@ QVariantMap AppController::clipboardAttributes() const
     out.insert(QStringLiteral("hasEffects"), !c.effects.isEmpty());
     out.insert(QStringLiteral("effectCount"), c.effects.size());
 
+    const bool hasColorGrade = isVisual && std::any_of(c.effects.cbegin(), c.effects.cend(), [](const drift::Effect &fx) {
+        return fx.catalogId == QLatin1String("color.grade");
+    });
+    out.insert(QStringLiteral("hasColorGrade"), hasColorGrade);
+
+    const bool hasVelocity = isAudioOrVideo && c.hasVelocityEnvelope();
+    out.insert(QStringLiteral("hasVelocity"), hasVelocity);
+
+    const bool hasAudioSwitches = isAudioOrVideo
+        && (std::abs(c.pitchSemitones) > 0.001
+            || c.lockPitchToStretch
+            || c.invertPhase
+            || c.audioChannelMode != drift::AudioChannelMode::Stereo
+            || std::abs(c.normalizeGain - 1.0) > 0.001);
+    out.insert(QStringLiteral("hasAudioSwitches"), hasAudioSwitches);
+
+    const bool hasEventSwitches = !c.enabled
+        || c.locked
+        || c.loop
+        || c.blendMode != drift::BlendMode::Normal;
+    out.insert(QStringLiteral("hasEventSwitches"), hasEventSwitches);
+
     out.insert(QStringLiteral("hasAudioEffects"), !c.audioEffects.isEmpty());
     out.insert(QStringLiteral("audioEffectCount"), c.audioEffects.size());
 
@@ -2919,9 +2941,14 @@ void AppController::pasteAttributes(const QVariantMap &options)
     const bool pasteEffects = options.value(QStringLiteral("effects"), false).toBool();
     const bool pasteAudioEffects = options.value(QStringLiteral("audioEffects"), false).toBool();
     const bool pasteTransitions = options.value(QStringLiteral("transitions"), false).toBool();
+    const bool pasteColorGrade = options.value(QStringLiteral("colorGrade"), false).toBool();
+    const bool pasteVelocity = options.value(QStringLiteral("velocity"), false).toBool();
+    const bool pasteAudioSwitches = options.value(QStringLiteral("audioSwitches"), false).toBool();
+    const bool pasteEventSwitches = options.value(QStringLiteral("eventSwitches"), false).toBool();
     const bool replaceEffects = options.value(QStringLiteral("replaceEffects"), false).toBool();
 
-    if (!pasteTransform && !pasteSpeed && !pasteVolume && !pasteEffects && !pasteAudioEffects && !pasteTransitions)
+    if (!pasteTransform && !pasteSpeed && !pasteVolume && !pasteEffects && !pasteAudioEffects && !pasteTransitions
+        && !pasteColorGrade && !pasteVelocity && !pasteAudioSwitches && !pasteEventSwitches)
         return;
 
     QList<QPair<int, int>> pairs;
@@ -3051,6 +3078,61 @@ void AppController::pasteAttributes(const QVariantMap &options)
                 targetClip.effects.clear();
                 clipModified = true;
             }
+        } else if (!pasteEffects && pasteColorGrade && targetIsVisual) {
+            QList<drift::Effect> grades;
+            for (const drift::Effect &incoming : sourceClip.effects) {
+                if (incoming.catalogId != QLatin1String("color.grade"))
+                    continue;
+                if (const EffectPresetEntry *def = effectDefForId(incoming.catalogId)) {
+                    drift::Effect effect = effectFromCatalogEntry(*def, incoming.parameters);
+                    effect.paramKeyframes = incoming.paramKeyframes;
+                    effect.enabled = incoming.enabled;
+                    grades.append(effect);
+                } else {
+                    grades.append(incoming);
+                }
+            }
+            if (!grades.isEmpty()) {
+                drift::rescaleEffectKeyframes(grades, srcDurationUs, targetDurationUs);
+                if (replaceEffects) {
+                    targetClip.effects.erase(
+                        std::remove_if(targetClip.effects.begin(), targetClip.effects.end(),
+                                       [](const drift::Effect &fx) {
+                                           return fx.catalogId == QLatin1String("color.grade");
+                                       }),
+                        targetClip.effects.end());
+                }
+                targetClip.effects.append(grades);
+                clipModified = true;
+            }
+        }
+
+        // 4b. Velocity Envelope
+        if (pasteVelocity && targetHasAudio) {
+            targetClip.velocityEnvelope = sourceClip.velocityEnvelope;
+            if (targetClip.velocityEnvelope.enabled())
+                targetClip.speedCurve.clear();
+            clipModified = true;
+        }
+
+        // 4c. Audio Switches & Pitch
+        if (pasteAudioSwitches && targetHasAudio) {
+            targetClip.pitchSemitones = sourceClip.pitchSemitones;
+            targetClip.lockPitchToStretch = sourceClip.lockPitchToStretch;
+            targetClip.invertPhase = sourceClip.invertPhase;
+            targetClip.audioChannelMode = sourceClip.audioChannelMode;
+            targetClip.normalizeGain = sourceClip.normalizeGain;
+            clipModified = true;
+        }
+
+        // 4d. Event Switches
+        if (pasteEventSwitches) {
+            targetClip.enabled = sourceClip.enabled;
+            targetClip.locked = sourceClip.locked;
+            targetClip.loop = sourceClip.loop;
+            if (targetIsVisual)
+                targetClip.blendMode = sourceClip.blendMode;
+            clipModified = true;
         }
 
         // 5. Audio Effects
@@ -3222,6 +3304,92 @@ void AppController::applyEffectPreset(int trackIndex, int clipIndex, const QStri
     if (!preset)
         return;
     applyEffectStack(trackIndex, clipIndex, *preset, tr("Apply effect preset"));
+}
+
+int AppController::applyEffectPresetToSelection(const QString &presetId, bool replaceExisting)
+{
+    const std::optional<drift::EffectStackPreset> preset =
+        drift::EffectStackStore::instance().presetForId(presetId);
+    if (!preset || preset->isEmpty())
+        return 0;
+
+    QList<QPair<int, int>> pairs;
+    if (!m_selection.isEmpty()) {
+        for (const auto &pair : std::as_const(m_selection)) {
+            if (isValidClipIndex(pair.first, pair.second))
+                pairs.append(pair);
+        }
+    } else if (isValidClipIndex(m_selectedTrack, m_selectedClip)) {
+        pairs.append(qMakePair(m_selectedTrack, m_selectedClip));
+    }
+    if (pairs.isEmpty())
+        return 0;
+
+    const drift::Project before = m_project;
+    int modifiedCount = 0;
+
+    for (const auto &pair : std::as_const(pairs)) {
+        drift::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
+        bool clipModified = false;
+        const bool isVisual = (clip.type != drift::ClipType::Audio);
+        const bool hasAudio = (clip.type == drift::ClipType::Video || clip.type == drift::ClipType::Audio);
+
+        if (isVisual && !preset->effects.isEmpty()) {
+            QList<drift::Effect> video;
+            video.reserve(preset->effects.size());
+            for (const drift::Effect &incoming : preset->effects) {
+                if (const EffectPresetEntry *def = effectDefForId(incoming.catalogId)) {
+                    drift::Effect effect = effectFromCatalogEntry(*def, incoming.parameters);
+                    effect.paramKeyframes = incoming.paramKeyframes;
+                    effect.enabled = incoming.enabled;
+                    video.append(effect);
+                } else {
+                    video.append(incoming);
+                }
+            }
+            if (preset->sourceDurationUs > 0)
+                drift::rescaleEffectKeyframes(video, preset->sourceDurationUs, clip.timelineDuration);
+            if (replaceExisting)
+                clip.effects = video;
+            else
+                clip.effects.append(video);
+            clipModified = true;
+        }
+
+        if (hasAudio && !preset->audioEffects.isEmpty()) {
+            QList<drift::Effect> audio;
+            audio.reserve(preset->audioEffects.size());
+            for (const drift::Effect &incoming : preset->audioEffects) {
+                if (const AudioEffectEntry *def = audioEffectDefForId(incoming.catalogId)) {
+                    drift::Effect effect = audioEffectFromCatalogEntry(*def, incoming.parameters);
+                    effect.paramKeyframes = incoming.paramKeyframes;
+                    effect.enabled = incoming.enabled;
+                    audio.append(effect);
+                } else {
+                    audio.append(incoming);
+                }
+            }
+            if (preset->sourceDurationUs > 0)
+                drift::rescaleEffectKeyframes(audio, preset->sourceDurationUs, clip.timelineDuration);
+            if (replaceExisting)
+                clip.audioEffects = audio;
+            else
+                clip.audioEffects.append(audio);
+            clipModified = true;
+        }
+
+        if (clipModified)
+            ++modifiedCount;
+    }
+
+    if (modifiedCount <= 0)
+        return 0;
+
+    pushProjectEdit(before, tr("Apply FX chain preset"));
+    finishEdit(tr("Apply FX chain preset"));
+    setLastMessage(tr("Applied “%1” to %n clip(s)", "", modifiedCount).arg(preset->label),
+                   QStringLiteral("success"));
+    return modifiedCount;
 }
 
 bool AppController::renameUserEffectPreset(const QString &presetId, const QString &label)

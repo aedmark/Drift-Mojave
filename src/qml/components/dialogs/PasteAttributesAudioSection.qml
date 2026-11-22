@@ -35,4 +35,12 @@ Column {
         enabled: (dialog.clipAttrs.audioEffectCount || 0) > 0
         onToggled: dialog.pasteAudioEffects = checked
     }
+
+    ThemedCheckBox {
+        width: parent.width
+        text: qsTr("Audio Switches & Pitch (pitch shift, phase, channels, normalize)")
+        checked: dialog.pasteAudioSwitches
+        enabled: dialog.clipAttrs.isAudioOrVideo !== false
+        onToggled: dialog.pasteAudioSwitches = checked
+    }
 }

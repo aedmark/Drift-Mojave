@@ -143,6 +143,7 @@ class EditorStateTest : public QObject
 private slots:
     void bakeFingerprintTracksRangeEdits();
     void syncByAudioMultiClipGroupsAndMutesScratch();
+    void pasteEventAttributesAndBatchFxChainPreset();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20177,6 +20178,135 @@ void EditorStateTest::syncByAudioMultiClipGroupsAndMutesScratch()
     QCOMPARE(controller.project()->tracks().at(2).clips.at(0).timelineStart, drift::TimeUs(0));
     QVERIFY(controller.project()->tracks().at(0).clips.at(0).linkId.isEmpty());
     QVERIFY(!controller.project()->tracks().at(0).clips.at(0).suppressEmbeddedAudio);
+}
+
+void EditorStateTest::pasteEventAttributesAndBatchFxChainPreset()
+{
+    const QString org = QCoreApplication::organizationName();
+    const QString app = QCoreApplication::applicationName();
+    QStandardPaths::setTestModeEnabled(true);
+    QCoreApplication::setOrganizationName(QStringLiteral("DriftTest"));
+    QCoreApplication::setApplicationName(QStringLiteral("DriftTestTier7CPasteFx"));
+    QFile::remove(drift::EffectStackStore::storePath());
+    drift::EffectStackStore::instance().reload();
+
+    AssetLibrary library;
+    AppController state(&library);
+
+    state.project()->tracks().clear();
+    drift::Track v1;
+    v1.id = QStringLiteral("v1");
+    v1.name = QStringLiteral("V1");
+    v1.type = drift::TrackType::Video;
+
+    auto makeVideoClip = [](const QString &id, drift::TimeUs start) {
+        drift::Clip c;
+        c.id = id;
+        c.type = drift::ClipType::Video;
+        c.timelineStart = start;
+        c.timelineDuration = 4 * drift::kUsPerSecond;
+        c.srcIn = 0;
+        c.srcOut = 4 * drift::kUsPerSecond;
+        return c;
+    };
+
+    drift::Clip src = makeVideoClip(QStringLiteral("src"), 0);
+    drift::Effect grade;
+    grade.catalogId = QStringLiteral("color.grade");
+    grade.parameters.insert(QStringLiteral("exposure"), 0.5);
+    drift::Effect sharpen;
+    sharpen.catalogId = QStringLiteral("stylize.sharpen");
+    src.effects.append(grade);
+    src.effects.append(sharpen);
+    src.velocityEnvelope.setEnabled(true);
+    src.velocityEnvelope.setPoints({{0.0, 1.0}, {1.0, 2.0}});
+    src.pitchSemitones = 3.0;
+    src.invertPhase = true;
+    src.loop = true;
+    src.blendMode = drift::BlendMode::Screen;
+
+    drift::Clip dst1 = makeVideoClip(QStringLiteral("dst1"), 4 * drift::kUsPerSecond);
+    drift::Clip dst2 = makeVideoClip(QStringLiteral("dst2"), 8 * drift::kUsPerSecond);
+
+    v1.clips.append(src);
+    v1.clips.append(dst1);
+    v1.clips.append(dst2);
+    state.project()->tracks().append(v1);
+
+    auto mediaTrackIndex = [&]() {
+        const auto &trks = state.project()->tracks();
+        for (int ti = 0; ti < trks.size(); ++ti) {
+            if (trks.at(ti).type == drift::TrackType::Video)
+                return ti;
+        }
+        return -1;
+    };
+
+    // Copy src clip
+    state.selectClip(0, 0);
+    state.copySelection();
+
+    const QVariantMap attrs = state.clipboardAttributes();
+    QVERIFY(attrs.value(QStringLiteral("hasClip")).toBool());
+    QVERIFY(attrs.value(QStringLiteral("hasColorGrade")).toBool());
+    QVERIFY(attrs.value(QStringLiteral("hasVelocity")).toBool());
+    QVERIFY(attrs.value(QStringLiteral("hasAudioSwitches")).toBool());
+    QVERIFY(attrs.value(QStringLiteral("hasEventSwitches")).toBool());
+
+    auto clipPair = [](int t, int c) {
+        return QVariantMap{{QStringLiteral("track"), t}, {QStringLiteral("clip"), c}};
+    };
+    state.setSelection({clipPair(0, 1), clipPair(0, 2)});
+    state.pasteAttributes({
+        {QStringLiteral("colorGrade"), true},
+        {QStringLiteral("velocity"), true},
+        {QStringLiteral("audioSwitches"), true},
+        {QStringLiteral("eventSwitches"), true},
+        {QStringLiteral("replaceEffects"), true},
+    });
+
+    for (int ci : {1, 2}) {
+        const drift::Clip &c = mediaClip(*state.project(), 0, ci);
+        const QList<drift::Effect> fxs = videoEffectsOf(*state.project(), c);
+        QCOMPARE(fxs.size(), 1);
+        QCOMPARE(fxs.at(0).catalogId, QStringLiteral("color.grade"));
+        QVERIFY(c.velocityEnvelope.enabled());
+        QCOMPARE(c.pitchSemitones, 3.0);
+        QVERIFY(c.invertPhase);
+        QVERIFY(c.loop);
+        QCOMPARE(c.blendMode, drift::BlendMode::Screen);
+    }
+
+    state.undo();
+    for (int ci : {1, 2}) {
+        const drift::Clip &c = mediaClip(*state.project(), 0, ci);
+        QVERIFY(videoEffectsOf(*state.project(), c).isEmpty());
+        QVERIFY(!c.velocityEnvelope.enabled());
+        QCOMPARE(c.pitchSemitones, 0.0);
+        QVERIFY(!c.invertPhase);
+        QVERIFY(!c.loop);
+        QCOMPARE(c.blendMode, drift::BlendMode::Normal);
+    }
+
+    // Batch FX chain preset application onto selected clips
+    const int mt = mediaTrackIndex();
+    QVERIFY(mt >= 0);
+    const QString presetId = state.saveClipEffectsAsPreset(mt, 0, QStringLiteral("TestChain"));
+    QVERIFY(!presetId.isEmpty());
+    state.setSelection({clipPair(mt, 1), clipPair(mt, 2)});
+    QCOMPARE(state.applyEffectPresetToSelection(presetId, true), 2);
+    for (int ci : {1, 2})
+        QCOMPARE(videoEffectsOf(*state.project(), mediaClip(*state.project(), 0, ci)).size(), 2);
+    state.undo();
+    for (int ci : {1, 2})
+        QVERIFY(videoEffectsOf(*state.project(), mediaClip(*state.project(), 0, ci)).isEmpty());
+
+    QVERIFY(state.deleteUserEffectPreset(presetId));
+    QFile::remove(drift::EffectStackStore::storePath());
+    drift::EffectStackStore::instance().reload();
+    QCoreApplication::setOrganizationName(org);
+    QCoreApplication::setApplicationName(app);
+    QStandardPaths::setTestModeEnabled(false);
 }
 
 QTEST_MAIN(EditorStateTest)

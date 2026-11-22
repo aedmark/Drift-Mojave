@@ -637,11 +637,31 @@ ThemedContextMenu {
                                                            owner.clipIndex)
     }
     ThemedMenuItem {
+        text: qsTr("Paste Event Attributes…")
+        icon.name: Theme.icons.clipboardPaste
+        visible: !owner.isTransformClip && EditorState.canPasteAttributes()
+        onTriggered: EditorState.requestPasteAttributes()
+    }
+    ThemedMenuItem {
         text: qsTr("Save effects as preset…")
         icon.name: Theme.icons.save
         visible: owner.hasAnyEffects
         onTriggered: owner.panel.requestSaveEffectPreset(owner.trackIndex,
                                                              owner.clipIndex)
+    }
+    ThemedContextMenu {
+        title: qsTr("Apply FX Chain Preset")
+        icon.name: Theme.icons.sparkles
+        visible: !owner.isTransformClip && EditorState.userEffectPresets().length > 0
+
+        Repeater {
+            model: EditorState.userEffectPresets()
+            ThemedMenuItem {
+                required property var modelData
+                text: modelData.label
+                onTriggered: EditorState.applyEffectPresetToSelection(modelData.id, false)
+            }
+        }
     }
     ThemedMenuItem {
         text: qsTr("Color grade…")

@@ -51,4 +51,28 @@ Column {
         enabled: (dialog.clipAttrs.effectCount || 0) > 0
         onToggled: dialog.pasteEffects = checked
     }
+
+    ThemedCheckBox {
+        width: parent.width
+        text: qsTr("Color Grade only")
+        checked: dialog.pasteColorGrade
+        enabled: dialog.clipAttrs.hasColorGrade === true && !dialog.pasteEffects
+        onToggled: dialog.pasteColorGrade = checked
+    }
+
+    ThemedCheckBox {
+        width: parent.width
+        text: qsTr("Velocity Envelope")
+        checked: dialog.pasteVelocity
+        enabled: dialog.clipAttrs.hasVelocity === true
+        onToggled: dialog.pasteVelocity = checked
+    }
+
+    ThemedCheckBox {
+        width: parent.width
+        text: qsTr("Event Switches (mute, lock, loop, blend mode)")
+        checked: dialog.pasteEventSwitches
+        enabled: dialog.clipAttrs.hasClip === true
+        onToggled: dialog.pasteEventSwitches = checked
+    }
 }
