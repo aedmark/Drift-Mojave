@@ -123,7 +123,7 @@ Status: **Shipped in `v1.4.0`**
 
 ## Tier 7 — Broadcast Timing, Auto-Sync, Event Attributes & Finishing Workflows (`v1.5.0`)
 
-Status: **Implemented on main (7A–7E)**
+Status: **Shipped in `v1.5.0`**
 
 1. **Tier 7A — True Fractional Frame Rates & Broadcast Timecode (`23.976` / `29.97` / `59.94`)** — ✅ Implemented on `main`
    - Rational project frame rate (`fpsNum`/`fpsDen`) across `Project`, `.veg`/OTIO/EDL/Kdenlive/Resolve interchange, `Exporter`, `BakeWriter`, `PlaybackEngine`, and timeline quantization, plus SMPTE Drop-Frame (`;`) / Non-Drop-Frame (`:`) timecode formatting and project setup presets.

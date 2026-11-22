@@ -89,6 +89,20 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.5.0" date="2026-11-22">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.5.0</url>
+      <description>
+        <p>Drift Mojave 1.5.0 delivers VEGAS Parity Tier 7 alongside AVCHD/MXF/VEGAS interchange accuracy fixes: true fractional frame rates (23.976/29.97/59.94) with SMPTE Drop-Frame timecode, multi-clip audio waveform auto-sync, selective Paste Event Attributes and batch FX chains, VEGAS Track Channel Strip presets and Dialogue Auto-Ducking, plus collapsible Track Folders, Batch Render Queue, and Workspace Quick-Recall.</p>
+        <ul>
+          <li>True fractional frame rates (24000/1001, 30000/1001, 60000/1001) and SMPTE Drop-Frame (;) / Non-Drop-Frame (:) timecode across project setup, interchange, export, and playback</li>
+          <li>Multi-clip audio waveform auto-sync (2+ clips) with negative-start shift protection, optional auto-grouping, and camera scratch-audio muting</li>
+          <li>Selective Paste Event Attributes (Color Grade only, Velocity Envelopes, Audio Switches &amp; Pitch, Event Switches) and batch Apply FX Chain Preset</li>
+          <li>One-click VEGAS Track Channel Strip presets (Gate + EQ + Compressor) and automatic Dialogue Auto-Ducking writing editable volume-envelope keyframes</li>
+          <li>Collapsible Track Folders/Groups, sequential Batch Render Queue in Export, and Workspace Layout quick-recall</li>
+          <li>AVCHD / MPEG-TS stream start_time normalization in ProRes transcoding, VEGAS playbackRate &amp; active take parsing, broadcast 4:2:2 MXF &amp; dual-mono PCM pairing, and VEGAS Levels to color.grade mapping</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.4.0" date="2026-11-21">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.4.0</url>
       <description>
