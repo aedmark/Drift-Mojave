@@ -27570,6 +27570,10 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Close</source>
+        <translation type="unfinished">Đóng</translation>
+    </message>
+    <message>
         <source>Search clips, markers, regions, or tracks…</source>
         <translation type="unfinished"></translation>
     </message>

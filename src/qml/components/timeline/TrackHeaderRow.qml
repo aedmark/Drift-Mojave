@@ -454,9 +454,9 @@ Item {
         height: 18
         width: folderBadgeLabel.implicitWidth + 12
         radius: 4
-        color: folderBadgeMouse.containsMouse ? Theme.c.accentMuted : Theme.c.surfaceRaised
+        color: folderBadgeMouse.containsMouse ? Theme.popoverHover : Theme.panelSecondaryBg
         border.width: 1
-        border.color: Theme.c.borderSubtle
+        border.color: Theme.border
 
         Text {
             id: folderBadgeLabel
@@ -466,7 +466,7 @@ Item {
                   + " (" + folderBadge.folderCount + ")"
             font.pixelSize: 10
             font.weight: Font.Medium
-            color: Theme.c.textPrimary
+            color: Theme.foreground
         }
 
         MouseArea {

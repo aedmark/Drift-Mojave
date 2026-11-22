@@ -27662,6 +27662,10 @@ Se a reprodução engasgar, experimente outro.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Close</source>
+        <translation type="unfinished">Fechar</translation>
+    </message>
+    <message>
         <source>Search clips, markers, regions, or tracks…</source>
         <translation type="unfinished"></translation>
     </message>

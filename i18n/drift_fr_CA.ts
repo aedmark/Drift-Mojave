@@ -27664,6 +27664,10 @@ En cas de saccades à la lecture, essayez un autre mode.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Close</source>
+        <translation type="unfinished">Fermer</translation>
+    </message>
+    <message>
         <source>Search clips, markers, regions, or tracks…</source>
         <translation type="unfinished"></translation>
     </message>

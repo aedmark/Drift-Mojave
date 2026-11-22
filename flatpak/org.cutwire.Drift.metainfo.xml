@@ -89,6 +89,19 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.6.0" date="2026-11-22">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.6.0</url>
+      <description>
+        <p>Drift Mojave 1.6.0 delivers VEGAS Parity Tier 8: Visual Track Folders UI with folder Mute/Solo and Timeline Find &amp; Jump, Reference Still Gallery and Split-Screen A/B Wipe controls, Smart Scene Cut Detection and configurable Silence Trimmer presets, Persistent Batch Render Queue with curated Delivery Presets and embedded FFmpeg/YouTube Chapters, plus a post-import .veg Summary Report with one-click missing-media relink and lightweight timestamped .drift milestone snapshots.</p>
+        <ul>
+          <li>Visual Track Folders UI (collapse hides child tracks, clickable folder header chip, folder-level Mute/Solo) and live Timeline Find &amp; Jump dialog across clips, markers, regions, and tracks</li>
+          <li>Reference Still Gallery (grab, import, select, export, remove stills) and Split-Screen A/B Wipe FX bypass controls in Preview Options</li>
+          <li>One-click Scene Cut Detection mark/split actions and configurable Silence Trimmer presets (Standard, Tight Dialogue, Gentle/Natural)</li>
+          <li>Persistent QSettings-backed Batch Render Queue, 5 curated Delivery Presets (YouTube 4K/1080p, ProRes 422 HQ, Archival FFV1, Podcast WAV), FFmpeg AVChapter embedding, and Copy YouTube Chapters</li>
+          <li>Post-import .veg Summary Report dialog with recursive missing-media folder relink and lightweight timestamped .drift milestone snapshots</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.5.0" date="2026-11-22">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.5.0</url>
       <description>

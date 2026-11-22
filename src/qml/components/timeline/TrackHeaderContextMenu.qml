@@ -34,6 +34,7 @@ ThemedContextMenu {
         onTriggered: EditorState.setTrackLanesCollapsed(header.index, !header.lanesCollapsed)
     }
     ThemedContextMenu {
+        id: folderMenu
         title: qsTr("Track Folder")
         icon.name: Theme.icons.folder
         readonly property string curFolder: (column.tracks[header.index] && column.tracks[header.index].folderName) || ""
@@ -44,30 +45,30 @@ ThemedContextMenu {
             delegate: ThemedMenuItem {
                 required property string modelData
                 text: modelData
-                checked: parent.curFolder === modelData
+                checked: folderMenu.curFolder === modelData
                 onTriggered: EditorState.setTrackFolder(header.index, modelData)
             }
         }
-        ThemedMenuSeparator { visible: parent.curFolder.length > 0 }
+        ThemedMenuSeparator { visible: folderMenu.curFolder.length > 0 }
         ThemedMenuItem {
-            visible: parent.curFolder.length > 0
-            text: parent.curCollapsed ? qsTr("Expand Folder") : qsTr("Collapse Folder")
-            onTriggered: EditorState.setTrackFolderCollapsed(parent.curFolder, !parent.curCollapsed)
+            visible: folderMenu.curFolder.length > 0
+            text: folderMenu.curCollapsed ? qsTr("Expand Folder") : qsTr("Collapse Folder")
+            onTriggered: EditorState.setTrackFolderCollapsed(folderMenu.curFolder, !folderMenu.curCollapsed)
         }
         ThemedMenuItem {
-            visible: parent.curFolder.length > 0
-            readonly property bool folderMuted: visible && EditorState.isTrackFolderMuted(parent.curFolder)
+            visible: folderMenu.curFolder.length > 0
+            readonly property bool folderMuted: visible && EditorState.isTrackFolderMuted(folderMenu.curFolder)
             text: folderMuted ? qsTr("Unmute Folder") : qsTr("Mute Folder")
-            onTriggered: EditorState.setTrackFolderMuted(parent.curFolder, !folderMuted)
+            onTriggered: EditorState.setTrackFolderMuted(folderMenu.curFolder, !folderMuted)
         }
         ThemedMenuItem {
-            visible: parent.curFolder.length > 0
-            readonly property bool folderSolo: visible && EditorState.isTrackFolderSolo(parent.curFolder)
+            visible: folderMenu.curFolder.length > 0
+            readonly property bool folderSolo: visible && EditorState.isTrackFolderSolo(folderMenu.curFolder)
             text: folderSolo ? qsTr("Unsolo Folder") : qsTr("Solo Folder")
-            onTriggered: EditorState.setTrackFolderSolo(parent.curFolder, !folderSolo)
+            onTriggered: EditorState.setTrackFolderSolo(folderMenu.curFolder, !folderSolo)
         }
         ThemedMenuItem {
-            visible: parent.curFolder.length > 0
+            visible: folderMenu.curFolder.length > 0
             text: qsTr("Remove from Folder")
             onTriggered: EditorState.setTrackFolder(header.index, "")
         }

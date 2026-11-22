@@ -27754,6 +27754,10 @@ Jeśli odtwarzanie się zacina, spróbuj innego.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Close</source>
+        <translation type="unfinished">Zamknij</translation>
+    </message>
+    <message>
         <source>Search clips, markers, regions, or tracks…</source>
         <translation type="unfinished"></translation>
     </message>

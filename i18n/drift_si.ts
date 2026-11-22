@@ -27661,6 +27661,10 @@ If playback stutters, try another.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Close</source>
+        <translation type="unfinished">වසන්න</translation>
+    </message>
+    <message>
         <source>Search clips, markers, regions, or tracks…</source>
         <translation type="unfinished"></translation>
     </message>

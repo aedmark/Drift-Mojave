@@ -140,7 +140,7 @@ Status: **Shipped in `v1.5.0`**
 
 ## Tier 8 — Visual Track Folders, Color Wipe, Smart Cut Detection, Delivery & Project Snapshots (`v1.6.0`)
 
-Status: **Implemented on `main` (`8A–8E`)**
+Status: **Shipped in `v1.6.0`**
 
 1. **Tier 8A — Visual Track Folders UI, Folder Mute/Solo & Timeline Find/Jump** — ✅ Implemented on `main`
    - Collapsing a Track Folder hides child tracks (`trackRowHeight == 0`), adds a clickable folder header chip (`▸`/`▾` + track count) on the first track in each folder, adds folder-level Mute/Solo in `TrackHeaderContextMenu`, and adds a live Timeline Find & Jump (`searchTimeline` / `jumpToTimelineMatch`) dialog in `TimelineToolbar` across clips, markers, regions, and tracks.

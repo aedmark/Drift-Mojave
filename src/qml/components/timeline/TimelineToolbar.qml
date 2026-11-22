@@ -369,7 +369,8 @@ Item {
         title: qsTr("Find on Timeline")
         width: 420
         modal: false
-        standardButtons: Dialog.Close
+        showAccept: false
+        rejectText: qsTr("Close")
 
         property var matches: []
 
