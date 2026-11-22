@@ -665,7 +665,9 @@ Item {
         anchors.leftMargin: Theme.pagePadding
         anchors.rightMargin: Theme.pagePadding
         visible: EditorState.bin.editing && EditorState.bin.editIsConversion
-        label: qsTr("Converting %1 to an edit-friendly format").arg(EditorState.bin.editName)
+        label: EditorState.bin.editStatus.length > 0
+               ? EditorState.bin.editStatus
+               : qsTr("Converting %1 to an edit-friendly format").arg(EditorState.bin.editName)
         progress: EditorState.bin.editProgress
         cancelTooltip: qsTr("Stop converting")
         onCancelRequested: EditorState.bin.cancelEdit()

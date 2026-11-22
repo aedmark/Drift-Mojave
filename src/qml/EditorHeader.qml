@@ -498,6 +498,54 @@ Item {
 
             EditorHeaderSeparator {}
 
+            Rectangle {
+                id: transcodeProgressBadge
+                visible: EditorState.bin.editing && EditorState.bin.editIsConversion
+                anchors.verticalCenter: parent.verticalCenter
+                height: Theme.iconButtonSize
+                width: transcodeBadgeRow.implicitWidth + Theme.spacingMd * 2
+                radius: Theme.c.editorHeaderExportBadge.radius
+                color: transcodeBadgeMouse.containsMouse ? Theme.c.editorHeaderExportBadge.backgroundHover : "transparent"
+
+                Row {
+                    id: transcodeBadgeRow
+                    anchors.centerIn: parent
+                    spacing: Theme.spacingXs
+
+                    CircularProgress {
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: Theme.iconSizeMd
+                        strokeWidth: 2.5
+                        value: EditorState.bin.editProgress
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("ProRes %1%").arg(Math.round(EditorState.bin.editProgress * 100))
+                        color: Theme.foreground
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeXs
+                        font.weight: Font.Medium
+                    }
+                }
+
+                ThemedToolTip {
+                    visible: transcodeBadgeMouse.containsMouse
+                    text: (EditorState.bin.editStatus.length > 0
+                           ? EditorState.bin.editStatus
+                           : qsTr("Transcoding to Apple ProRes 422 (%1%)").arg(Math.round(EditorState.bin.editProgress * 100)))
+                          + qsTr(" — click to view")
+                }
+
+                MouseArea {
+                    id: transcodeBadgeMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: ShellBridge.main.openTranscodeProgress()
+                }
+            }
+
             EditorHeaderExportBadge {
                 dismissed: root.exportProgressDismissed
                 onReopenRequested: {

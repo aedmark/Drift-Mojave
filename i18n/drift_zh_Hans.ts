@@ -9632,6 +9632,18 @@
         <source>Agent access</source>
         <translation>Agent 访问</translation>
     </message>
+    <message>
+        <source>ProRes %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transcoding to Apple ProRes 422 (%1%)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> — click to view</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>EditorHeaderDownloadsButton</name>
@@ -15648,6 +15660,14 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation type="unfinished">
             <numerusform></numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Transcoding to Apple ProRes 422 (%1 of %2 complete)…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transcoding %1 to Apple ProRes 422 (%2 of %3)…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Transcode to Apple ProRes 422</source>
@@ -29950,11 +29970,23 @@ If playback stutters, try another.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Cancel transcode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Convert to ProRes 422</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Keep Original Media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transcoding to Apple ProRes 422</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transcoding to Apple ProRes 422…</source>
         <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
@@ -29964,9 +29996,21 @@ If playback stutters, try another.</source>
         </translation>
     </message>
     <message>
+        <source>%1 — You can hide this dialog to keep editing while transcoding runs in the background.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You can hide this dialog to keep editing while transcoding runs in the background.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Drift Mojave works best with edit-friendly intraframe codecs. Converting these clips to Apple ProRes 422 now ensures smooth timeline playback, responsive frame-accurate scrubbing, and prevents audio sync drift.
 
 Transcoding runs in the background using multi-threaded FFmpeg without modifying your original media files.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Run in background</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

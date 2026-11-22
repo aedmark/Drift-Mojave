@@ -10,6 +10,7 @@
 #include "engine/decode/probe/MediaProbe.h"
 
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QFutureWatcher>
@@ -17,6 +18,7 @@
 #include <QMutexLocker>
 #include <QSet>
 #include <QThreadPool>
+#include <QVector>
 #include <QtConcurrent>
 
 #include <cmath>
@@ -1056,27 +1058,42 @@ void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl
         struct SharedResult {
             QMutex mutex;
             QHash<QString, QString> remap;
+            QVector<double> clipProgress;
+            QElapsedTimer lastUiUpdate;
             QAtomicInt completed = 0;
             QAtomicInt failed = 0;
         } result;
+        result.clipProgress = QVector<double>(total, 0.0);
+        result.lastUiUpdate.start();
 
-        for (const TranscodeItem &item : items) {
-            pool.start([this, item, &result, total]() {
+        for (int idx = 0; idx < total; ++idx) {
+            const TranscodeItem item = items.at(idx);
+            pool.start([this, idx, item, &result, total]() {
                 if (m_editCancel.loadRelaxed() != 0)
                     return;
 
                 if (item.alreadyExists) {
+                    double frac = 0.0;
                     {
                         QMutexLocker locker(&result.mutex);
                         result.remap.insert(item.inputPath, item.outputPath);
+                        result.clipProgress[idx] = 1.0;
+                        double sum = 0.0;
+                        for (double v : result.clipProgress)
+                            sum += v;
+                        frac = sum / double(total);
                     }
                     const int done = ++result.completed;
-                    const double frac = double(done) / double(total);
                     QMetaObject::invokeMethod(
                         this,
                         [this, frac, done, total, name = item.name]() {
+                            if (!m_editing)
+                                return;
                             m_editProgress = frac;
                             m_editKeepName = QStringLiteral("%1 (%2/%3)").arg(name).arg(done).arg(total);
+                            m_editStatus = tr("Transcoding to Apple ProRes 422 (%1 of %2 complete)…")
+                                               .arg(done)
+                                               .arg(total);
                             emit editChanged();
                             emit proresTranscodeProgress(done, total, frac);
                         },
@@ -1094,24 +1111,69 @@ void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl
                 spec.output.videoCodec = QStringLiteral("prores");
 
                 QString transcodeError;
-                const bool ok = drift::editMedia(spec, &transcodeError, [this](double) {
-                    return m_editCancel.loadRelaxed() == 0;
+                const bool ok = drift::editMedia(spec, &transcodeError, [this, idx, &result, total, name = item.name](double clipFrac) {
+                    if (m_editCancel.loadRelaxed() != 0)
+                        return false;
+                    bool shouldEmit = false;
+                    double frac = 0.0;
+                    {
+                        QMutexLocker locker(&result.mutex);
+                        result.clipProgress[idx] = std::clamp(clipFrac, 0.0, 0.999);
+                        if (!result.lastUiUpdate.isValid() || result.lastUiUpdate.elapsed() >= 75) {
+                            result.lastUiUpdate.restart();
+                            double sum = 0.0;
+                            for (double v : result.clipProgress)
+                                sum += v;
+                            frac = sum / double(total);
+                            shouldEmit = true;
+                        }
+                    }
+                    if (shouldEmit) {
+                        const int activeNum = qMin(result.completed.loadRelaxed() + 1, total);
+                        QMetaObject::invokeMethod(
+                            this,
+                            [this, frac, activeNum, total, name]() {
+                                if (!m_editing)
+                                    return;
+                                m_editProgress = frac;
+                                m_editKeepName = QStringLiteral("%1 (%2/%3)").arg(name).arg(activeNum).arg(total);
+                                m_editStatus = tr("Transcoding %1 to Apple ProRes 422 (%2 of %3)…")
+                                                   .arg(name)
+                                                   .arg(activeNum)
+                                                   .arg(total);
+                                emit editChanged();
+                            },
+                            Qt::QueuedConnection);
+                    }
+                    return true;
                 });
 
-                if (ok && QFile::exists(item.outputPath) && QFileInfo(item.outputPath).size() > 0) {
+                double frac = 0.0;
+                {
                     QMutexLocker locker(&result.mutex);
-                    result.remap.insert(item.inputPath, item.outputPath);
-                } else {
-                    ++result.failed;
+                    if (ok && QFile::exists(item.outputPath) && QFileInfo(item.outputPath).size() > 0) {
+                        result.remap.insert(item.inputPath, item.outputPath);
+                    } else {
+                        ++result.failed;
+                    }
+                    result.clipProgress[idx] = 1.0;
+                    double sum = 0.0;
+                    for (double v : result.clipProgress)
+                        sum += v;
+                    frac = sum / double(total);
                 }
 
                 const int done = ++result.completed;
-                const double frac = double(done) / double(total);
                 QMetaObject::invokeMethod(
                     this,
                     [this, frac, done, total, name = item.name]() {
+                        if (!m_editing)
+                            return;
                         m_editProgress = frac;
                         m_editKeepName = QStringLiteral("%1 (%2/%3)").arg(name).arg(done).arg(total);
+                        m_editStatus = tr("Transcoding to Apple ProRes 422 (%1 of %2 complete)…")
+                                           .arg(done)
+                                           .arg(total);
                         emit editChanged();
                         emit proresTranscodeProgress(done, total, frac);
                     },

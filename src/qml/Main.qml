@@ -522,10 +522,27 @@ ApplicationWindow {
         }
     }
 
+    property bool _wasConverting: false
+
+    function openTranscodeProgress() {
+        vegasTranscodeDialogLoader.ensure().openProgress()
+    }
+
     LazyLoader {
         id: vegasTranscodeDialogLoader
         sourceComponent: Component {
             VegasTranscodeDialog { }
+        }
+    }
+
+    Connections {
+        target: EditorState.bin
+
+        function onEditChanged() {
+            const active = EditorState.bin.editing && EditorState.bin.editIsConversion
+            if (active && !window._wasConverting)
+                vegasTranscodeDialogLoader.ensure().openProgress()
+            window._wasConverting = active
         }
     }
 
