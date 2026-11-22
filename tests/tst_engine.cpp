@@ -606,6 +606,7 @@ private slots:
     void smartRenderIdentifiesUnmodifiedProRes422();
     void tier5SmartRenderPassThroughAndLoudnessNormalization();
     void compositorRespectsVideoTrackSoloAndMxfDecode();
+    void mxfConvertsToProResAndEditFriendly();
 
 private:
     static QString makeColorSegmentsVideo(QTemporaryDir &dir);
@@ -20555,6 +20556,45 @@ void EngineTest::compositorRespectsVideoTrackSoloAndMxfDecode()
             maxAbs = std::max(maxAbs, std::abs(s));
         QVERIFY(maxAbs > 1e-4f);
     }
+}
+
+void EngineTest::mxfConvertsToProResAndEditFriendly()
+{
+    const QString mxf422 = QStringLiteral("/mnt/Jellyfish/Videos/Odds/Episode 5 & 6/Episode 6/Episode 6 Transition 1.mxf");
+    const QString mxf420 = QStringLiteral("/mnt/Jellyfish/Videos/Odds/Episode 5 & 6/Final/5.1.1c Final.mxf");
+    if (!QFileInfo::exists(mxf422) && !QFileInfo::exists(mxf420))
+        QSKIP("Real MXF test files not present");
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    auto runCase = [&](const QString &label, const QString &inPath, const QString &outName,
+                       const QString &container, const QString &codec, double outSeconds) {
+        if (!QFileInfo::exists(inPath))
+            return;
+        drift::MediaEditSpec spec;
+        spec.inputPath = inPath;
+        spec.outputPath = dir.filePath(outName);
+        spec.kind = QStringLiteral("video");
+        spec.conformFrameRate = true;
+        spec.outSeconds = outSeconds;
+        spec.output.container = container;
+        spec.output.videoCodec = codec;
+        QString err;
+        const bool ok = drift::editMedia(spec, &err, {});
+        qDebug() << label << "ok=" << ok << "err=" << err << "size=" << QFileInfo(spec.outputPath).size();
+        QVERIFY2(ok, qPrintable(QStringLiteral("%1 failed: %2").arg(label, err)));
+        QVERIFY(QFileInfo(spec.outputPath).size() > 0);
+    };
+
+    runCase(QStringLiteral("422->prores"), mxf422, QStringLiteral("422_prores.mov"),
+            QStringLiteral("mov"), QStringLiteral("prores"), -1.0);
+    runCase(QStringLiteral("422->h264"), mxf422, QStringLiteral("422_h264.mp4"),
+            QString(), QString(), -1.0);
+    runCase(QStringLiteral("420->prores"), mxf420, QStringLiteral("420_prores.mov"),
+            QStringLiteral("mov"), QStringLiteral("prores"), 2.0);
+    runCase(QStringLiteral("420->h264"), mxf420, QStringLiteral("420_h264.mp4"),
+            QString(), QString(), 2.0);
 }
 
 #include "tst_engine.moc"

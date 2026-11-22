@@ -1521,36 +1521,88 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
     }
     AVFormatContext *aFmt = extFmt ? extFmt : fmt;
     const int aIndex = extFmt ? extIndex : audioIndex;
+    int aIndexRight = -1;
+    AVCodecContext *aDecRight = nullptr;
+    SwrContext *swrRight = nullptr;
+    if (!extFmt && aIndex >= 0) {
+        const AVCodecParameters *lpar = aFmt->streams[aIndex]->codecpar;
+        if (av_get_bits_per_sample(lpar->codec_id) > 0 && lpar->ch_layout.nb_channels == 1) {
+            for (unsigned i = static_cast<unsigned>(aIndex) + 1; i < aFmt->nb_streams; ++i) {
+                const AVCodecParameters *rpar = aFmt->streams[i]->codecpar;
+                if (rpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                    if (rpar->ch_layout.nb_channels == 1 && rpar->codec_id == lpar->codec_id
+                        && rpar->sample_rate == lpar->sample_rate) {
+                        aIndexRight = static_cast<int>(i);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    auto initResampler = [](SwrContext *&ctxSwr, AVCodecContext *dec, int outChannels) -> bool {
+        AVChannelLayout outLayout = (outChannels == 1) ? AVChannelLayout(AV_CHANNEL_LAYOUT_MONO)
+                                                       : AVChannelLayout(AV_CHANNEL_LAYOUT_STEREO);
+        AVChannelLayout inLayout{};
+        const AVChannelLayout *inLayoutPtr = &dec->ch_layout;
+        if (dec->ch_layout.order == AV_CHANNEL_ORDER_UNSPEC && dec->ch_layout.nb_channels > 0) {
+            av_channel_layout_default(&inLayout, dec->ch_layout.nb_channels);
+            inLayoutPtr = &inLayout;
+        }
+        const int rc = swr_alloc_set_opts2(&ctxSwr, &outLayout, AV_SAMPLE_FMT_FLT, 48000,
+                                           inLayoutPtr, static_cast<AVSampleFormat>(dec->sample_fmt),
+                                           dec->sample_rate, 0, nullptr);
+        av_channel_layout_uninit(&inLayout);
+        if (rc < 0 || swr_init(ctxSwr) < 0) {
+            if (ctxSwr)
+                swr_free(&ctxSwr);
+            return false;
+        }
+        return true;
+    };
+
     if (aIndex >= 0) {
         AVStream *aStream = aFmt->streams[aIndex];
         const AVCodec *aDecCodec = avcodec_find_decoder(aStream->codecpar->codec_id);
         aDec = aDecCodec ? avcodec_alloc_context3(aDecCodec) : nullptr;
         if (aDec && avcodec_parameters_to_context(aDec, aStream->codecpar) == 0
             && avcodec_open2(aDec, aDecCodec, nullptr) == 0) {
-            AVChannelLayout outLayout = AV_CHANNEL_LAYOUT_STEREO;
-            AVChannelLayout inLayout{};
-            const AVChannelLayout *inLayoutPtr = &aDec->ch_layout;
-            if (aDec->ch_layout.order == AV_CHANNEL_ORDER_UNSPEC && aDec->ch_layout.nb_channels > 0) {
-                av_channel_layout_default(&inLayout, aDec->ch_layout.nb_channels);
-                inLayoutPtr = &inLayout;
+            if (aIndexRight >= 0) {
+                AVStream *rStream = aFmt->streams[aIndexRight];
+                const AVCodec *rCodec = avcodec_find_decoder(rStream->codecpar->codec_id);
+                aDecRight = rCodec ? avcodec_alloc_context3(rCodec) : nullptr;
+                if (!aDecRight || avcodec_parameters_to_context(aDecRight, rStream->codecpar) < 0
+                    || avcodec_open2(aDecRight, rCodec, nullptr) < 0
+                    || !initResampler(swrRight, aDecRight, 1)) {
+                    if (swrRight)
+                        swr_free(&swrRight);
+                    if (aDecRight)
+                        avcodec_free_context(&aDecRight);
+                    aIndexRight = -1;
+                }
             }
-            const int swrAllocRc = swr_alloc_set_opts2(&swr, &outLayout, AV_SAMPLE_FMT_FLT, 48000,
-                                                       inLayoutPtr, static_cast<AVSampleFormat>(aDec->sample_fmt),
-                                                       aDec->sample_rate, 0, nullptr);
-            av_channel_layout_uninit(&inLayout);
-            if (swrAllocRc < 0 || swr_init(swr) < 0) {
-                if (swr)
-                    swr_free(&swr);
+            const bool dualMono = (aDecRight != nullptr && swrRight != nullptr);
+            if (!initResampler(swr, aDec, dualMono ? 1 : 2)) {
+                if (swrRight)
+                    swr_free(&swrRight);
+                if (aDecRight)
+                    avcodec_free_context(&aDecRight);
+                aIndexRight = -1;
                 avcodec_free_context(&aDec);
                 aDec = nullptr;
             }
         } else if (aDec) {
             avcodec_free_context(&aDec);
             aDec = nullptr;
+            aIndexRight = -1;
         }
     }
     AudioProcessor audioProcessor;
     if (aDec && !audioProcessor.open(48000, AudioProcessor::chainFor(spec, 48000))) {
+        if (swrRight)
+            swr_free(&swrRight);
+        if (aDecRight)
+            avcodec_free_context(&aDecRight);
         if (swr)
             swr_free(&swr);
         avcodec_free_context(&aDec);
@@ -1595,6 +1647,10 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
         if (!buildFilterGraph(vDec, vStream, chain.join(QLatin1Char(',')), spec.videoFilterOptions,
                               &graph, &filterSrc, &filterSink)) {
             avformat_close_input(&extFmt);
+            if (swrRight)
+                swr_free(&swrRight);
+            if (aDecRight)
+                avcodec_free_context(&aDecRight);
             if (swr)
                 swr_free(&swr);
             if (aDec)
@@ -1615,6 +1671,8 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
         avcodec_flush_buffers(vDec);
         if (aDec)
             avcodec_flush_buffers(aDec);
+        if (aDecRight)
+            avcodec_flush_buffers(aDecRight);
     }
 
     AVPacket *packet = av_packet_alloc();
@@ -1626,6 +1684,8 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
     TimeUs lastVideoUs = 0;
     TimeUs extDecodedUs = 0;
     std::vector<float> pcm;
+    std::vector<float> dualLeftPcm;
+    std::vector<float> dualRightPcm;
     // Audio decoded before the first filtered video frame opens the writer.
     std::vector<float> pendingPcm;
     bool ok = packet && frame && filtered && (hooked || !spec.frameHook)
@@ -1653,6 +1713,10 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
         av_frame_free(&frame);
         av_packet_free(&packet);
         avfilter_graph_free(&graph);
+        if (swrRight)
+            swr_free(&swrRight);
+        if (aDecRight)
+            avcodec_free_context(&aDecRight);
         if (swr)
             swr_free(&swr);
         if (aDec)
@@ -1794,21 +1858,39 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
         return true;
     };
 
-    auto handleAudio = [&](AVFrame *decoded) -> bool {
-        if (!aDec || !swr)
+    const bool dualMono = (aDecRight != nullptr && swrRight != nullptr);
+    auto flushDualMono = [&]() -> bool {
+        const size_t pairs = std::min(dualLeftPcm.size(), dualRightPcm.size());
+        if (pairs == 0)
             return true;
-        AVStream *aStream = aFmt->streams[aIndex];
+        pcm.resize(pairs * 2);
+        for (size_t i = 0; i < pairs; ++i) {
+            pcm[i * 2] = dualLeftPcm[i];
+            pcm[i * 2 + 1] = dualRightPcm[i];
+        }
+        dualLeftPcm.erase(dualLeftPcm.begin(), dualLeftPcm.begin() + static_cast<ptrdiff_t>(pairs));
+        dualRightPcm.erase(dualRightPcm.begin(), dualRightPcm.begin() + static_cast<ptrdiff_t>(pairs));
+        return writeAudio(pcm.data(), int(pairs));
+    };
+
+    auto handleAudioFor = [&](AVFrame *decoded, int streamIdx, SwrContext *ctxSwr,
+                              std::vector<float> *monoOut, bool markPastOut) -> bool {
+        if (!ctxSwr)
+            return true;
+        AVStream *aStream = aFmt->streams[streamIdx];
         const TimeUs ptsUs = framePtsUs(decoded, aStream->time_base);
         if (ptsUs + 20000 < audioInUs)
             return true;
         if (ptsUs >= audioOutUs) {
-            audioPastOut = true;
+            if (markPastOut)
+                audioPastOut = true;
             return true;
         }
-        const int maxOut = swr_get_out_samples(swr, decoded->nb_samples);
-        pcm.resize(std::max(0, maxOut) * 2);
+        const int outChannels = monoOut ? 1 : 2;
+        const int maxOut = swr_get_out_samples(ctxSwr, decoded->nb_samples);
+        pcm.resize(std::max(0, maxOut) * outChannels);
         uint8_t *outData[1] = {reinterpret_cast<uint8_t *>(pcm.data())};
-        const int converted = swr_convert(swr, outData, maxOut,
+        const int converted = swr_convert(ctxSwr, outData, maxOut,
                                           const_cast<const uint8_t **>(decoded->data),
                                           decoded->nb_samples);
         if (converted <= 0)
@@ -1831,7 +1913,17 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
         }
         if (count <= 0)
             return true;
+        if (monoOut) {
+            monoOut->insert(monoOut->end(), pcm.data() + offset, pcm.data() + offset + count);
+            return flushDualMono();
+        }
         return writeAudio(pcm.data() + offset * 2, count);
+    };
+
+    auto handleAudio = [&](AVFrame *decoded) -> bool {
+        if (!aDec || !swr)
+            return true;
+        return handleAudioFor(decoded, aIndex, swr, dualMono ? &dualLeftPcm : nullptr, true);
     };
 
 
@@ -1867,6 +1959,8 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
             dec = vDec;
         else if (aDec && !extFmt && packet->stream_index == audioIndex)
             dec = aDec;
+        else if (dualMono && packet->stream_index == aIndexRight)
+            dec = aDecRight;
         else {
             av_packet_unref(packet);
             continue;
@@ -1885,6 +1979,8 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
             }
             if (dec == vDec)
                 ok = handleVideo(frame);
+            else if (dec == aDecRight)
+                ok = handleAudioFor(frame, aIndexRight, swrRight, &dualRightPcm, false);
             else
                 ok = handleAudio(frame);
             av_frame_unref(frame);
@@ -1922,6 +2018,18 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
                 if (rc < 0)
                     break;
                 ok = handleAudio(frame);
+                av_frame_unref(frame);
+                if (!ok)
+                    break;
+            }
+        }
+        if (ok && dualMono) {
+            avcodec_send_packet(aDecRight, nullptr);
+            for (;;) {
+                const int rc = avcodec_receive_frame(aDecRight, frame);
+                if (rc < 0)
+                    break;
+                ok = handleAudioFor(frame, aIndexRight, swrRight, &dualRightPcm, false);
                 av_frame_unref(frame);
                 if (!ok)
                     break;

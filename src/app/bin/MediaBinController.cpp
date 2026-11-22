@@ -1060,6 +1060,7 @@ void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl
             QHash<QString, QString> remap;
             QVector<double> clipProgress;
             QElapsedTimer lastUiUpdate;
+            QString firstError;
             QAtomicInt completed = 0;
             QAtomicInt failed = 0;
         } result;
@@ -1155,6 +1156,10 @@ void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl
                         result.remap.insert(item.inputPath, item.outputPath);
                     } else {
                         ++result.failed;
+                        if (result.firstError.isEmpty() && !transcodeError.isEmpty())
+                            result.firstError = transcodeError;
+                        qWarning("ProRes transcode failed for %s: %s", qPrintable(item.inputPath),
+                                 qPrintable(transcodeError));
                     }
                     result.clipProgress[idx] = 1.0;
                     double sum = 0.0;
@@ -1186,10 +1191,11 @@ void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl
         const QHash<QString, QString> remap = result.remap;
         const int succeeded = int(remap.size());
         const int failed = result.failed.loadRelaxed();
+        const QString firstError = result.firstError;
 
         QMetaObject::invokeMethod(
             this,
-            [this, remap, succeeded, failed]() {
+            [this, remap, succeeded, failed, firstError]() {
                 m_editing = false;
                 m_editProgress = 1.0;
                 m_editKeepName.clear();
@@ -1198,7 +1204,7 @@ void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl
                 emit proresTranscodeFinished(succeeded, failed);
 
                 if (succeeded > 0) {
-                    relinkPaths(remap, tr("Transcode to Apple ProRes 422"));
+                    const bool relinked = relinkPaths(remap, tr("Transcode to Apple ProRes 422"));
                     for (auto it = remap.constBegin(); it != remap.constEnd(); ++it) {
                         const QString &newPath = it.value();
                         for (drift::MediaAsset &asset : m_app->m_project.assets()) {
@@ -1213,13 +1219,16 @@ void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl
                         m_app->m_assetLibrary->setProject(&m_app->m_project);
                     m_app->notifyTracksChanged();
 
-                    const QString message = tr("Transcoded %n clip(s) to Apple ProRes 422 and relinked", nullptr, succeeded);
-                    m_app->setLastMessage(message, QStringLiteral("success"));
+                    const QString message = relinked
+                        ? tr("Transcoded %n clip(s) to Apple ProRes 422 and relinked", nullptr, succeeded)
+                        : tr("Transcoded %n clip(s) to Apple ProRes 422, but could not relink (unlock locked tracks first)", nullptr, succeeded);
+                    m_app->setLastMessage(message, relinked ? QStringLiteral("success") : QStringLiteral("warning"));
                     emit editFinished(true, message);
                 } else {
                     const QString errorMsg = m_editCancel.loadRelaxed() != 0
                         ? tr("ProRes transcoding cancelled")
-                        : tr("ProRes transcoding failed");
+                        : (firstError.isEmpty() ? tr("ProRes transcoding failed")
+                                                : tr("ProRes transcoding failed: %1").arg(firstError));
                     m_app->setLastMessage(errorMsg, QStringLiteral("error"));
                     emit editFinished(false, errorMsg);
                 }
