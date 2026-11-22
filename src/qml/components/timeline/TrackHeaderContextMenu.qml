@@ -33,6 +33,33 @@ ThemedContextMenu {
         icon.name: header.lanesCollapsed ? Theme.icons.chevronDown : Theme.icons.chevronUp
         onTriggered: EditorState.setTrackLanesCollapsed(header.index, !header.lanesCollapsed)
     }
+    ThemedContextMenu {
+        title: qsTr("Track Folder")
+        icon.name: Theme.icons.folder
+        readonly property string curFolder: (column.tracks[header.index] && column.tracks[header.index].folderName) || ""
+        readonly property bool curCollapsed: !!(column.tracks[header.index] && column.tracks[header.index].folderCollapsed)
+
+        Repeater {
+            model: ["Dialogue", "Music", "SFX", "B-Roll", "Graphics"]
+            delegate: ThemedMenuItem {
+                required property string modelData
+                text: modelData
+                checked: parent.curFolder === modelData
+                onTriggered: EditorState.setTrackFolder(header.index, modelData)
+            }
+        }
+        ThemedMenuSeparator { visible: parent.curFolder.length > 0 }
+        ThemedMenuItem {
+            visible: parent.curFolder.length > 0
+            text: parent.curCollapsed ? qsTr("Expand Folder") : qsTr("Collapse Folder")
+            onTriggered: EditorState.setTrackFolderCollapsed(parent.curFolder, !parent.curCollapsed)
+        }
+        ThemedMenuItem {
+            visible: parent.curFolder.length > 0
+            text: qsTr("Remove from Folder")
+            onTriggered: EditorState.setTrackFolder(header.index, "")
+        }
+    }
     ThemedMenuSeparator {}
     ThemedMenuItem {
         text: header.trackMuted ? qsTr("Unmute track")

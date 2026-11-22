@@ -1679,6 +1679,64 @@ void AppController::setTrackLanesCollapsed(int trackIndex, bool collapsed)
     notifyTracksChanged();
 }
 
+void AppController::setTrackFolder(int trackIndex, const QString &folderName)
+{
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return;
+    const QString cleaned = folderName.trimmed();
+    drift::Track &target = m_project.tracks()[trackIndex];
+    if (target.folderName == cleaned)
+        return;
+
+    const drift::Project before = m_project;
+    m_project.tracks()[trackIndex].folderName = cleaned;
+    if (cleaned.isEmpty())
+        m_project.tracks()[trackIndex].folderCollapsed = false;
+    else
+        m_project.tracks()[trackIndex].folderCollapsed = isTrackFolderCollapsed(cleaned);
+    pushProjectEdit(before, tr("Track folder"));
+    finishEdit(cleaned.isEmpty() ? tr("Removed track from folder")
+                                 : tr("Moved track to folder “%1”").arg(cleaned));
+}
+
+void AppController::setTrackFolderCollapsed(const QString &folderName, bool collapsed)
+{
+    const QString cleaned = folderName.trimmed();
+    if (cleaned.isEmpty())
+        return;
+    bool changed = false;
+    for (drift::Track &track : m_project.tracks()) {
+        if (track.folderName == cleaned && track.folderCollapsed != collapsed) {
+            track.folderCollapsed = collapsed;
+            changed = true;
+        }
+    }
+    if (changed)
+        notifyTracksChanged();
+}
+
+QStringList AppController::trackFolderNames() const
+{
+    QStringList names;
+    for (const drift::Track &track : m_project.tracks()) {
+        if (!track.folderName.isEmpty() && !names.contains(track.folderName))
+            names.append(track.folderName);
+    }
+    return names;
+}
+
+bool AppController::isTrackFolderCollapsed(const QString &folderName) const
+{
+    const QString cleaned = folderName.trimmed();
+    if (cleaned.isEmpty())
+        return false;
+    for (const drift::Track &track : m_project.tracks()) {
+        if (track.folderName == cleaned && track.folderCollapsed)
+            return true;
+    }
+    return false;
+}
+
 double AppController::trackHeightScale(int trackIndex) const
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())

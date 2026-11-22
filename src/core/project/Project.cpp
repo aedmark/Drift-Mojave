@@ -1823,6 +1823,8 @@ Project Project::fromJson(const QJsonObject &object, QString *errorOut)
             track.heightScale = qBound(
                 0.6, trackObject.value(QStringLiteral("heightScale")).toDouble(1.0), 4.0);
             track.lanesCollapsed = trackObject.value(QStringLiteral("lanesCollapsed")).toBool(false);
+            track.folderName = trackObject.value(QStringLiteral("folderName")).toString();
+            track.folderCollapsed = trackObject.value(QStringLiteral("folderCollapsed")).toBool(false);
 
             const QJsonArray clipsArray = trackObject.value(QStringLiteral("clips")).toArray();
             for (const QJsonValue &clipValue : clipsArray) {
@@ -2102,6 +2104,10 @@ QJsonObject Project::toJson(bool includeTranscripts) const
                 {QStringLiteral("clips"), clipsArray},
                 {QStringLiteral("transitions"), transitionsArray},
             };
+            if (!track.folderName.isEmpty())
+                trackObject.insert(QStringLiteral("folderName"), track.folderName);
+            if (track.folderCollapsed)
+                trackObject.insert(QStringLiteral("folderCollapsed"), true);
             if (track.isTransformLayer())
                 trackObject.insert(QStringLiteral("spanEndTrackId"), track.spanEndTrackId);
             if (track.number > 0)

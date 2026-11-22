@@ -41,6 +41,8 @@ public:
     Q_INVOKABLE bool remove(const QString &id);
     Q_INVOKABLE void resetPreset(const QString &id);
     Q_INVOKABLE void rename(const QString &id, const QString &name);
+    Q_INVOKABLE bool activateWorkspaceByIndex(int index);
+    Q_INVOKABLE QString cycleWorkspace(int delta = 1);
 
     // Live write-backs while a handle is dragged or a window is moved. They persist
     // without notifying, because the layout on screen already matches and rebuilding

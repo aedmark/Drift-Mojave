@@ -666,6 +666,51 @@ ThemedDialog {
                 id: audioSection
                 dialog: root
             }
+
+            Row {
+                width: parent.width
+                spacing: Theme.spacingMd
+
+                ThemedButton {
+                    variant: "secondary"
+                    text: qsTr("Add to Render Queue…")
+                    enabled: !EditorState.renderQueueRunning
+                    onClicked: {
+                        var container = root.isGifExport ? "gif"
+                                : root.isAudioOnly
+                                  ? EditorState.exportPreferredAudioOnlyContainer(root.audioCodecId)
+                                  : EditorState.exportPreferredContainer(root.videoCodecId, root.audioCodecId)
+                        var filters = EditorState.exportSaveFilters(container, root.isAudioOnly)
+                        var suffix = EditorState.exportDefaultSuffix(container, root.isAudioOnly)
+                        var url = FileDialogs.saveFile(qsTr("Queue Render Output"), filters,
+                                                     EditorState.projectFile.projectName, suffix,
+                                                     EditorState.lastExportFolder())
+                        if (url != "") {
+                            const s = root.buildSettings()
+                            s.bakes = root.useBakes ? "all" : "none"
+                            EditorState.enqueueRenderJob(EditorState.projectFile.projectName, url, s, "")
+                        }
+                    }
+                }
+
+                ThemedButton {
+                    visible: EditorState.renderQueue.length > 0
+                    variant: "primary"
+                    text: qsTr("Run Queue (%1)").arg(EditorState.renderQueue.length)
+                    enabled: !EditorState.renderQueueRunning
+                    onClicked: {
+                        if (EditorState.startRenderQueue())
+                            root.close()
+                    }
+                }
+
+                ThemedButton {
+                    visible: EditorState.renderQueue.length > 0 && !EditorState.renderQueueRunning
+                    variant: "ghost"
+                    text: qsTr("Clear Queue")
+                    onClicked: EditorState.clearRenderQueue()
+                }
+            }
         }
     }
 }

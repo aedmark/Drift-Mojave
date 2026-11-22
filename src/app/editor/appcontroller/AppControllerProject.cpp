@@ -1008,6 +1008,223 @@ bool AppController::batchExportRegions(const QUrl &outputDirUrl, const QString &
     return true;
 }
 
+QVariantList AppController::renderQueue() const
+{
+    QVariantList out;
+    out.reserve(m_renderQueue.size());
+    for (const RenderQueueJob &job : m_renderQueue) {
+        out.append(QVariantMap{
+            {QStringLiteral("id"), job.id},
+            {QStringLiteral("label"), job.label},
+            {QStringLiteral("outputPath"), job.outputPath},
+            {QStringLiteral("sequenceId"), job.sequenceId},
+            {QStringLiteral("status"), job.status},
+            {QStringLiteral("error"), job.error},
+        });
+    }
+    return out;
+}
+
+QString AppController::enqueueRenderJob(const QString &label, const QUrl &outputUrl,
+                                        const QVariantMap &settings, const QString &sequenceId)
+{
+    QString outPath = outputUrl.isLocalFile() ? outputUrl.toLocalFile() : outputUrl.toString();
+    outPath = outPath.trimmed();
+    if (outPath.isEmpty())
+        return {};
+
+    RenderQueueJob job;
+    job.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    job.label = label.trimmed().isEmpty() ? QFileInfo(outPath).fileName() : label.trimmed();
+    job.outputPath = outPath;
+    job.settings = settings;
+    job.sequenceId = sequenceId;
+    job.status = QStringLiteral("queued");
+    m_renderQueue.append(job);
+    emit renderQueueChanged();
+    setLastMessage(tr("Queued “%1” for batch render").arg(job.label), QStringLiteral("success"));
+    return job.id;
+}
+
+bool AppController::removeRenderJob(const QString &jobId)
+{
+    for (int i = 0; i < m_renderQueue.size(); ++i) {
+        if (m_renderQueue.at(i).id == jobId) {
+            if (m_renderQueue.at(i).status == QLatin1String("running"))
+                return false;
+            m_renderQueue.removeAt(i);
+            emit renderQueueChanged();
+            return true;
+        }
+    }
+    return false;
+}
+
+void AppController::clearRenderQueue()
+{
+    bool changed = false;
+    for (int i = m_renderQueue.size() - 1; i >= 0; --i) {
+        if (m_renderQueue.at(i).status != QLatin1String("running")) {
+            m_renderQueue.removeAt(i);
+            changed = true;
+        }
+    }
+    if (changed)
+        emit renderQueueChanged();
+}
+
+bool AppController::startRenderQueue()
+{
+    if (m_exportInProgress || m_renderQueueRunning) {
+        setLastMessage(tr("Export already in progress"), QStringLiteral("warning"));
+        return false;
+    }
+
+    QList<int> queuedIndices;
+    for (int i = 0; i < m_renderQueue.size(); ++i) {
+        if (m_renderQueue.at(i).status == QLatin1String("queued"))
+            queuedIndices.append(i);
+    }
+    if (queuedIndices.isEmpty()) {
+        setLastMessage(tr("No queued jobs to render"), QStringLiteral("warning"));
+        return false;
+    }
+
+    struct PreparedJob
+    {
+        int queueIndex = -1;
+        QString id;
+        QString outputPath;
+        drift::Project snapshot;
+        ExportSettings settings;
+    };
+
+    QList<PreparedJob> prepared;
+    prepared.reserve(queuedIndices.size());
+    for (int idx : queuedIndices) {
+        const RenderQueueJob &job = m_renderQueue.at(idx);
+        PreparedJob p;
+        p.queueIndex = idx;
+        p.id = job.id;
+        p.outputPath = job.outputPath;
+        p.snapshot = m_project.exportView(job.sequenceId);
+        p.settings = Exporter::settingsFromMap(job.settings);
+        const QString bakeMode = job.settings.value(QStringLiteral("useBakes"), true).toBool()
+            ? job.settings.value(QStringLiteral("bakes"), QStringLiteral("all")).toString()
+            : QStringLiteral("none");
+        p.settings.useBakes = bakeMode != QLatin1String("none");
+        if (p.settings.useBakes && m_bakes)
+            p.settings.bakes = m_bakes->exportPool(bakeMode != QLatin1String("fresh"), {});
+        prepared.append(std::move(p));
+    }
+
+    setPlaying(false);
+    m_exportCancel.storeRelaxed(0);
+    m_exportProgress = 0.0;
+    m_exportInProgress = true;
+    m_renderQueueRunning = true;
+    emit renderQueueChanged();
+    emit exportProgressChanged();
+    emit exportInProgressChanged();
+    setLastMessage(tr("Starting render queue (%1 job(s))…").arg(prepared.size()));
+
+    m_exportFuture = QtConcurrent::run([this, prepared = std::move(prepared)]() {
+        Exporter::BackgroundHold hold(QStringLiteral("Running render queue"), /*cancellable=*/true);
+        const int total = int(prepared.size());
+        int succeeded = 0;
+        int failed = 0;
+        bool cancelled = false;
+
+        for (int i = 0; i < total; ++i) {
+            if (m_exportCancel.loadRelaxed() != 0 || Exporter::BackgroundHold::cancelRequested()) {
+                cancelled = true;
+                break;
+            }
+            const PreparedJob &pj = prepared.at(i);
+            QMetaObject::invokeMethod(
+                this,
+                [this, id = pj.id]() {
+                    for (RenderQueueJob &j : m_renderQueue) {
+                        if (j.id == id) {
+                            j.status = QStringLiteral("running");
+                            break;
+                        }
+                    }
+                    emit renderQueueChanged();
+                },
+                Qt::QueuedConnection);
+
+            QString error;
+            const auto report = [this, i, total](double fraction) {
+                const double overall = (double(i) + qBound(0.0, fraction, 1.0)) / double(qMax(1, total));
+                QMetaObject::invokeMethod(
+                    this,
+                    [this, overall]() {
+                        m_exportProgress = overall;
+                        emit exportProgressChanged();
+                    },
+                    Qt::QueuedConnection);
+                return m_exportCancel.loadRelaxed() == 0 && !Exporter::BackgroundHold::cancelRequested();
+            };
+
+            const bool ok = Exporter::run(pj.snapshot, pj.settings, pj.outputPath, &error, report);
+            const bool wasCancelled = !ok && (error == QLatin1String("Export cancelled")
+                                              || error == QLatin1String("Cancelled")
+                                              || m_exportCancel.loadRelaxed() != 0);
+            if (ok)
+                ++succeeded;
+            else if (!wasCancelled)
+                ++failed;
+
+            QMetaObject::invokeMethod(
+                this,
+                [this, id = pj.id, ok, wasCancelled, error]() {
+                    for (RenderQueueJob &j : m_renderQueue) {
+                        if (j.id == id) {
+                            j.status = ok ? QStringLiteral("done")
+                                          : (wasCancelled ? QStringLiteral("cancelled")
+                                                          : QStringLiteral("failed"));
+                            j.error = error;
+                            break;
+                        }
+                    }
+                    emit renderQueueChanged();
+                },
+                Qt::QueuedConnection);
+
+            if (wasCancelled) {
+                cancelled = true;
+                break;
+            }
+        }
+
+        const bool allOk = !cancelled && failed == 0 && succeeded == total;
+        QMetaObject::invokeMethod(
+            this,
+            [this, allOk, cancelled, succeeded, failed, total]() {
+                m_exportInProgress = false;
+                m_renderQueueRunning = false;
+                m_exportProgress = allOk ? 1.0 : 0.0;
+                emit renderQueueChanged();
+                emit exportProgressChanged();
+                emit exportInProgressChanged();
+                if (cancelled) {
+                    setLastMessage(tr("Render queue cancelled (%1/%2 completed)").arg(succeeded).arg(total),
+                                   QStringLiteral("info"));
+                } else if (allOk) {
+                    setLastMessage(tr("Render queue complete (%1 job(s))").arg(succeeded),
+                                   QStringLiteral("success"));
+                } else {
+                    setLastMessage(tr("Render queue finished with %1 failure(s)").arg(failed),
+                                   QStringLiteral("error"));
+                }
+                emit exportFinished(allOk);
+            },
+            Qt::QueuedConnection);
+    });
+    return true;
+}
+
 void AppController::recordExport(const QUrl &url, double durationSeconds, qint64 sizeBytes,
                                  const QString &thumbnail)
 {

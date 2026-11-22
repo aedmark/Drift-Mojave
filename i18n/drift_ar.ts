@@ -5729,6 +5729,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Track folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed track from folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Moved track to folder “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Move track</source>
         <translation>نقل المسار</translation>
     </message>
@@ -5893,6 +5905,30 @@
     </message>
     <message>
         <source>Batch render finished with %1 failures</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Queued “%1” for batch render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No queued jobs to render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting render queue (%1 job(s))…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render queue cancelled (%1/%2 completed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render queue complete (%1 job(s))</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render queue finished with %1 failure(s)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -10966,6 +11002,22 @@
     </message>
     <message>
         <source>-23 LUFS (Broadcast)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add to Render Queue…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Queue Render Output</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Run Queue (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear Queue</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -28395,6 +28447,22 @@ If playback stutters, try another.</source>
     <message>
         <source>Collapse child lanes</source>
         <translation>طي المسارات الفرعية</translation>
+    </message>
+    <message>
+        <source>Track Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expand Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Collapse Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove from Folder</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Unmute track</source>

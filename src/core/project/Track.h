@@ -134,6 +134,9 @@ struct Track
     qreal heightScale = 1.0;
     // view-only, parent tracks: nested adjustment lanes fold into thin coverage ribbons.
     bool lanesCollapsed = false;
+    // Collapsible track folders / groups (Tier 7E).
+    QString folderName;
+    bool folderCollapsed = false;
 
     // Adjustment tracks only.
     AdjustmentScope adjustmentScope = AdjustmentScope::AllBelow;

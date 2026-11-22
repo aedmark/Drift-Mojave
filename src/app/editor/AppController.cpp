@@ -1138,6 +1138,8 @@ QVariantList AppController::tracks() const
             {QStringLiteral("showChannelWaveforms"), track.showChannelWaveforms},
             {QStringLiteral("heightScale"), track.heightScale},
             {QStringLiteral("lanesCollapsed"), track.lanesCollapsed},
+            {QStringLiteral("folderName"), track.folderName},
+            {QStringLiteral("folderCollapsed"), track.folderCollapsed},
             {QStringLiteral("showVolumeEnvelope"), track.showVolumeEnvelope},
             {QStringLiteral("showPanEnvelope"), track.showPanEnvelope},
             {QStringLiteral("showCompositeEnvelope"), track.showCompositeEnvelope},

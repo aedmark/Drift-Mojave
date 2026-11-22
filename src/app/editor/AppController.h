@@ -271,6 +271,8 @@ class AppController : public QObject
     Q_PROPERTY(bool masterMuted READ masterMuted
                    WRITE setMasterMuted NOTIFY masterMutedChanged)
     Q_PROPERTY(bool playbackBenchmarkRunning READ playbackBenchmarkRunning NOTIFY playbackBenchmarkRunningChanged)
+    Q_PROPERTY(QVariantList renderQueue READ renderQueue NOTIFY renderQueueChanged)
+    Q_PROPERTY(bool renderQueueRunning READ renderQueueRunning NOTIFY renderQueueChanged)
     // Session-only localhost MCP for agents. Off at every launch, unless startOnLaunch
     // opts back in. QML: EditorState.mcp.running, EditorState.mcp.url, and the rest.
     Q_PROPERTY(McpController *mcp READ mcp CONSTANT)
@@ -1936,6 +1938,11 @@ public:
     Q_INVOKABLE QVariantList adjustmentLaneSpans(int parentIndex) const;
     // View-only, no undo entry. Collapsed lanes shrink to ribbons in trackRowHeight.
     Q_INVOKABLE void setTrackLanesCollapsed(int trackIndex, bool collapsed);
+    // Track Folders / Groups (Tier 7E)
+    Q_INVOKABLE void setTrackFolder(int trackIndex, const QString &folderName);
+    Q_INVOKABLE void setTrackFolderCollapsed(const QString &folderName, bool collapsed);
+    Q_INVOKABLE QStringList trackFolderNames() const;
+    Q_INVOKABLE bool isTrackFolderCollapsed(const QString &folderName) const;
 
     Q_INVOKABLE double trackHeightScaleMin() const { return 0.6; }
     Q_INVOKABLE double trackHeightScaleMax() const { return 4.0; }
@@ -1983,6 +1990,16 @@ public:
                                                    const QString &ext = QStringLiteral("mp4")) const;
     Q_INVOKABLE bool batchExportRegions(const QUrl &outputDirUrl, const QString &filenameTemplate,
                                         const QVariantList &regionIds, const QVariantMap &settings);
+
+    // Batch Render Queue (Tier 7E)
+    QVariantList renderQueue() const;
+    bool renderQueueRunning() const { return m_renderQueueRunning; }
+    Q_INVOKABLE QString enqueueRenderJob(const QString &label, const QUrl &outputUrl,
+                                         const QVariantMap &settings,
+                                         const QString &sequenceId = QString());
+    Q_INVOKABLE bool removeRenderJob(const QString &jobId);
+    Q_INVOKABLE void clearRenderQueue();
+    Q_INVOKABLE bool startRenderQueue();
 
     // Trimmer Subclipping & Dynamic RAM Preview (Tier 3B)
     Q_INVOKABLE bool insertSubclipFromTrimmer(int assetIndex, double inSeconds, double outSeconds,
@@ -2305,6 +2322,7 @@ signals:
     void projectReset();
     void transformBlocked(const QString &reason);
     void openPasteAttributesRequested();
+    void renderQueueChanged();
 
 protected:
     // Every path that changes the timeline model goes through this instead of a bare
@@ -3094,6 +3112,19 @@ protected:
 
     // Launch layout picker / first-clip setup completed for this empty project.
     bool m_projectLayoutChosen = false;
+
+    struct RenderQueueJob
+    {
+        QString id;
+        QString label;
+        QString outputPath;
+        QVariantMap settings;
+        QString sequenceId;
+        QString status = QStringLiteral("queued"); // queued | running | done | failed | cancelled
+        QString error;
+    };
+    QList<RenderQueueJob> m_renderQueue;
+    bool m_renderQueueRunning = false;
 
     McpController *m_mcpController = nullptr;
     // Protected wrappers for this TU's file-local clip writers. McpController and KeyframeController call them.

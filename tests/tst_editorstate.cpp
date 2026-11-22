@@ -3,6 +3,7 @@
 #include "app/color/ColorController.h"
 #include "app/jobs/audio/DenoiseController.h"
 #include "app/jobs/render/BakeFingerprint.h"
+#include "app/editor/WorkspaceStore.h"
 #include "app/jobs/audio/AudioAlignController.h"
 #include "app/jobs/vision/DepthController.h"
 #include "app/jobs/vision/FaceTrackingController.h"
@@ -145,6 +146,7 @@ private slots:
     void syncByAudioMultiClipGroupsAndMutesScratch();
     void pasteEventAttributesAndBatchFxChainPreset();
     void trackChannelStripAndAutoDucking();
+    void trackFoldersRenderQueueAndWorkspaces();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20422,6 +20424,84 @@ void EditorStateTest::trackChannelStripAndAutoDucking()
 
     state.undo();
     QVERIFY(state.project()->tracks().at(1).volumeEnvelope.isEmpty());
+}
+
+void EditorStateTest::trackFoldersRenderQueueAndWorkspaces()
+{
+    const QString org = QCoreApplication::organizationName();
+    const QString app = QCoreApplication::applicationName();
+    QStandardPaths::setTestModeEnabled(true);
+    QCoreApplication::setOrganizationName(QStringLiteral("DriftTest"));
+    QCoreApplication::setApplicationName(QStringLiteral("DriftTestTier7E"));
+
+    AssetLibrary library;
+    AppController state(&library);
+    appendTwoVideoClips(*state.project());
+    state.addTrack(QStringLiteral("audio"));
+
+    // 1. Track Folders / Groups
+    state.setTrackFolder(0, QStringLiteral("Dialogue"));
+    state.setTrackFolder(1, QStringLiteral("Dialogue"));
+    QCOMPARE(state.trackFolderNames(), QStringList{QStringLiteral("Dialogue")});
+    state.setTrackFolderCollapsed(QStringLiteral("Dialogue"), true);
+    QVERIFY(state.isTrackFolderCollapsed(QStringLiteral("Dialogue")));
+    QVERIFY(state.project()->tracks().at(0).folderCollapsed);
+    QVERIFY(state.project()->tracks().at(1).folderCollapsed);
+
+    // JSON round-trip preserves folderName & folderCollapsed
+    QString err;
+    const drift::Project reloaded = drift::Project::fromJson(state.project()->toJson(), &err);
+    QVERIFY2(err.isEmpty(), qPrintable(err));
+    QCOMPARE(reloaded.tracks().at(0).folderName, QStringLiteral("Dialogue"));
+    QVERIFY(reloaded.tracks().at(0).folderCollapsed);
+
+    state.undo();
+    QVERIFY(state.project()->tracks().at(1).folderName.isEmpty());
+
+    // 2. Batch Render Queue
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString j1 = state.enqueueRenderJob(
+        QStringLiteral("Scene 1"), QUrl::fromLocalFile(dir.filePath(QStringLiteral("s1.mp4"))), {});
+    const QString j2 = state.enqueueRenderJob(
+        QStringLiteral("Scene 2"), QUrl::fromLocalFile(dir.filePath(QStringLiteral("s2.mp4"))), {});
+    QVERIFY(!j1.isEmpty() && !j2.isEmpty());
+    QCOMPARE(state.renderQueue().size(), 2);
+    QVERIFY(state.removeRenderJob(j1));
+    QCOMPARE(state.renderQueue().size(), 1);
+    state.clearRenderQueue();
+    QVERIFY(state.renderQueue().isEmpty());
+
+    // 3. Workspace Layout Quick-Recall
+    WorkspaceStore ws;
+    auto makeWs = [](const QString &id, const QString &name) {
+        return QVariantMap{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("name"), name},
+            {QStringLiteral("windows"), QVariantList{
+                QVariantMap{
+                    {QStringLiteral("id"), QStringLiteral("main")},
+                    {QStringLiteral("root"), QVariantMap{{QStringLiteral("panels"), QVariantList{QVariantMap{{QStringLiteral("type"), QStringLiteral("preview")}}}}}},
+                },
+            }},
+        };
+    };
+    const QString err1 = ws.saveWorkspace(makeWs(QStringLiteral("test-ws-1"), QStringLiteral("Editing")));
+    const QString err2 = ws.saveWorkspace(makeWs(QStringLiteral("test-ws-2"), QStringLiteral("Color")));
+    QVERIFY2(err1.isEmpty(), qPrintable(err1));
+    QVERIFY2(err2.isEmpty(), qPrintable(err2));
+    QVERIFY(ws.workspaces().size() >= 2);
+    QVERIFY(ws.activateWorkspaceByIndex(0));
+    const QString firstId = ws.activeId();
+    const QString nextId = ws.cycleWorkspace(1);
+    QVERIFY(!nextId.isEmpty());
+    QVERIFY(nextId != firstId);
+    QVERIFY(ws.remove(QStringLiteral("test-ws-1")));
+    QVERIFY(ws.remove(QStringLiteral("test-ws-2")));
+
+    QCoreApplication::setOrganizationName(org);
+    QCoreApplication::setApplicationName(app);
+    QStandardPaths::setTestModeEnabled(false);
 }
 
 QTEST_MAIN(EditorStateTest)

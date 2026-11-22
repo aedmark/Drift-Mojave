@@ -12,6 +12,7 @@ Tracks work done on `main` **since the last public release**. Use this to see wh
 - **Multi-clip audio waveform auto-sync (Tier 7B)** (`AudioAlignController`, `TimelineClipContextMenu`): Sync 2+ selected clips (dual-system audio or multicam angles) by audio waveform with negative-start shift protection, optional auto-grouping, and camera scratch-audio muting.
 - **Selective Event Attributes & batch FX chains (Tier 7C)** (`AppControllerEffects`, `PasteAttributesDialog`, `TimelineClipContextMenu`): Paste Color Grade only, Velocity Envelopes, Audio Switches & Pitch, and Event Switches selectively onto multi-clip selections, plus batch `Apply FX Chain Preset` from the timeline context menu.
 - **VEGAS Track Channel Strip & Dialogue Auto-Ducking (Tier 7D)** (`AppControllerEffects`, `AudioAlignController`, `AudioMixerStrip`): One-click per-track Gate + EQ + Compressor channel strip presets (*Default*, *Dialogue Cleanup*, *Broadcast Voiceover*, *Music Bed*) and automatic dialogue-driven volume-envelope ducking from the Mixer FX menu.
+- **Track Folders, Batch Render Queue & Workspace Quick-Recall (Tier 7E)** (`Track`, `AppController`, `WorkspaceStore`, `TrackHeaderContextMenu`, `ExportDialog`): Collapsible Track Folders/Groups, sequential multi-job Batch Render Queue in the Export dialog, and `activateWorkspaceByIndex`/`cycleWorkspace` layout switching.
 
 ## ✅ Fixed
 

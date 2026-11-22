@@ -739,4 +739,36 @@ void WorkspaceStore::setWindowGeometry(const QString &id, const QString &windowI
     });
 }
 
+bool WorkspaceStore::activateWorkspaceByIndex(int index)
+{
+    const QVariantList list = workspaces();
+    if (index < 0 || index >= list.size())
+        return false;
+    const QString id = list.at(index).toMap().value(QStringLiteral("id")).toString();
+    if (id.isEmpty())
+        return false;
+    setActiveId(id);
+    return true;
+}
+
+QString WorkspaceStore::cycleWorkspace(int delta)
+{
+    const QVariantList list = workspaces();
+    if (list.isEmpty())
+        return {};
+    int cur = 0;
+    for (int i = 0; i < list.size(); ++i) {
+        if (list.at(i).toMap().value(QStringLiteral("id")).toString() == m_activeId) {
+            cur = i;
+            break;
+        }
+    }
+    const int n = list.size();
+    const int next = ((cur + delta) % n + n) % n;
+    const QString nextId = list.at(next).toMap().value(QStringLiteral("id")).toString();
+    if (!nextId.isEmpty())
+        setActiveId(nextId);
+    return nextId;
+}
+
 #include "moc_WorkspaceStore.cpp"
