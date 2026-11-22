@@ -30251,6 +30251,10 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
         <translation>초당 프레임 수</translation>
     </message>
     <message>
+        <source>Drop-frame timecode (;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Changing size doesn’t shrink your clips — anything outside the new edges is cut off.</source>
         <translation>크기를 변경해도 클립 자체가 축소되지는 않습니다 — 새 가장자리 밖의 모든 부분이 잘립니다.</translation>
     </message>

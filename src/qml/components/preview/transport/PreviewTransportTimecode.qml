@@ -6,6 +6,10 @@ Row {
     id: timecode
 
     required property int projectFps
+    property string projectFpsLabel: {
+        void EditorState.tracksRevision
+        return EditorState.projectFile ? EditorState.projectFile.projectFpsLabel() : String(projectFps)
+    }
     required property real currentSeconds
     required property real durationSeconds
     required property var formatTimecode
@@ -16,7 +20,7 @@ Row {
     HoverHandler { id: timecodeHover }
 
     ThemedToolTip {
-        text: qsTr("Current time / total · %1 frames per second").arg(timecode.projectFps)
+        text: qsTr("Current time / total · %1 frames per second").arg(timecode.projectFpsLabel)
         visible: timecodeHover.hovered
     }
 

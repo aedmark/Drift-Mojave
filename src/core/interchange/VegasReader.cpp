@@ -1734,7 +1734,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
 
     Project project;
     project.setResolution(canvasWidth, canvasHeight);
-    project.setFps(qRound(fps));
+    project.setFpsFromDouble(fps);
     project.setSampleRate(static_cast<int>(sampleRate));
 
     // Project summary metadata (RIFF INFO chunk: INAM, IART, ICMT, etc.)
@@ -1986,7 +1986,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                 asset.durationUs = nestedProj.sequenceDurationUs({});
                                 asset.width = nestedProj.width() > 0 ? nestedProj.width() : canvasWidth;
                                 asset.height = nestedProj.height() > 0 ? nestedProj.height() : canvasHeight;
-                                asset.fps = nestedProj.fps() > 0 ? nestedProj.fps() : fps;
+                                asset.fps = nestedProj.fpsExact() > 0.0 ? nestedProj.fpsExact() : fps;
                                 asset.editFriendly = true;
 
                                 project.assets().insert(asset.id, asset);

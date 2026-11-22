@@ -2026,7 +2026,7 @@ void AppController::stepFrames(int frames)
     // the stepped position on its next tick.
     setPlaying(false);
 
-    const drift::TimeUs step = drift::frameDurationUs(m_projectFile->projectFps());
+    const drift::TimeUs step = drift::frameDurationUs(m_projectFile->projectFpsNum(), m_projectFile->projectFpsDen());
     const int64_t frame = (m_playheadUs + step / 2) / step;
     setPlayheadUs((frame + frames) * step);
 }

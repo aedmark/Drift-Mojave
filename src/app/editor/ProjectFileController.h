@@ -78,8 +78,15 @@ public:
     Q_INVOKABLE int projectWidth() const;
     Q_INVOKABLE int projectHeight() const;
     Q_INVOKABLE int projectFps() const;
+    Q_INVOKABLE double projectFpsExact() const;
+    Q_INVOKABLE int projectFpsNum() const;
+    Q_INVOKABLE int projectFpsDen() const;
+    Q_INVOKABLE bool projectDropFrame() const;
+    Q_INVOKABLE QString projectFpsLabel() const;
+    Q_INVOKABLE QString formatTimecode(double seconds) const;
     Q_INVOKABLE void setProjectResolution(int width, int height);
     Q_INVOKABLE void setProjectFps(int fps);
+    Q_INVOKABLE void setProjectFpsRational(int fpsNum, int fpsDen, bool dropFrame = false);
     Q_INVOKABLE void setProjectSetup(int width, int height, int fps);
 
     bool packaging() const { return m_packaging; }

@@ -259,7 +259,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
     Project project;
     project.setName(projectName);
     project.setResolution(1920, 1080);
-    project.setFps(qMax(1, qRound(fps)));
+    project.setFpsFromDouble(fps);
 
     // Normalize timeline offset if record start time is offset (e.g. 01:00:00:00)
     TimeUs minRecIn = events.first().recIn;

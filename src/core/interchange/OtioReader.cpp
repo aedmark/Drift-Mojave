@@ -183,7 +183,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
     }
 
     project.setResolution(width, height);
-    project.setFps(qMax(1, qRound(projectFps)));
+    project.setFpsFromDouble(projectFps);
 
     // Timeline Markers
     const QJsonArray markers = root.value(QStringLiteral("markers")).toArray();

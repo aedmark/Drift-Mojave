@@ -179,7 +179,23 @@ public:
     void setModifiedAt(const QDateTime &modifiedAt) { m_modifiedAt = modifiedAt; }
 
     int fps() const { return m_fps; }
-    void setFps(int fps) { m_fps = qMax(1, fps); }
+    int fpsNum() const { return m_fpsNum; }
+    int fpsDen() const { return m_fpsDen; }
+    double fpsExact() const
+    {
+        return m_fpsDen > 0 ? static_cast<double>(m_fpsNum) / static_cast<double>(m_fpsDen)
+                            : static_cast<double>(m_fps);
+    }
+    bool dropFrame() const { return m_dropFrame; }
+    bool supportsDropFrame() const
+    {
+        return m_fpsDen == 1001 && (m_fpsNum == 30000 || m_fpsNum == 60000);
+    }
+    void setFps(int fps) { setFpsRational(qMax(1, fps), 1); }
+    void setFpsRational(int num, int den);
+    void setFpsFromDouble(double fps);
+    void setDropFrame(bool df);
+    static QString formatTimecode(TimeUs us, int fpsNum, int fpsDen, bool dropFrame = false);
 
     int width() const { return m_width; }
     int height() const { return m_height; }
@@ -341,6 +357,9 @@ private:
     QDateTime m_createdAt;
     QDateTime m_modifiedAt;
     int m_fps = 30;
+    int m_fpsNum = 30;
+    int m_fpsDen = 1;
+    bool m_dropFrame = false;
     int m_width = 1920;
     int m_height = 1080;
     int m_sampleRate = 48000;

@@ -1370,7 +1370,7 @@ bool runGifExport(const drift::Project &project, const ExportSettings &settings,
     int outH = 0;
     scaleSize(projW, projH, settings.targetHeight, outW, outH);
 
-    AVRational frameRate{qMax(1, project.fps()), 1};
+    AVRational frameRate{qMax(1, project.fpsNum()), qMax(1, project.fpsDen())};
     if (settings.fpsNum > 0 && settings.fpsDen > 0)
         frameRate = AVRational{settings.fpsNum, settings.fpsDen};
     av_reduce(&frameRate.num, &frameRate.den, frameRate.num, frameRate.den, INT_MAX);
@@ -2094,7 +2094,7 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
     // The export rate is independent of the project rate: sampling the timeline
     // faster pulls extra frames out of the source wherever it has them, which is
     // what makes slowed clips look smooth.
-    AVRational frameRate{qMax(1, project.fps()), 1};
+    AVRational frameRate{qMax(1, project.fpsNum()), qMax(1, project.fpsDen())};
     if (settings.fpsNum > 0 && settings.fpsDen > 0)
         frameRate = AVRational{settings.fpsNum, settings.fpsDen};
     av_reduce(&frameRate.num, &frameRate.den, frameRate.num, frameRate.den, INT_MAX);
@@ -3008,7 +3008,7 @@ QList<Exporter::SmartRenderSegment> Exporter::findSmartRenderSegments(const drif
     const int exportH = settings.targetHeight > 0 ? settings.targetHeight : project.height();
     const double exportFps = (settings.fpsNum > 0 && settings.fpsDen > 0)
                                  ? (double(settings.fpsNum) / double(settings.fpsDen))
-                                 : project.fps();
+                                 : project.fpsExact();
 
     auto clipVisualUnmodified = [&](const drift::Clip &clip) {
         if (!clip.enabled || clip.type != drift::ClipType::Video)

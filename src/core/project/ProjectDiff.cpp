@@ -346,7 +346,7 @@ ProjectDiff diffProjects(const Project &from, const Project &to)
         if (!to.assets().contains(it.key()))
             diff.assets.append({it.key(), QStringLiteral("removed"), it->name});
 
-    if (from.fps() != to.fps())
+    if (from.fpsNum() != to.fpsNum() || from.fpsDen() != to.fpsDen() || from.dropFrame() != to.dropFrame())
         diff.settings.append(QStringLiteral("fps"));
     if (from.width() != to.width() || from.height() != to.height())
         diff.settings.append(QStringLiteral("resolution"));

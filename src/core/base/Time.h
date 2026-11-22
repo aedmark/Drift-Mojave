@@ -24,4 +24,11 @@ constexpr TimeUs frameDurationUs(int fps)
     return fps > 0 ? kUsPerSecond / fps : kUsPerSecond / 30;
 }
 
+constexpr TimeUs frameDurationUs(int fpsNum, int fpsDen)
+{
+    return (fpsNum > 0 && fpsDen > 0)
+        ? (kUsPerSecond * static_cast<TimeUs>(fpsDen) + fpsNum / 2) / fpsNum
+        : kUsPerSecond / 30;
+}
+
 } // namespace drift

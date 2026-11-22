@@ -702,7 +702,8 @@ void PlaybackEngine::probeGpuCompositor()
 
 drift::TimeUs PlaybackEngine::frameStepUs() const
 {
-    return drift::frameDurationUs(m_project ? qMax(1, m_project->fps()) : 30);
+    return m_project ? drift::frameDurationUs(m_project->fpsNum(), m_project->fpsDen())
+                     : drift::frameDurationUs(30);
 }
 
 void PlaybackEngine::setPreviewRenderSize(int stream, int width, int height)

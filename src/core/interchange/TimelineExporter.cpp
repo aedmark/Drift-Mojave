@@ -23,7 +23,7 @@ namespace {
 
 double projectFpsOrDefault(const Project &project)
 {
-    return project.fps() > 0 ? static_cast<double>(project.fps()) : 30.0;
+    return project.fpsExact() > 0.0 ? project.fpsExact() : 30.0;
 }
 
 QString fcpxmlTimeString(TimeUs us, double fps)
@@ -311,7 +311,8 @@ QByteArray exportToEdl(const Project &project, QString *error)
 
     QStringList lines;
     lines << QStringLiteral("TITLE: %1").arg(projName);
-    lines << QStringLiteral("FCM: NON-DROP FRAME");
+    lines << (project.dropFrame() ? QStringLiteral("FCM: DROP FRAME")
+                                  : QStringLiteral("FCM: NON-DROP FRAME"));
     lines << QStringLiteral("* FPS: %1").arg(fps, 0, 'f', 3);
     lines << QString();
 
@@ -342,10 +343,10 @@ QByteArray exportToEdl(const Project &project, QString *error)
     for (const EdlRow &r : rows) {
         const QString chan = (r.track->type == TrackType::Audio) ? QStringLiteral("A") : QStringLiteral("V");
         const QString reel = QStringLiteral("AX");
-        const QString srcIn = edlTimecode(r.clip->srcIn, fps);
-        const QString srcOut = edlTimecode(qMax(r.clip->srcIn, r.clip->srcOut), fps);
-        const QString recIn = edlTimecode(r.clip->timelineStart, fps);
-        const QString recOut = edlTimecode(r.clip->timelineEnd(), fps);
+        const QString srcIn = Project::formatTimecode(r.clip->srcIn, project.fpsNum(), project.fpsDen(), project.dropFrame());
+        const QString srcOut = Project::formatTimecode(qMax(r.clip->srcIn, r.clip->srcOut), project.fpsNum(), project.fpsDen(), project.dropFrame());
+        const QString recIn = Project::formatTimecode(r.clip->timelineStart, project.fpsNum(), project.fpsDen(), project.dropFrame());
+        const QString recOut = Project::formatTimecode(r.clip->timelineEnd(), project.fpsNum(), project.fpsDen(), project.dropFrame());
 
         lines << QStringLiteral("%1  %2       %3     C        %4 %5 %6 %7")
                      .arg(evNum, 3, 10, QLatin1Char('0'))
@@ -363,7 +364,7 @@ QByteArray exportToEdl(const Project &project, QString *error)
 
     for (const Bookmark &bm : project.bookmarks()) {
         lines << QStringLiteral("* LOC: %1 BLUE %2")
-                     .arg(edlTimecode(bm.timeUs, fps),
+                     .arg(Project::formatTimecode(bm.timeUs, project.fpsNum(), project.fpsDen(), project.dropFrame()),
                           bm.label.isEmpty() ? QStringLiteral("Marker") : bm.label);
     }
 

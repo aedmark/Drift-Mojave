@@ -1896,6 +1896,8 @@ void TestInterchangeVegas::readsPlaybackRateAndActiveTakeSelection()
     const auto loaded = drift::vegas::readProjectData(vegBytes, QString(), &err);
     QVERIFY2(loaded.has_value(), qPrintable(err));
     QCOMPARE(loaded->tracks().size(), 1);
+    QCOMPARE(loaded->fpsNum(), 24000);
+    QCOMPARE(loaded->fpsDen(), 1001);
     QCOMPARE(loaded->tracks().at(0).clips.size(), 2);
 
     const auto &c1 = loaded->tracks().at(0).clips.at(0);

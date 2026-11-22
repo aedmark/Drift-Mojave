@@ -343,7 +343,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
     }
 
     project.setResolution(width, height);
-    project.setFps(qMax(1, qRound(fps)));
+    project.setFpsFromDouble(fps);
     const TimeUs frameUs = static_cast<TimeUs>(llround(1000000.0 / (fps > 0.0 ? fps : 30.0)));
 
     // Project Name

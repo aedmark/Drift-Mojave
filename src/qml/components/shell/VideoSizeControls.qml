@@ -13,6 +13,29 @@ Column {
     property int canvasW: { void EditorState.tracksRevision; return EditorState.projectFile.projectWidth() }
     property int canvasH: { void EditorState.tracksRevision; return EditorState.projectFile.projectHeight() }
     property int canvasFps: { void EditorState.tracksRevision; return EditorState.projectFile.projectFps() }
+    property int canvasFpsNum: { void EditorState.tracksRevision; return EditorState.projectFile.projectFpsNum() }
+    property int canvasFpsDen: { void EditorState.tracksRevision; return EditorState.projectFile.projectFpsDen() }
+    property bool canvasDropFrame: { void EditorState.tracksRevision; return EditorState.projectFile.projectDropFrame() }
+
+    readonly property var fpsPresets: [
+        { label: "23.976 fps (NTSC Film)", num: 24000, den: 1001 },
+        { label: "24 fps (Film)", num: 24, den: 1 },
+        { label: "25 fps (PAL)", num: 25, den: 1 },
+        { label: "29.97 fps (NTSC)", num: 30000, den: 1001 },
+        { label: "30 fps", num: 30, den: 1 },
+        { label: "50 fps (PAL)", num: 50, den: 1 },
+        { label: "59.94 fps (NTSC)", num: 60000, den: 1001 },
+        { label: "60 fps", num: 60, den: 1 },
+        { label: qsTr("Custom"), num: 0, den: 1 }
+    ]
+
+    readonly property int matchedFpsPresetIndex: {
+        for (var i = 0; i < fpsPresets.length - 1; ++i) {
+            if (fpsPresets[i].num === root.canvasFpsNum && fpsPresets[i].den === root.canvasFpsDen)
+                return i
+        }
+        return fpsPresets.length - 1
+    }
 
     readonly property var canvasPresets: [
         { label: qsTr("Custom"), w: 0, h: 0 },
@@ -95,17 +118,42 @@ Column {
     }
 
     Column {
-        width: (parent.width - Theme.spacingLg) / 2
+        width: parent.width
         spacing: Theme.spacingSm
         ThemedLabel { text: qsTr("Frames per second") }
-        ThemedNumberField {
+        Row {
             width: parent.width
+            spacing: Theme.spacingMd
+            ThemedComboBox {
+                width: root.matchedFpsPresetIndex === root.fpsPresets.length - 1
+                       ? (parent.width - parent.spacing) * 0.6
+                       : parent.width
+                enabled: !EditorState.preview.canvasCropMode
+                model: root.fpsPresets.map(function (p) { return p.label })
+                currentIndex: root.matchedFpsPresetIndex
+                onActivated: {
+                    const preset = root.fpsPresets[currentIndex]
+                    if (preset.num > 0)
+                        EditorState.projectFile.setProjectFpsRational(preset.num, preset.den, root.canvasDropFrame)
+                }
+            }
+            ThemedNumberField {
+                visible: root.matchedFpsPresetIndex === root.fpsPresets.length - 1
+                width: (parent.width - parent.spacing) * 0.4
+                enabled: !EditorState.preview.canvasCropMode
+                from: 1
+                to: 240
+                unit: "fps"
+                value: root.canvasFps
+                onEdited: v => EditorState.projectFile.setProjectFpsRational(v, 1, false)
+            }
+        }
+        ThemedCheckBox {
+            visible: root.canvasFpsDen === 1001 && (root.canvasFpsNum === 30000 || root.canvasFpsNum === 60000)
             enabled: !EditorState.preview.canvasCropMode
-            from: 1
-            to: 240
-            unit: "fps"
-            value: root.canvasFps
-            onEdited: v => EditorState.projectFile.setProjectFps(v)
+            checked: root.canvasDropFrame
+            text: qsTr("Drop-frame timecode (;)")
+            onToggled: EditorState.projectFile.setProjectFpsRational(root.canvasFpsNum, root.canvasFpsDen, checked)
         }
     }
 

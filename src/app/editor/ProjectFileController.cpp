@@ -433,6 +433,51 @@ int ProjectFileController::projectFps() const
     return m_app->m_project.fps();
 }
 
+double ProjectFileController::projectFpsExact() const
+{
+    return m_app->m_project.fpsExact();
+}
+
+int ProjectFileController::projectFpsNum() const
+{
+    return m_app->m_project.fpsNum();
+}
+
+int ProjectFileController::projectFpsDen() const
+{
+    return m_app->m_project.fpsDen();
+}
+
+bool ProjectFileController::projectDropFrame() const
+{
+    return m_app->m_project.dropFrame();
+}
+
+QString ProjectFileController::projectFpsLabel() const
+{
+    const int num = m_app->m_project.fpsNum();
+    const int den = m_app->m_project.fpsDen();
+    if (den == 1001) {
+        if (num == 24000)
+            return QStringLiteral("23.976");
+        if (num == 30000)
+            return QStringLiteral("29.97");
+        if (num == 60000)
+            return QStringLiteral("59.94");
+    }
+    if (den > 1)
+        return QString::number(m_app->m_project.fpsExact(), 'f', 3);
+    return QString::number(m_app->m_project.fps());
+}
+
+QString ProjectFileController::formatTimecode(double seconds) const
+{
+    const drift::TimeUs us = drift::secondsToUs(qMax(0.0, seconds));
+    return drift::Project::formatTimecode(us, m_app->m_project.fpsNum(),
+                                          m_app->m_project.fpsDen(),
+                                          m_app->m_project.dropFrame());
+}
+
 void ProjectFileController::setProjectResolution(int width, int height)
 {
     setProjectSetup(width, height, m_app->m_project.fps());
@@ -441,6 +486,29 @@ void ProjectFileController::setProjectResolution(int width, int height)
 void ProjectFileController::setProjectFps(int fps)
 {
     setProjectSetup(m_app->m_project.width(), m_app->m_project.height(), fps);
+}
+
+void ProjectFileController::setProjectFpsRational(int fpsNum, int fpsDen, bool dropFrame)
+{
+    fpsNum = qMax(1, fpsNum);
+    fpsDen = qMax(1, fpsDen);
+    if (m_app->m_project.fpsNum() == fpsNum
+        && m_app->m_project.fpsDen() == fpsDen
+        && m_app->m_project.dropFrame() == dropFrame) {
+        return;
+    }
+
+    const bool pristine =
+        m_app->m_undoStack.count() == 0 && !m_dirty && m_currentProjectPath.isEmpty();
+
+    const drift::Project before = m_app->m_project;
+    m_app->m_project.setFpsRational(fpsNum, fpsDen);
+    m_app->m_project.setDropFrame(dropFrame);
+    if (!pristine)
+        m_app->pushProjectEdit(before, tr("Frame rate"));
+    m_app->finishEdit(tr("Project setup updated"));
+    if (m_app->m_playback.isPlaying())
+        m_app->m_playback.syncDisplayCadence();
 }
 
 void ProjectFileController::setProjectSetup(int width, int height, int fps)

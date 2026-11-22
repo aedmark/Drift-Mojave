@@ -592,7 +592,7 @@ double AppController::quantizeTimeSeconds(double seconds, bool isAudioOnly) cons
 {
     if (!m_quantizeToFrames || isAudioOnly)
         return qMax(0.0, seconds);
-    const double fps = m_project.fps() > 0.0 ? m_project.fps() : 30.0;
+    const double fps = m_project.fpsExact() > 0.0 ? m_project.fpsExact() : 30.0;
     return qMax(0.0, static_cast<double>(llround(seconds * fps)) / fps);
 }
 

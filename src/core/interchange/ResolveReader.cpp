@@ -459,11 +459,11 @@ std::optional<Project> readFcpxmlData(const QByteArray &data, const QString &sou
         if (formats.contains(fmtId)) {
             const FcpxmlFormat &f = formats.value(fmtId);
             project.setResolution(f.width, f.height);
-            project.setFps(qMax(1, qRound(f.fps)));
+            project.setFpsFromDouble(f.fps);
         } else if (!formats.isEmpty()) {
             const FcpxmlFormat &f = formats.first();
             project.setResolution(f.width, f.height);
-            project.setFps(qMax(1, qRound(f.fps)));
+            project.setFpsFromDouble(f.fps);
         }
     }
 
@@ -684,7 +684,7 @@ std::optional<Project> readDrpArchive(const QString &drpFilePath, QString *error
                 const QDomElement fpsEl = root.elementsByTagName(QStringLiteral("TimelineFrameRate")).item(0).toElement();
                 if (!fpsEl.isNull() && fpsEl.text().toDouble() > 0.0) {
                     fps = fpsEl.text().toDouble();
-                    project.setFps(qMax(1, qRound(fps)));
+                    project.setFpsFromDouble(fps);
                 }
             }
         }

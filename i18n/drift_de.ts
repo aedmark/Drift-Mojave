@@ -30350,6 +30350,10 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Drop-frame timecode (;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Changing size doesn’t shrink your clips — anything outside the new edges is cut off.</source>
         <translation type="unfinished"></translation>
     </message>

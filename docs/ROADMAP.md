@@ -118,3 +118,20 @@ Status: **Shipped in `v1.4.0`**
    - Expanded `mediaGeneratorCatalog()` with *Checkerboard Pattern*, *Calibration Grid & Safe Zones* (90% Title Safe / 93% Action Safe), and *Film Grain / Noise Texture*.
 4. **Tier 6D — Unused Media Sweep, Consolidation & Live ProRes Progress**
    - Undoable one-click `removeUnusedMedia()` and `consolidateProjectMedia()` directly from the Media Bin filter/tools menu, plus a live ProRes 422 transcode progress dialog (`VegasTranscodeDialog`) and clickable header badge.
+
+---
+
+## Tier 7 — Broadcast Timing, Auto-Sync, Event Attributes & Finishing Workflows (`v1.5.0`)
+
+Status: **In Progress (7A)**
+
+1. **Tier 7A — True Fractional Frame Rates & Broadcast Timecode (`23.976` / `29.97` / `59.94`)** — ✅ Implemented on `main`
+   - Rational project frame rate (`fpsNum`/`fpsDen`) across `Project`, `.veg`/OTIO/EDL/Kdenlive/Resolve interchange, `Exporter`, `BakeWriter`, `PlaybackEngine`, and timeline quantization, plus SMPTE Drop-Frame (`;`) / Non-Drop-Frame (`:`) timecode formatting and project setup presets.
+2. **Tier 7B — Audio Waveform Auto-Sync (Dual-System & Multicam)**
+   - Synchronize 2+ selected clips by audio waveform using FFT cross-correlation for sample-accurate alignment, with optional auto-group/link and scratch-audio mute.
+3. **Tier 7C — Selective "Paste Event Attributes…" & Reusable FX Chains**
+   - Selective Paste Event Attributes dialog (Video FX, Audio FX, Color Grade, Pan/Crop, Opacity/Gain, Speed/Velocity, Event Switches) and named reusable FX Chain Presets across projects.
+4. **Tier 7D — Classic VEGAS Audio Finishing (Track Channel Strip & Auto-Ducking)**
+   - Built-in per-track Channel Strip (HPF, 4-band Parametric EQ with curve graph, Compressor, Noise Gate) and Auto-Ducking writing editable volume-envelope keyframes driven by a Dialogue track/bus.
+5. **Tier 7E — Large-Timeline Ergonomics & Render Queue**
+   - Collapsible Track Folders/Groups, Batch Render Queue for unattended multi-sequence/region rendering, and saved Window/Workspace Layouts (`Alt+D, 1–4`).

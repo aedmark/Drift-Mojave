@@ -1106,7 +1106,7 @@ void AppController::setUpMulticamFromAssets()
 
 drift::TimeUs AppController::multicamSwitchTimeUs() const
 {
-    const drift::TimeUs step = drift::frameDurationUs(m_projectFile->projectFps());
+    const drift::TimeUs step = drift::frameDurationUs(m_projectFile->projectFpsNum(), m_projectFile->projectFpsDen());
     if (step <= 0)
         return m_playheadUs;
     return ((m_playheadUs + step / 2) / step) * step;

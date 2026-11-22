@@ -30359,6 +30359,10 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
         <translation>Mga larawan bawat segundo</translation>
     </message>
     <message>
+        <source>Drop-frame timecode (;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Changing size doesn’t shrink your clips — anything outside the new edges is cut off.</source>
         <translation>Hindi pinapaliit ng pagpapalit ng laki ang iyong mga clip — anumang nasa labas ng mga bagong gilid ay mapuputol.</translation>
     </message>

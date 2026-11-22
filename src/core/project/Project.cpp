@@ -1741,7 +1741,13 @@ Project Project::fromJson(const QJsonObject &object, QString *errorOut)
     Project project;
 
     project.setName(object.value(QStringLiteral("projectName")).toString(QStringLiteral("Untitled Project")));
-    project.setFps(object.value(QStringLiteral("fps")).toInt(30));
+    if (object.contains(QStringLiteral("fpsNum")) && object.contains(QStringLiteral("fpsDen"))) {
+        project.setFpsRational(object.value(QStringLiteral("fpsNum")).toInt(30),
+                               object.value(QStringLiteral("fpsDen")).toInt(1));
+    } else {
+        project.setFps(object.value(QStringLiteral("fps")).toInt(30));
+    }
+    project.setDropFrame(object.value(QStringLiteral("dropFrame")).toBool(false));
     project.setResolution(object.value(QStringLiteral("width")).toInt(1920),
                           object.value(QStringLiteral("height")).toInt(1080));
     project.setSampleRate(object.value(QStringLiteral("sampleRate")).toInt(48000));
@@ -2169,6 +2175,9 @@ QJsonObject Project::toJson(bool includeTranscripts) const
         {QStringLiteral("createdAt"), m_createdAt.toString(Qt::ISODate)},
         {QStringLiteral("modifiedAt"), m_modifiedAt.toString(Qt::ISODate)},
         {QStringLiteral("fps"), m_fps},
+        {QStringLiteral("fpsNum"), m_fpsNum},
+        {QStringLiteral("fpsDen"), m_fpsDen},
+        {QStringLiteral("dropFrame"), m_dropFrame},
         {QStringLiteral("width"), m_width},
         {QStringLiteral("height"), m_height},
         {QStringLiteral("sampleRate"), m_sampleRate},
@@ -2218,6 +2227,65 @@ QJsonObject Project::toJson(bool includeTranscripts) const
 QByteArray Project::toCompactJson() const
 {
     return QJsonDocument(toJson(false)).toJson(QJsonDocument::Compact);
+}
+
+void Project::setFpsRational(int num, int den)
+{
+    m_fpsNum = qMax(1, num);
+    m_fpsDen = qMax(1, den);
+    m_fps = qMax(1, qRound(fpsExact()));
+    if (!supportsDropFrame())
+        m_dropFrame = false;
+}
+
+void Project::setFpsFromDouble(double fps)
+{
+    if (fps <= 0.0 || std::isnan(fps) || std::isinf(fps))
+        return;
+    if (std::abs(fps - 24000.0 / 1001.0) < 0.005) {
+        setFpsRational(24000, 1001);
+    } else if (std::abs(fps - 30000.0 / 1001.0) < 0.005) {
+        setFpsRational(30000, 1001);
+    } else if (std::abs(fps - 60000.0 / 1001.0) < 0.005) {
+        setFpsRational(60000, 1001);
+    } else {
+        setFpsRational(qMax(1, qRound(fps)), 1);
+    }
+}
+
+void Project::setDropFrame(bool df)
+{
+    m_dropFrame = df && supportsDropFrame();
+}
+
+QString Project::formatTimecode(TimeUs us, int fpsNum, int fpsDen, bool dropFrame)
+{
+    const double exactFps = (fpsNum > 0 && fpsDen > 0) ? static_cast<double>(fpsNum) / static_cast<double>(fpsDen) : 30.0;
+    const int nominalFps = qMax(1, qRound(exactFps));
+    const qint64 frameNumber = qMax<qint64>(0, std::llround((static_cast<double>(us) / static_cast<double>(kUsPerSecond)) * exactFps));
+
+    const bool useDropFrame = dropFrame && fpsDen == 1001 && (fpsNum == 30000 || fpsNum == 60000);
+    qint64 displayFrame = frameNumber;
+    if (useDropFrame) {
+        const qint64 dropFrames = (fpsNum == 60000) ? 4 : 2;
+        const qint64 framesPer10Min = static_cast<qint64>(nominalFps) * 600 - dropFrames * 9;
+        const qint64 framesPerMin = static_cast<qint64>(nominalFps) * 60 - dropFrames;
+        const qint64 d = frameNumber / framesPer10Min;
+        const qint64 m = frameNumber % framesPer10Min;
+        displayFrame = frameNumber + dropFrames * 9 * d
+            + (m >= dropFrames ? dropFrames * ((m - dropFrames) / framesPerMin) : 0);
+    }
+
+    const qint64 ff = displayFrame % nominalFps;
+    const qint64 totalSec = displayFrame / nominalFps;
+    const qint64 ss = totalSec % 60;
+    const qint64 mm = (totalSec / 60) % 60;
+    const qint64 hh = totalSec / 3600;
+    return (useDropFrame ? QStringLiteral("%1:%2:%3;%4") : QStringLiteral("%1:%2:%3:%4"))
+        .arg(hh, 2, 10, QLatin1Char('0'))
+        .arg(mm, 2, 10, QLatin1Char('0'))
+        .arg(ss, 2, 10, QLatin1Char('0'))
+        .arg(ff, 2, 10, QLatin1Char('0'));
 }
 
 QString Project::contentHash() const

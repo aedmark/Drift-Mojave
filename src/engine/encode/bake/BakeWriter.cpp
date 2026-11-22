@@ -56,12 +56,14 @@ BakeWriter::Result BakeWriter::bake(BakeFile &file, const Project &project, qint
     }
 
     const int fps = std::max(1, project.fps());
+    const int fpsNum = std::max(1, project.fpsNum());
+    const int fpsDen = std::max(1, project.fpsDen());
     const PresetDef &def = presetDef(preset);
 
-    // Exporter samples frame i at startUs + llround(i * 1e6 / fps), which is within a microsecond of
-    // the timeline's own frame (startFrame + i) time, and counts round(duration * fps / 1e6) frames.
-    const auto frameUs = [fps](qint64 frame) {
-        return static_cast<TimeUs>(std::llround(static_cast<double>(frame) * 1e6 / fps));
+    // Exporter samples frame i at startUs + llround(i * 1e6 * fpsDen / fpsNum), which is within a microsecond of
+    // the timeline's own frame (startFrame + i) time, and counts round(duration * fpsNum / (1e6 * fpsDen)) frames.
+    const auto frameUs = [fpsNum, fpsDen](qint64 frame) {
+        return static_cast<TimeUs>(std::llround(static_cast<double>(frame) * 1e6 * fpsDen / fpsNum));
     };
 
     struct State
@@ -135,8 +137,8 @@ BakeWriter::Result BakeWriter::bake(BakeFile &file, const Project &project, qint
     settings.rateControl = QStringLiteral("crf");
     settings.crf = def.crf;
     settings.videoPreset = QString::fromLatin1(def.x264Preset);
-    settings.fpsNum = fps;
-    settings.fpsDen = 1;
+    settings.fpsNum = fpsNum;
+    settings.fpsDen = fpsDen;
     settings.startUs = frameUs(startFrame);
     settings.endUs = frameUs(endFrame);
     settings.useBakes = false;

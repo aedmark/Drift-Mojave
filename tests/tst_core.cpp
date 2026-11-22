@@ -52,6 +52,7 @@ private slots:
     void imageSequenceDisplayName();
     void imageSequenceDetection();
     void timeConversion();
+    void projectRationalFpsAndSmpteTimecode();
     void transcriptJsonRoundTrip();
     void transcriptWordsInRange();
     void transcriptPhrasePacking();
@@ -8829,6 +8830,70 @@ void CoreTest::clipLockedAndBusOutputBusRoundTrip()
     QCOMPARE(loaded.audioBuses().size(), 2);
     QCOMPARE(loaded.audioBuses().at(0).outputBusId, QStringLiteral("bus-master-sub"));
     QCOMPARE(loaded.audioBuses().at(1).outputBusId, QString());
+}
+
+void CoreTest::projectRationalFpsAndSmpteTimecode()
+{
+    drift::Project p;
+    p.setFpsFromDouble(23.976023976023978);
+    QCOMPARE(p.fpsNum(), 24000);
+    QCOMPARE(p.fpsDen(), 1001);
+    QCOMPARE(p.fps(), 24);
+    QVERIFY(qAbs(p.fpsExact() - 24000.0 / 1001.0) < 1e-6);
+    QVERIFY(!p.supportsDropFrame());
+    QCOMPARE(drift::frameDurationUs(24000, 1001), drift::TimeUs(41708));
+
+    // 1000.0 s at 23.976 fps = 23976 frames -> 00:16:39:00 (not 00:16:40:00)
+    QCOMPARE(drift::Project::formatTimecode(1000 * drift::kUsPerSecond, 24000, 1001, false),
+             QStringLiteral("00:16:39:00"));
+
+    p.setFpsFromDouble(29.97);
+    QCOMPARE(p.fpsNum(), 30000);
+    QCOMPARE(p.fpsDen(), 1001);
+    QVERIFY(p.supportsDropFrame());
+    p.setDropFrame(true);
+    QVERIFY(p.dropFrame());
+
+    // Round-trip via JSON
+    const QJsonObject json = p.toJson();
+    QString err;
+    const drift::Project loaded = drift::Project::fromJson(json, &err);
+    QVERIFY2(err.isEmpty(), qPrintable(err));
+    QCOMPARE(loaded.fpsNum(), 30000);
+    QCOMPARE(loaded.fpsDen(), 1001);
+    QVERIFY(loaded.dropFrame());
+
+    // Legacy JSON without fpsNum/fpsDen loads as integer fps/1
+    QJsonObject legacy = json;
+    legacy.remove(QStringLiteral("fpsNum"));
+    legacy.remove(QStringLiteral("fpsDen"));
+    legacy.remove(QStringLiteral("dropFrame"));
+    legacy[QStringLiteral("fps")] = 24;
+    const drift::Project legacyProj = drift::Project::fromJson(legacy, &err);
+    QVERIFY2(err.isEmpty(), qPrintable(err));
+    QCOMPARE(legacyProj.fpsNum(), 24);
+    QCOMPARE(legacyProj.fpsDen(), 1);
+    QVERIFY(!legacyProj.dropFrame());
+
+    // SMPTE 29.97 Drop-Frame timecode cadence (drops frames 00, 01 at each non-10th minute)
+    auto frameUs2997 = [](qint64 f) {
+        return static_cast<drift::TimeUs>(std::llround(static_cast<double>(f) * 1'000'000.0 * 1001.0 / 30000.0));
+    };
+    QCOMPARE(drift::Project::formatTimecode(frameUs2997(1799), 30000, 1001, true),
+             QStringLiteral("00:00:59;29"));
+    QCOMPARE(drift::Project::formatTimecode(frameUs2997(1800), 30000, 1001, true),
+             QStringLiteral("00:01:00;02"));
+    QCOMPARE(drift::Project::formatTimecode(frameUs2997(17981), 30000, 1001, true),
+             QStringLiteral("00:09:59;29"));
+    QCOMPARE(drift::Project::formatTimecode(frameUs2997(17982), 30000, 1001, true),
+             QStringLiteral("00:10:00;00"));
+
+    // SMPTE 59.94 Drop-Frame timecode (drops 4 frames at each non-10th minute)
+    auto frameUs5994 = [](qint64 f) {
+        return static_cast<drift::TimeUs>(std::llround(static_cast<double>(f) * 1'000'000.0 * 1001.0 / 60000.0));
+    };
+    QCOMPARE(drift::Project::formatTimecode(frameUs5994(3600), 60000, 1001, true),
+             QStringLiteral("00:01:00;04"));
 }
 
 QTEST_MAIN(CoreTest)

@@ -28,14 +28,7 @@ PanelFrame {
     }
 
     function formatTimecode(seconds) {
-        const fps = root.projectFps;
-        const totalFrames = Math.round(seconds * fps);
-        const h = Math.floor(totalFrames / (fps * 3600));
-        const m = Math.floor(totalFrames / (fps * 60)) % 60;
-        const s = Math.floor(totalFrames / fps) % 60;
-        const f = totalFrames % fps;
-        function pad(n) { return n.toString().padStart(2, "0"); }
-        return pad(h) + ":" + pad(m) + ":" + pad(s) + ":" + pad(f);
+        return EditorState.projectFile.formatTimecode(seconds);
     }
 
     // Fullscreen gives the whole screen to the picture: no gutter, and the transport joins the OSD
