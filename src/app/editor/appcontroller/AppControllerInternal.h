@@ -365,4 +365,20 @@ void applyShapeStylePatch(drift::ShapeStyle &s, const QVariantMap &m);
 drift::Mask clipMatte(const drift::Project &project, int trackIndex, int clipIndex);
 
 bool clipHasMatte(const drift::Project &project, int trackIndex, int clipIndex);
+
+inline drift::EasingSpec envelopeCurveToEasingSpec(const QString &curveType)
+{
+    const QString c = curveType.trimmed().toLower();
+    if (c == QLatin1String("hold") || c == QLatin1String("step"))
+        return drift::EasingSpec{drift::EasingSpec::Kind::Hold};
+    if (c == QLatin1String("smooth") || c == QLatin1String("spline"))
+        return drift::EasingSpec{drift::EasingSpec::Kind::Bezier, 0.42, 0.0, 0.58, 1.0};
+    if (c == QLatin1String("fast"))
+        return drift::EasingSpec{drift::EasingSpec::Kind::Bezier, 0.0, 0.0, 0.2, 1.0};
+    if (c == QLatin1String("slow"))
+        return drift::EasingSpec{drift::EasingSpec::Kind::Bezier, 0.8, 0.0, 1.0, 1.0};
+    if (c == QLatin1String("sharp"))
+        return drift::EasingSpec{drift::EasingSpec::Kind::Bezier, 0.15, 0.85, 0.85, 0.15};
+    return drift::EasingSpec{drift::EasingSpec::Kind::Linear};
+}
 } // namespace drift::appcontroller_detail

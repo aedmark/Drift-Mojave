@@ -103,3 +103,18 @@ Status: **Shipped in `v1.3.0`**
    - Import another Drift `.drift` bundle, VEGAS `.veg` project, or `.json` project directly onto the active timeline as a nested `Composite` clip with full asset and sub-sequence remapping.
 5. **Tier 5D — Target EBU R128 Loudness Normalization**
    - Optional automatic Integrated LUFS mastering (`-14 LUFS`, `-16 LUFS`, `-23 LUFS`) with `-1.0 dBTP` True Peak limiting across full video exports, audio-only renders, and multi-track/bus WAV stems.
+
+---
+
+## Tier 6 — Video Scopes, Envelope Curve Shapes, Generators & Media Consolidation (`v1.4.0`)
+
+Status: **Shipped in `v1.4.0`**
+
+1. **Tier 6A — Live Video Scopes Overlay (`VideoScopesOverlay`)**
+   - Dockable preview HUD displaying Rec.709 RGB + Luma Histogram, Luma Waveform, RGB Parade, and Vectorscope with clipping & average luminance telemetry.
+2. **Tier 6B — Automation Envelope Curve Interpolation Shapes**
+   - Per-node curve presets (*Linear*, *Smooth/Spline*, *Fast*, *Slow*, *Sharp*, *Hold/Step*) on both timeline track automation envelopes (`TimelineTrackEnvelope`) and on-clip audio gain envelopes (`TimelineAudioGainEnvelope`), evaluated continuously by `KeyframeTrack` and rendered smoothly on the timeline Canvas.
+3. **Tier 6C — Additional VEGAS-Style Media Generators**
+   - Expanded `mediaGeneratorCatalog()` with *Checkerboard Pattern*, *Calibration Grid & Safe Zones* (90% Title Safe / 93% Action Safe), and *Film Grain / Noise Texture*.
+4. **Tier 6D — Unused Media Sweep, Consolidation & Live ProRes Progress**
+   - Undoable one-click `removeUnusedMedia()` and `consolidateProjectMedia()` directly from the Media Bin filter/tools menu, plus a live ProRes 422 transcode progress dialog (`VegasTranscodeDialog`) and clickable header badge.

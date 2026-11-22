@@ -1199,11 +1199,18 @@ TimelineClipsModel::Row AppController::clipRow(const drift::Clip &clip,
         }
     }
     row.effectsLabel = effectNames.join(QStringLiteral(" · "));
-    for (const auto &kv : clip.volume.keyframes().asKeyValueRange())
+    for (const auto &kv : clip.volume.keyframes().asKeyValueRange()) {
+        const auto &kf = kv.second;
+        const bool curved = !kf.hold
+                         && (!qFuzzyIsNull(kf.inDx) || !qFuzzyIsNull(kf.outDx)
+                             || !qFuzzyIsNull(kf.inDy) || !qFuzzyIsNull(kf.outDy));
         row.volumeKeys.append(QVariantMap{
             {QStringLiteral("t"), drift::usToSeconds(kv.first)},
-            {QStringLiteral("v"), kv.second.value},
+            {QStringLiteral("v"), kf.value},
+            {QStringLiteral("hold"), kf.hold},
+            {QStringLiteral("curved"), curved},
         });
+    }
     row.volumeTyped = clip.volume;
     row.baseOpacity = clip.opacity.isEmpty() ? 1.0 : qBound(0.0, clip.opacity.keyframes().constBegin()->value, 1.0);
     row.opacityKeyframed = clip.opacity.keyframes().size() > 1;

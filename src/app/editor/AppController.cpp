@@ -1089,10 +1089,14 @@ QVariantList AppController::tracks() const
             const auto &keys = env.keyframes();
             pts.reserve(keys.size());
             for (auto it = keys.constBegin(); it != keys.constEnd(); ++it) {
+                const bool curved = !it->hold
+                                 && (!qFuzzyIsNull(it->inDx) || !qFuzzyIsNull(it->outDx)
+                                     || !qFuzzyIsNull(it->inDy) || !qFuzzyIsNull(it->outDy));
                 pts.append(QVariantMap{
                     {QStringLiteral("time"), drift::usToSeconds(it.key())},
                     {QStringLiteral("value"), it->value},
                     {QStringLiteral("hold"), it->hold},
+                    {QStringLiteral("curved"), curved},
                 });
             }
             return pts;

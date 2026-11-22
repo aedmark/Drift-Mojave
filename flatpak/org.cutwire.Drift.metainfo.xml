@@ -89,6 +89,19 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.4.0" date="2026-11-21">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.4.0</url>
+      <description>
+        <p>Drift Mojave 1.4.0 delivers VEGAS Parity Tier 6 alongside live Apple ProRes 422 batch transcode progress and CI-enforced QML module checks: a dockable Video Scopes HUD (Histogram, Luma Waveform, RGB Parade, Vectorscope), Bezier curve shapes on track &amp; clip automation envelopes, additional VEGAS Media Generators, one-click Remove Unused Media and Consolidate Project Media, plus a live ProRes conversion progress dialog and header indicator.</p>
+        <ul>
+          <li>Live dockable Video Scopes overlay in the Preview panel (Histogram, Luma Waveform, RGB Parade, Vectorscope)</li>
+          <li>VEGAS-style Bezier envelope curve presets (Linear, Smooth/Spline, Fast, Slow, Sharp, Hold) for both track envelopes and on-clip audio gain envelopes</li>
+          <li>Additional Media Generators (Checkerboard Pattern, Calibration Grid &amp; Safe Zones, Film Grain / Noise Texture)</li>
+          <li>Project Media Sweep (removeUnusedMedia with Undo) and Project Media Consolidation (consolidateProjectMedia) in the Media Bin filter menu</li>
+          <li>Live Apple ProRes 422 transcode progress dialog (Run in background / Cancel) and clickable top-header progress badge</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.3.0" date="2026-11-21">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.3.0</url>
       <description>

@@ -2239,9 +2239,15 @@ QVariantList AppController::clipVolumeEnvelopePoints(int trackIndex, int clipInd
     }
     const auto &kfs = clip.volume.keyframes();
     for (auto it = kfs.constBegin(); it != kfs.constEnd(); ++it) {
+        const auto &kf = it.value();
+        const bool curved = !kf.hold
+                         && (!qFuzzyIsNull(kf.inDx) || !qFuzzyIsNull(kf.outDx)
+                             || !qFuzzyIsNull(kf.inDy) || !qFuzzyIsNull(kf.outDy));
         out.append(QVariantMap{
             {QStringLiteral("time"), drift::usToSeconds(it.key())},
-            {QStringLiteral("value"), it.value().value},
+            {QStringLiteral("value"), kf.value},
+            {QStringLiteral("hold"), kf.hold},
+            {QStringLiteral("curved"), curved},
         });
     }
     return out;
@@ -2313,6 +2319,40 @@ void AppController::removeClipVolumeEnvelopePoint(int trackIndex, int clipIndex,
     clip.volume.removeKeyframe(keys.at(pointIndex));
     pushProjectEdit(before, tr("Remove clip gain envelope point"));
     finishEdit(tr("Clip gain envelope updated"));
+}
+
+bool AppController::setClipVolumeEnvelopePointCurve(int trackIndex, int clipIndex, int pointIndex,
+                                                   const QString &curveType)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex) || m_project.tracks().at(trackIndex).locked)
+        return false;
+    const drift::Clip &probe = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    if (probe.locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return false;
+    }
+    const QList<drift::TimeUs> keys = probe.volume.keyframes().keys();
+    if (pointIndex < 0 || pointIndex >= keys.size())
+        return false;
+
+    const drift::Project before = m_project;
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    clip.volume.setEnabled(true);
+    clip.volume.setSegmentEasing(keys.at(pointIndex), envelopeCurveToEasingSpec(curveType));
+    pushProjectEdit(before, tr("Set clip gain envelope curve"));
+    finishEdit(tr("Clip gain curve updated"));
+    return true;
+}
+
+double AppController::evaluateClipVolumeEnvelopeAt(int trackIndex, int clipIndex, double localSeconds) const
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return 1.0;
+    const drift::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    if (clip.volume.isEmpty())
+        return 1.0;
+    const drift::TimeUs tUs = qBound<drift::TimeUs>(0, drift::secondsToUs(localSeconds), clip.timelineDuration);
+    return std::clamp(clip.volume.evaluateAt(tUs), 0.0, 2.0);
 }
 
 void AppController::clearClipVolumeEnvelope(int trackIndex, int clipIndex)

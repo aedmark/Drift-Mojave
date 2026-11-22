@@ -57,6 +57,21 @@ Row {
                 checked: root.smartFilter === "subclips"
                 onTriggered: root.smartFilterSelected("subclips")
             }
+            ThemedMenuSeparator { }
+            ThemedMenuItem {
+                text: qsTr("Remove unused media from project")
+                icon.name: Theme.icons.trash
+                onTriggered: EditorState.removeUnusedMedia()
+            }
+            ThemedMenuItem {
+                text: qsTr("Consolidate project media to folder…")
+                icon.name: Theme.icons.folder
+                onTriggered: {
+                    var url = FileDialogs.openDirectory(qsTr("Consolidate Project Media to Folder"))
+                    if (url != "")
+                        EditorState.consolidateProjectMedia(url, true)
+                }
+            }
         }
     }
 

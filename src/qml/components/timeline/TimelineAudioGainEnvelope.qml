@@ -84,10 +84,29 @@ Item {
             ctx.beginPath()
             const firstY = root.gainToY(pts[0].v !== undefined ? pts[0].v : 1.0)
             ctx.moveTo(0, firstY)
-            for (let i = 0; i < pts.length; ++i) {
-                const px = Math.max(0, Math.min(width, (pts[i].t / root.durationSec) * width))
-                const py = root.gainToY(pts[i].v !== undefined ? pts[i].v : 1.0)
-                ctx.lineTo(px, py)
+            const firstPx = Math.max(0, Math.min(width, (pts[0].t / root.durationSec) * width))
+            ctx.lineTo(firstPx, firstY)
+            for (let i = 1; i < pts.length; ++i) {
+                const prev = pts[i - 1]
+                const cur = pts[i]
+                const px = Math.max(0, Math.min(width, (cur.t / root.durationSec) * width))
+                const py = root.gainToY(cur.v !== undefined ? cur.v : 1.0)
+                if (prev.hold) {
+                    const prevY = root.gainToY(prev.v !== undefined ? prev.v : 1.0)
+                    ctx.lineTo(px, prevY)
+                    ctx.lineTo(px, py)
+                } else if ((prev.curved || cur.curved) && cur.t > prev.t + 0.001) {
+                    const steps = 12
+                    for (let s = 1; s <= steps; ++s) {
+                        const frac = s / steps
+                        const sampleT = prev.t + (cur.t - prev.t) * frac
+                        const sampleGain = EditorState.evaluateClipVolumeEnvelopeAt(owner.trackIndex, owner.clipIndex, sampleT)
+                        const sx = Math.max(0, Math.min(width, (sampleT / root.durationSec) * width))
+                        ctx.lineTo(sx, root.gainToY(sampleGain))
+                    }
+                } else {
+                    ctx.lineTo(px, py)
+                }
             }
             const lastY = root.gainToY(pts[pts.length - 1].v !== undefined ? pts[pts.length - 1].v : 1.0)
             ctx.lineTo(width, lastY)
@@ -160,12 +179,39 @@ Item {
 
                 onPressed: function(mouse) {
                     if (mouse.button === Qt.RightButton) {
-                        EditorState.removeClipVolumeEnvelopePoint(owner.trackIndex, owner.clipIndex, nodeItem.index)
+                        nodeMenu.popup()
                         return
                     }
                     nodeItem.dragSec = nodeItem.modelData.t || 0
                     nodeItem.dragGain = nodeItem.modelData.v !== undefined ? nodeItem.modelData.v : 1.0
                     nodeItem.dragging = true
+                }
+
+                ThemedContextMenu {
+                    id: nodeMenu
+
+                    Repeater {
+                        model: [
+                            { id: "linear", label: qsTr("Curve: Linear") },
+                            { id: "smooth", label: qsTr("Curve: Smooth (Spline)") },
+                            { id: "fast", label: qsTr("Curve: Fast") },
+                            { id: "slow", label: qsTr("Curve: Slow") },
+                            { id: "sharp", label: qsTr("Curve: Sharp") },
+                            { id: "hold", label: qsTr("Curve: Hold (Step)") }
+                        ]
+                        delegate: ThemedMenuItem {
+                            required property var modelData
+                            text: modelData.label
+                            onTriggered: EditorState.setClipVolumeEnvelopePointCurve(
+                                             owner.trackIndex, owner.clipIndex, nodeItem.index, modelData.id)
+                        }
+                    }
+                    ThemedMenuSeparator { }
+                    ThemedMenuItem {
+                        text: qsTr("Delete gain node")
+                        icon.name: Theme.icons.trash
+                        onTriggered: EditorState.removeClipVolumeEnvelopePoint(owner.trackIndex, owner.clipIndex, nodeItem.index)
+                    }
                 }
 
                 onPositionChanged: function(mouse) {

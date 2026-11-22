@@ -428,6 +428,11 @@ drift::KeyframeTrack<double> *trackEnvelopePtr(drift::Track &track, const QStrin
     return nullptr;
 }
 
+const drift::KeyframeTrack<double> *trackEnvelopePtr(const drift::Track &track, const QString &kind)
+{
+    return trackEnvelopePtr(const_cast<drift::Track &>(track), kind);
+}
+
 bool *trackEnvelopeVisiblePtr(drift::Track &track, const QString &kind)
 {
     if (kind == QLatin1String("volume"))
@@ -641,6 +646,48 @@ void AppController::removeTrackEnvelopePoint(int trackIndex, const QString &kind
         *trackEnvelopeVisiblePtr(track, kind) = false;
     pushProjectEdit(before, tr("Remove track %1 envelope point").arg(trackEnvelopeLabel(kind)));
     finishEdit(tr("Envelope point removed"));
+}
+
+bool AppController::setTrackEnvelopePointCurve(int trackIndex, const QString &kind,
+                                               double timeSeconds, const QString &curveType)
+{
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return false;
+    drift::Track &track = m_project.tracks()[trackIndex];
+    if (track.locked || !trackEnvelopeSupported(track, kind))
+        return false;
+    drift::KeyframeTrack<double> *env = trackEnvelopePtr(track, kind);
+    if (!env || env->isEmpty())
+        return false;
+
+    const drift::TimeUs targetUs = qMax<drift::TimeUs>(0, drift::secondsToUs(timeSeconds));
+    const drift::TimeUs found = env->nearestKeyframe(targetUs, drift::TimeUs{20000});
+    if (found < 0)
+        return false;
+
+    const drift::EasingSpec spec = envelopeCurveToEasingSpec(curveType);
+    const drift::Project before = m_project;
+    env->setSegmentEasing(found, spec);
+    pushProjectEdit(before, tr("Set track %1 envelope curve").arg(trackEnvelopeLabel(kind)));
+    finishEdit(tr("Envelope curve updated"));
+    return true;
+}
+
+double AppController::evaluateTrackEnvelopeAt(int trackIndex, const QString &kind, double timeSeconds) const
+{
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return trackEnvelopeDefaultValue(kind);
+    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const drift::KeyframeTrack<double> *env = trackEnvelopePtr(track, kind);
+    if (!env || env->isEmpty()) {
+        if (kind == QLatin1String("volume"))
+            return track.volume;
+        if (kind == QLatin1String("pan"))
+            return track.pan;
+        return trackEnvelopeDefaultValue(kind);
+    }
+    const drift::TimeUs atUs = qMax<drift::TimeUs>(0, drift::secondsToUs(timeSeconds));
+    return clampTrackEnvelopeValue(kind, env->evaluateAt(atUs));
 }
 
 void AppController::clearTrackEnvelope(int trackIndex, const QString &kind)

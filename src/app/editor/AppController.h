@@ -1334,6 +1334,9 @@ public:
                                                  double newLocalSeconds, double newGain);
     Q_INVOKABLE void removeClipVolumeEnvelopePoint(int trackIndex, int clipIndex, int pointIndex);
     Q_INVOKABLE void clearClipVolumeEnvelope(int trackIndex, int clipIndex);
+    Q_INVOKABLE bool setClipVolumeEnvelopePointCurve(int trackIndex, int clipIndex, int pointIndex,
+                                                     const QString &curveType);
+    Q_INVOKABLE double evaluateClipVolumeEnvelopeAt(int trackIndex, int clipIndex, double localSeconds) const;
     Q_INVOKABLE void setClipRotationSnap(int trackIndex, int clipIndex, double degrees);
     // Discrete, lossless orientation fix (absolute 0/90/180/270, as the inspector shows it) —
     // distinct from the free decorative "Angle" above. Re-fits the clip's box for the new
@@ -1892,6 +1895,9 @@ public:
     Q_INVOKABLE void commitMoveTrackEnvelopePoint(int trackIndex, const QString &kind,
                                                   double oldTimeSeconds, double newTimeSeconds, double newValue);
     Q_INVOKABLE void removeTrackEnvelopePoint(int trackIndex, const QString &kind, double timeSeconds);
+    Q_INVOKABLE bool setTrackEnvelopePointCurve(int trackIndex, const QString &kind, double timeSeconds,
+                                                const QString &curveType);
+    Q_INVOKABLE double evaluateTrackEnvelopeAt(int trackIndex, const QString &kind, double timeSeconds) const;
     Q_INVOKABLE void clearTrackEnvelope(int trackIndex, const QString &kind);
     Q_INVOKABLE void clearAllTrackEnvelopes(int trackIndex);
     Q_INVOKABLE void toggleSelectedTrackEnvelope(const QString &kind);
@@ -1988,6 +1994,8 @@ public:
     Q_INVOKABLE bool isSubclipAsset(const QString &assetId) const;
     Q_INVOKABLE int selectClipsUsingAsset(const QString &assetId);
     Q_INVOKABLE QVariantList filterMediaAssets(const QString &filterMode) const;
+    Q_INVOKABLE int removeUnusedMedia();
+    Q_INVOKABLE QVariantMap consolidateProjectMedia(const QUrl &targetDirUrl, bool onlyUsedAssets = true);
     Q_INVOKABLE QVariantList mediaGeneratorCatalog() const;
     Q_INVOKABLE QString insertMediaGenerator(const QString &generatorId, double atSeconds = -1.0,
                                              double durationSeconds = 5.0,

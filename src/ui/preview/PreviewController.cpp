@@ -2648,4 +2648,184 @@ void PreviewController::updateComparisonFrame()
     emit splitRevisionChanged();
 }
 
+void PreviewController::setVideoScopesVisible(bool visible)
+{
+    if (m_videoScopesVisible == visible)
+        return;
+    m_videoScopesVisible = visible;
+    emit videoScopesChanged();
+}
+
+void PreviewController::setVideoScopeMode(const QString &mode)
+{
+    const QString m = mode.trimmed().toLower();
+    if (m != QLatin1String("histogram") && m != QLatin1String("waveform")
+        && m != QLatin1String("parade") && m != QLatin1String("vectorscope"))
+        return;
+    if (m_videoScopeMode == m)
+        return;
+    m_videoScopeMode = m;
+    emit videoScopesChanged();
+}
+
+QVariantMap PreviewController::computeVideoScopes(int columns, int histBins) const
+{
+    FrameCompositor compositor;
+    compositor.setProject(&m_app.m_project);
+    FrameCompositor::RenderOptions options;
+    options.previewScale = 0.25;
+    const QImage frame = compositor.compositeAt(m_app.m_playheadUs, options);
+    return computeVideoScopesForImage(frame, columns, histBins);
+}
+
+QVariantMap PreviewController::computeVideoScopesForImage(const QImage &frame, int columns, int histBins) const
+{
+    if (frame.isNull() || frame.width() <= 0 || frame.height() <= 0)
+        return {{QStringLiteral("valid"), false}};
+
+    const int cols = qBound(8, columns, 128);
+    const int bins = qBound(16, histBins, 256);
+    const QImage rgba = frame.format() == QImage::Format_RGBA8888
+                            ? frame
+                            : frame.convertToFormat(QImage::Format_RGBA8888);
+    const int w = rgba.width();
+    const int h = rgba.height();
+    const int stepX = qMax(1, w / 160);
+    const int stepY = qMax(1, h / 90);
+
+    QVector<int> binR(bins, 0), binG(bins, 0), binB(bins, 0), binY(bins, 0);
+    QVector<double> colMinY(cols, 1.0), colSumY(cols, 0.0), colMaxY(cols, 0.0);
+    QVector<double> colMinR(cols, 1.0), colSumR(cols, 0.0), colMaxR(cols, 0.0);
+    QVector<double> colMinG(cols, 1.0), colSumG(cols, 0.0), colMaxG(cols, 0.0);
+    QVector<double> colMinB(cols, 1.0), colSumB(cols, 0.0), colMaxB(cols, 0.0);
+    QVector<int> colCount(cols, 0);
+
+    QVariantList vecPts;
+    constexpr int kMaxVecPts = 256;
+    const int totalApprox = qMax(1, ((h + stepY - 1) / stepY) * ((w + stepX - 1) / stepX));
+    const int vecStride = qMax(1, totalApprox / kMaxVecPts);
+
+    qint64 sampleCount = 0;
+    qint64 clippedCount = 0;
+    double lumaSum = 0.0;
+    double cbSum = 0.0;
+    double crSum = 0.0;
+    double peakSat = 0.0;
+
+    for (int y = 0; y < h; y += stepY) {
+        const uchar *scan = rgba.constScanLine(y);
+        for (int x = 0; x < w; x += stepX) {
+            const uchar *px = scan + x * 4;
+            const double r = px[0] / 255.0;
+            const double g = px[1] / 255.0;
+            const double b = px[2] / 255.0;
+            const double yLuma = std::clamp(0.2126 * r + 0.7152 * g + 0.0722 * b, 0.0, 1.0);
+            const double cb = -0.1146 * r - 0.3854 * g + 0.5000 * b;
+            const double cr =  0.5000 * r - 0.4542 * g - 0.0458 * b;
+
+            const int bR = qBound(0, int(r * (bins - 1)), bins - 1);
+            const int bG = qBound(0, int(g * (bins - 1)), bins - 1);
+            const int bB = qBound(0, int(b * (bins - 1)), bins - 1);
+            const int bY = qBound(0, int(yLuma * (bins - 1)), bins - 1);
+            ++binR[bR];
+            ++binG[bG];
+            ++binB[bB];
+            ++binY[bY];
+
+            const int col = qBound(0, (x * cols) / w, cols - 1);
+            colMinY[col] = qMin(colMinY[col], yLuma);
+            colMaxY[col] = qMax(colMaxY[col], yLuma);
+            colSumY[col] += yLuma;
+
+            colMinR[col] = qMin(colMinR[col], r);
+            colMaxR[col] = qMax(colMaxR[col], r);
+            colSumR[col] += r;
+
+            colMinG[col] = qMin(colMinG[col], g);
+            colMaxG[col] = qMax(colMaxG[col], g);
+            colSumG[col] += g;
+
+            colMinB[col] = qMin(colMinB[col], b);
+            colMaxB[col] = qMax(colMaxB[col], b);
+            colSumB[col] += b;
+            ++colCount[col];
+
+            if ((sampleCount % vecStride) == 0 && vecPts.size() < kMaxVecPts) {
+                vecPts.append(QVariantMap{
+                    {QStringLiteral("cb"), cb},
+                    {QStringLiteral("cr"), cr},
+                });
+            }
+            if (r >= 0.99 || g >= 0.99 || b >= 0.99 || (r <= 0.01 && g <= 0.01 && b <= 0.01))
+                ++clippedCount;
+
+            lumaSum += yLuma;
+            cbSum += cb;
+            crSum += cr;
+            peakSat = qMax(peakSat, std::hypot(cb, cr) * 2.0);
+            ++sampleCount;
+        }
+    }
+
+    int maxBin = 1;
+    for (int i = 0; i < bins; ++i)
+        maxBin = qMax(maxBin, qMax(qMax(binR[i], binG[i]), qMax(binB[i], binY[i])));
+
+    QVariantList histR, histG, histB, histLuma;
+    histR.reserve(bins);
+    histG.reserve(bins);
+    histB.reserve(bins);
+    histLuma.reserve(bins);
+    for (int i = 0; i < bins; ++i) {
+        histR.append(double(binR[i]) / double(maxBin));
+        histG.append(double(binG[i]) / double(maxBin));
+        histB.append(double(binB[i]) / double(maxBin));
+        histLuma.append(double(binY[i]) / double(maxBin));
+    }
+
+    QVariantList waveformLuma, paradeR, paradeG, paradeB;
+    waveformLuma.reserve(cols);
+    paradeR.reserve(cols);
+    paradeG.reserve(cols);
+    paradeB.reserve(cols);
+    for (int c = 0; c < cols; ++c) {
+        const int n = colCount[c];
+        const auto pack = [n](double mn, double sm, double mx) -> QVariantMap {
+            if (n <= 0) {
+                return {{QStringLiteral("min"), 0.0},
+                        {QStringLiteral("avg"), 0.0},
+                        {QStringLiteral("max"), 0.0}};
+            }
+            return {{QStringLiteral("min"), mn},
+                    {QStringLiteral("avg"), sm / double(n)},
+                    {QStringLiteral("max"), mx}};
+        };
+        waveformLuma.append(pack(colMinY[c], colSumY[c], colMaxY[c]));
+        paradeR.append(pack(colMinR[c], colSumR[c], colMaxR[c]));
+        paradeG.append(pack(colMinG[c], colSumG[c], colMaxG[c]));
+        paradeB.append(pack(colMinB[c], colSumB[c], colMaxB[c]));
+    }
+
+    const double invN = sampleCount > 0 ? 1.0 / double(sampleCount) : 0.0;
+    return QVariantMap{
+        {QStringLiteral("valid"), true},
+        {QStringLiteral("width"), w},
+        {QStringLiteral("height"), h},
+        {QStringLiteral("histR"), histR},
+        {QStringLiteral("histG"), histG},
+        {QStringLiteral("histB"), histB},
+        {QStringLiteral("histLuma"), histLuma},
+        {QStringLiteral("waveformLuma"), waveformLuma},
+        {QStringLiteral("paradeR"), paradeR},
+        {QStringLiteral("paradeG"), paradeG},
+        {QStringLiteral("paradeB"), paradeB},
+        {QStringLiteral("vectorscopePoints"), vecPts},
+        {QStringLiteral("lumaAvg"), lumaSum * invN},
+        {QStringLiteral("avgCb"), cbSum * invN},
+        {QStringLiteral("avgCr"), crSum * invN},
+        {QStringLiteral("peakSaturation"), qMin(1.0, peakSat)},
+        {QStringLiteral("clippingPct"), (sampleCount > 0 ? (100.0 * double(clippedCount) / double(sampleCount)) : 0.0)},
+    };
+}
+
 #include "moc_PreviewController.cpp"

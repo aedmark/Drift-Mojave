@@ -3943,6 +3943,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Set clip gain envelope curve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip gain curve updated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Reset clip gain envelope</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5474,6 +5482,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Set track %1 envelope curve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Envelope curve updated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Clear track %1 envelope</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5883,6 +5899,68 @@
     <message>
         <source>Burnt-in SMPTE timecode overlay graphic</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checkerboard Pattern</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crisp alternating checkerboard matte generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Calibration Grid &amp; Safe Zones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Alignment grid with title-safe and action-safe guides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Film Grain / Noise Texture</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monochrome film grain and static noise plate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No unused media in project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove unused media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Removed %n unused media asset(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Target folder path is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create target folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Consolidate project media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not relink Consolidated media (track locked?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Consolidated %n media file(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <source>Generator (%1)</source>
@@ -15582,6 +15660,18 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Remove unused media from project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Consolidate project media to folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Consolidate Project Media to Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Insert VEGAS Media Generator</source>
         <translation type="unfinished"></translation>
     </message>
@@ -17242,6 +17332,14 @@ Auto picks per clip: hardware for high-quality 4K, software otherwise.
 Software is smoother for most clips. It uses more CPU.
 Hardware is better for high-quality 4K, and forces one GPU decoder.
 If playback stutters, try another.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Video Scopes (Histogram / Waveform / Parade / Vectorscope)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show live luminance histogram, waveform, RGB parade, and vectorscope over the preview</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -26211,6 +26309,34 @@ If playback stutters, try another.</source>
         <source>Clip Gain: %1% (%2 dB)</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Curve: Linear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Smooth (Spline)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Fast</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Slow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Sharp</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Hold (Step)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete gain node</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>TimelineBakeContextMenu</name>
@@ -27426,6 +27552,30 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Reset to default</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Linear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Smooth (Spline)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Fast</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Slow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Sharp</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Curve: Hold (Step)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -30124,6 +30274,37 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     </message>
     <message>
         <source>Adjust video layout…</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>VideoScopesOverlay</name>
+    <message>
+        <source>Hist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Parade</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vector</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close Video Scopes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Avg Y: %1%  Clip: %2%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No frame</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

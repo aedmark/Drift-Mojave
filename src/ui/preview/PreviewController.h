@@ -97,6 +97,9 @@ class PreviewController : public QObject
     Q_PROPERTY(bool hasReferenceFrame READ hasReferenceFrame NOTIFY referenceFrameChanged)
     Q_PROPERTY(bool hasClipboardImage READ hasClipboardImage NOTIFY clipboardImageChanged)
     Q_PROPERTY(int splitRevision READ splitRevision NOTIFY splitRevisionChanged)
+    // Live Video Scopes HUD (Histogram, Luma Waveform, RGB Parade, Vectorscope)
+    Q_PROPERTY(bool videoScopesVisible READ videoScopesVisible WRITE setVideoScopesVisible NOTIFY videoScopesChanged)
+    Q_PROPERTY(QString videoScopeMode READ videoScopeMode WRITE setVideoScopeMode NOTIFY videoScopesChanged)
 
 public:
     explicit PreviewController(AppController &app, QObject *parent = nullptr);
@@ -176,6 +179,12 @@ public:
     bool hasReferenceFrame() const { return m_hasReferenceFrame; }
     bool hasClipboardImage() const { return m_hasClipboardImage; }
     int splitRevision() const { return m_splitRevision; }
+    bool videoScopesVisible() const { return m_videoScopesVisible; }
+    void setVideoScopesVisible(bool visible);
+    QString videoScopeMode() const { return m_videoScopeMode; }
+    void setVideoScopeMode(const QString &mode);
+    Q_INVOKABLE QVariantMap computeVideoScopes(int columns = 48, int histBins = 64) const;
+    Q_INVOKABLE QVariantMap computeVideoScopesForImage(const QImage &frame, int columns = 48, int histBins = 64) const;
 
     Q_INVOKABLE void toggleSplitPreview() { setSplitPreviewEnabled(!m_splitPreviewEnabled); }
     Q_INVOKABLE void toggleSplitInverted() { setSplitInverted(!m_splitInverted); }
@@ -365,6 +374,7 @@ signals:
     void referenceFrameChanged();
     void clipboardImageChanged();
     void splitRevisionChanged();
+    void videoScopesChanged();
 
 private:
     // The scene camera at the playhead in canvas pixels (renderScale 1, which is the space the
@@ -448,4 +458,6 @@ private:
     bool m_hasClipboardImage = false;
     int m_splitRevision = 0;
     QImage m_referenceImage;
+    bool m_videoScopesVisible = false;
+    QString m_videoScopeMode = QStringLiteral("histogram");
 };

@@ -157,8 +157,18 @@ Item {
                     if (kind === "mute" || prev.hold) {
                         const prevY = root.valueToY(kind, prev.value)
                         ctx.lineTo(x, prevY)
+                        ctx.lineTo(x, y)
+                    } else if ((prev.curved || cur.curved) && cur.time > prev.time + 0.001) {
+                        const steps = 12
+                        for (let s = 1; s <= steps; ++s) {
+                            const frac = s / steps
+                            const sampleT = prev.time + (cur.time - prev.time) * frac
+                            const sampleVal = EditorState.evaluateTrackEnvelopeAt(root.trackIndex, kind, sampleT)
+                            ctx.lineTo(sampleT * pps, root.valueToY(kind, sampleVal))
+                        }
+                    } else {
+                        ctx.lineTo(x, y)
                     }
-                    ctx.lineTo(x, y)
                 }
                 const lastY = root.valueToY(kind, pts[pts.length - 1].value)
                 ctx.lineTo(width, lastY)
@@ -324,6 +334,26 @@ Item {
                                                                      ptItem.pt.time, ptItem.pt.time, val)
                         }
                     }
+                    ThemedMenuSeparator { visible: ptItem.pt.kind !== "mute" }
+                    Repeater {
+                        model: ptItem.pt.kind === "mute" ? [] : [
+                            { id: "linear", label: qsTr("Curve: Linear") },
+                            { id: "smooth", label: qsTr("Curve: Smooth (Spline)") },
+                            { id: "fast", label: qsTr("Curve: Fast") },
+                            { id: "slow", label: qsTr("Curve: Slow") },
+                            { id: "sharp", label: qsTr("Curve: Sharp") },
+                            { id: "hold", label: qsTr("Curve: Hold (Step)") }
+                        ]
+                        delegate: ThemedMenuItem {
+                            required property var modelData
+                            text: modelData.label
+                            onTriggered: EditorState.setTrackEnvelopePointCurve(root.trackIndex,
+                                                                                ptItem.pt.kind,
+                                                                                ptItem.pt.time,
+                                                                                modelData.id)
+                        }
+                    }
+                    ThemedMenuSeparator { }
                     ThemedMenuItem {
                         text: qsTr("Delete point")
                         icon.name: Theme.icons.trash

@@ -157,6 +157,8 @@ PanelFrame {
             interacting: panelViewport.toolHost.interacting
             held: root.previewFullscreen && (bottomHover.hovered || scrubSlider.pressed)
         }
+
+        VideoScopesOverlay { }
     }
 
     // Shown while the grade is bypassed, so the picture is not taken for the graded one.

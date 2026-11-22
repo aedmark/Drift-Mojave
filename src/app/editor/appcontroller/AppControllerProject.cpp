@@ -1769,6 +1769,53 @@ QImage renderGeneratorImage(const QString &generatorId, int w, int h, int fps, c
         p.setFont(tcFont);
         const QString label = QStringLiteral("00:00:00:00  %1fps").arg(qMax(1, fps));
         p.drawText(box, Qt::AlignCenter, label);
+    } else if (generatorId == QLatin1String("checkerboard")) {
+        const QColor c1(params.value(QStringLiteral("colorA"), QStringLiteral("#1e293b")).toString());
+        const QColor c2(params.value(QStringLiteral("colorB"), QStringLiteral("#e2e8f0")).toString());
+        const QColor ca = c1.isValid() ? c1 : QColor(QStringLiteral("#1e293b"));
+        const QColor cb = c2.isValid() ? c2 : QColor(QStringLiteral("#e2e8f0"));
+        const int cell = qMax(8, params.value(QStringLiteral("cellSize"), qMax(24, qMin(w, h) / 16)).toInt());
+        for (int y = 0; y < h; y += cell) {
+            for (int x = 0; x < w; x += cell) {
+                const bool odd = ((x / cell) + (y / cell)) % 2 != 0;
+                p.fillRect(x, y, qMin(cell, w - x), qMin(cell, h - y), odd ? cb : ca);
+            }
+        }
+    } else if (generatorId == QLatin1String("testGrid")) {
+        img.fill(QColor(QStringLiteral("#0f172a")));
+        const int step = qMax(16, qMin(w, h) / 12);
+        p.setPen(QPen(QColor(148, 163, 184, 90), 1));
+        for (int x = 0; x < w; x += step)
+            p.drawLine(x, 0, x, h);
+        for (int y = 0; y < h; y += step)
+            p.drawLine(0, y, w, y);
+        // Title-safe (90%) and action-safe (93%) overlays
+        p.setPen(QPen(QColor(QStringLiteral("#38bdf8")), 2, Qt::DashLine));
+        p.drawRect(QRectF(w * 0.035, h * 0.035, w * 0.93, h * 0.93));
+        p.setPen(QPen(QColor(QStringLiteral("#f59e0b")), 2, Qt::SolidLine));
+        p.drawRect(QRectF(w * 0.05, h * 0.05, w * 0.90, h * 0.90));
+        // Center crosshair + circle
+        p.setPen(QPen(QColor(248, 250, 252, 200), 2));
+        p.drawLine(w / 2 - step, h / 2, w / 2 + step, h / 2);
+        p.drawLine(w / 2, h / 2 - step, w / 2, h / 2 + step);
+        p.drawEllipse(QPointF(w * 0.5, h * 0.5), qMin(w, h) * 0.25, qMin(w, h) * 0.25);
+    } else if (generatorId == QLatin1String("whiteNoise")) {
+        p.end();
+        quint32 state = quint32(params.value(QStringLiteral("seed"), 1337).toUInt());
+        if (state == 0)
+            state = 1337u;
+        for (int y = 0; y < h; ++y) {
+            uchar *scan = img.scanLine(y);
+            for (int x = 0; x < w; ++x) {
+                state = state * 1664525u + 1013904223u;
+                const uchar v = uchar((state >> 24) & 0xFFu);
+                scan[x * 4 + 0] = v;
+                scan[x * 4 + 1] = v;
+                scan[x * 4 + 2] = v;
+                scan[x * 4 + 3] = 255;
+            }
+        }
+        return img;
     } else {
         // Default: SMPTE RP 219-style 75% color bars.
         const QColor topBars[7] = {
@@ -1909,7 +1956,137 @@ QVariantList AppController::mediaGeneratorCatalog() const
         QVariantMap{{QStringLiteral("id"), QStringLiteral("timecodeBurnIn")},
                     {QStringLiteral("name"), tr("Timecode Burn-In")},
                     {QStringLiteral("description"), tr("Burnt-in SMPTE timecode overlay graphic")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("checkerboard")},
+                    {QStringLiteral("name"), tr("Checkerboard Pattern")},
+                    {QStringLiteral("description"), tr("Crisp alternating checkerboard matte generator")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("testGrid")},
+                    {QStringLiteral("name"), tr("Calibration Grid & Safe Zones")},
+                    {QStringLiteral("description"), tr("Alignment grid with title-safe and action-safe guides")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("whiteNoise")},
+                    {QStringLiteral("name"), tr("Film Grain / Noise Texture")},
+                    {QStringLiteral("description"), tr("Monochrome film grain and static noise plate")}},
     };
+}
+
+int AppController::removeUnusedMedia()
+{
+    if (!m_assetLibrary)
+        return 0;
+
+    QStringList unusedIds;
+    const int n = m_assetLibrary->rowCount();
+    for (int i = 0; i < n; ++i) {
+        const QString id = m_assetLibrary->assetIdAt(i);
+        if (!id.isEmpty() && assetUseCount(id) == 0)
+            unusedIds.append(id);
+    }
+    if (unusedIds.isEmpty()) {
+        setLastMessage(tr("No unused media in project"), QStringLiteral("info"));
+        return 0;
+    }
+
+    const drift::Project before = m_project;
+    int removed = 0;
+    for (const QString &id : unusedIds) {
+        const int idx = m_assetLibrary->indexOfId(id);
+        if (idx < 0)
+            continue;
+        const QString removedPath = m_assetLibrary->assetAt(idx).value(QStringLiteral("path")).toString();
+        if (m_assetLibrary->removeAssetAt(idx)) {
+            ++removed;
+            if (!removedPath.isEmpty())
+                m_waveformBlocks.forgetSource(removedPath);
+        }
+    }
+    if (removed == 0)
+        return 0;
+
+    pruneOrphanSequences();
+    pushProjectEdit(before, tr("Remove unused media"));
+    finishEdit(tr("Removed %n unused media asset(s)", nullptr, removed));
+    return removed;
+}
+
+QVariantMap AppController::consolidateProjectMedia(const QUrl &targetDirUrl, bool onlyUsedAssets)
+{
+    QString dirPath = targetDirUrl.isLocalFile() ? targetDirUrl.toLocalFile() : targetDirUrl.toString();
+    dirPath = dirPath.trimmed();
+    QVariantMap result{{QStringLiteral("ok"), false},
+                       {QStringLiteral("copiedCount"), 0},
+                       {QStringLiteral("skippedCount"), 0},
+                       {QStringLiteral("outputDir"), dirPath},
+                       {QStringLiteral("files"), QStringList{}},
+                       {QStringLiteral("error"), QString{}}};
+    if (dirPath.isEmpty()) {
+        result.insert(QStringLiteral("error"), tr("Target folder path is empty"));
+        return result;
+    }
+    if (!QDir().mkpath(dirPath)) {
+        result.insert(QStringLiteral("error"), tr("Could not create target folder"));
+        return result;
+    }
+
+    QHash<QString, QString> remap;
+    QStringList copiedFiles;
+    QSet<QString> usedDestNames;
+    int skipped = 0;
+
+    for (const QString &id : m_project.assetOrder()) {
+        const drift::MediaAsset *asset = m_project.asset(id);
+        if (!asset || asset->path.isEmpty())
+            continue;
+        if (onlyUsedAssets && assetUseCount(id) == 0)
+            continue;
+        if (remap.contains(asset->path))
+            continue;
+
+        const QFileInfo srcInfo(asset->path);
+        if (!srcInfo.exists() || !srcInfo.isFile()) {
+            ++skipped;
+            continue;
+        }
+
+        const QString base = srcInfo.completeBaseName();
+        const QString ext = srcInfo.suffix();
+        QString fileName = srcInfo.fileName();
+        int counter = 2;
+        while (usedDestNames.contains(fileName.toLower())
+               || (QFileInfo::exists(QDir(dirPath).filePath(fileName))
+                   && QDir(dirPath).filePath(fileName) != asset->path)) {
+            fileName = ext.isEmpty()
+                           ? QStringLiteral("%1_%2").arg(base).arg(counter++)
+                           : QStringLiteral("%1_%2.%3").arg(base).arg(counter++).arg(ext);
+        }
+        usedDestNames.insert(fileName.toLower());
+
+        const QString destPath = QDir(dirPath).filePath(fileName);
+        if (QFileInfo(asset->path).canonicalFilePath() == QFileInfo(destPath).canonicalFilePath()) {
+            copiedFiles.append(destPath);
+            continue;
+        }
+        if (QFile::exists(destPath))
+            QFile::remove(destPath);
+        if (!QFile::copy(asset->path, destPath)) {
+            ++skipped;
+            continue;
+        }
+        remap.insert(asset->path, destPath);
+        copiedFiles.append(destPath);
+    }
+
+    if (!remap.isEmpty() && m_bin) {
+        if (!m_bin->relinkPaths(remap, tr("Consolidate project media"))) {
+            result.insert(QStringLiteral("error"), tr("Could not relink Consolidated media (track locked?)"));
+            return result;
+        }
+    }
+
+    result.insert(QStringLiteral("ok"), true);
+    result.insert(QStringLiteral("copiedCount"), int(remap.size()));
+    result.insert(QStringLiteral("skippedCount"), skipped);
+    result.insert(QStringLiteral("files"), copiedFiles);
+    setLastMessage(tr("Consolidated %n media file(s)", nullptr, int(remap.size())), QStringLiteral("success"));
+    return result;
 }
 
 QString AppController::insertMediaGenerator(const QString &generatorId, double atSeconds,

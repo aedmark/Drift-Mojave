@@ -6,7 +6,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Oldest macOS release Drift 
 
 # C is enabled for JUCE only: its modules compile a handful of C sources (zlib, flac, oggvorbis)
 # and its CMake refuses to configure without it.
-project(Drift VERSION 1.3.0 LANGUAGES CXX C)
+project(Drift VERSION 1.4.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -1789,6 +1789,7 @@ qt_add_qml_module(drift
         src/qml/components/preview/InlineTextEditor.qml
         src/qml/components/preview/PreviewOsd.qml
         src/qml/components/preview/PreviewOptionsMenu.qml
+        src/qml/components/preview/VideoScopesOverlay.qml
         src/qml/components/preview/PreviewTransportBar.qml
         src/qml/components/preview/modes/Preview2DMode.qml
         src/qml/components/preview/modes/Preview3DMode.qml

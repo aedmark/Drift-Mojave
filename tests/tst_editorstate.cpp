@@ -27,10 +27,12 @@
 
 #include <QAccessible>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
 #include <QSignalSpy>
@@ -561,6 +563,8 @@ private slots:
     void tier4cClipVolumeEnvelopeBusRoutingStemsAndSmartRender();
     void tier4dBidirectionalTimelineInterchangeExport();
     void tier5KeymapPresetsAudioEnvelopeAndNestedProjectImport();
+    void qmlFilesDeclareRequiredModuleImports();
+    void tier6VideoScopesEnvelopeCurvesMediaSweepAndConsolidation();
 };
 
 // A file dragged in from the file manager has no bin row yet, so the timeline's drop preview
@@ -19820,6 +19824,192 @@ void EditorStateTest::tier5KeymapPresetsAudioEnvelopeAndNestedProjectImport()
     QCOMPARE(placed.type, drift::ClipType::Composite);
     QCOMPARE(placed.timelineStart, drift::secondsToUs(1.0));
     QCOMPARE(placed.timelineDuration, drift::secondsToUs(3.0));
+}
+
+void EditorStateTest::qmlFilesDeclareRequiredModuleImports()
+{
+    const QString qmlRoot = QDir::cleanPath(QStringLiteral(DRIFT_TEST_DATA_DIR "/../../src/qml"));
+    QVERIFY2(QDir(qmlRoot).exists(), qPrintable(qmlRoot));
+
+    static const QRegularExpression reBlockComment(QStringLiteral("/\\*.*?\\*/"),
+                                                   QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression reLineComment(QStringLiteral("//[^\\n]*"));
+    static const QRegularExpression reImport(QStringLiteral("^import\\s+([^\\s]+)"),
+                                             QRegularExpression::MultilineOption);
+    static const QRegularExpression reLayoutUse(
+        QStringLiteral("\\b(?:RowLayout|ColumnLayout|GridLayout|StackLayout)\\s*\\{"
+                       "|\\bLayout\\.(?:fillWidth|fillHeight|alignment|preferredWidth|preferredHeight|"
+                       "minimumWidth|minimumHeight|maximumWidth|maximumHeight|columnSpan|rowSpan)\\b"));
+    static const QRegularExpression reControlsUse(
+        QStringLiteral("\\b(?:Label|Button|CheckBox|ComboBox|Popup|Dialog|ScrollView|Slider|"
+                       "TextField|ToolTip|Menu|MenuItem|MenuSeparator|AbstractButton|StackView|ItemDelegate)\\s*\\{"));
+    static const QRegularExpression reDialogsUse(
+        QStringLiteral("\\b(?:FileDialog|FolderDialog|ColorDialog|MessageDialog)\\s*\\{"));
+
+    int checkedFiles = 0;
+    QDirIterator it(qmlRoot, {QStringLiteral("*.qml")}, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString filePath = it.next();
+        QFile f(filePath);
+        QVERIFY2(f.open(QIODevice::ReadOnly | QIODevice::Text), qPrintable(filePath));
+        QString code = QString::fromUtf8(f.readAll());
+        code.remove(reBlockComment);
+        code.remove(reLineComment);
+
+        QSet<QString> imports;
+        QRegularExpressionMatchIterator mi = reImport.globalMatch(code);
+        while (mi.hasNext())
+            imports.insert(mi.next().captured(1));
+
+        if (reLayoutUse.match(code).hasMatch()) {
+            QVERIFY2(imports.contains(QStringLiteral("QtQuick.Layouts")),
+                     qPrintable(filePath + QStringLiteral(" uses Layouts without `import QtQuick.Layouts`")));
+        }
+        if (reControlsUse.match(code).hasMatch()) {
+            const bool hasControls = imports.contains(QStringLiteral("QtQuick.Controls"))
+                                  || imports.contains(QStringLiteral("QtQuick.Controls.Basic"));
+            QVERIFY2(hasControls,
+                     qPrintable(filePath + QStringLiteral(" uses QtQuick.Controls types without importing QtQuick.Controls")));
+        }
+        if (reDialogsUse.match(code).hasMatch()) {
+            const bool hasDialogs = imports.contains(QStringLiteral("QtQuick.Dialogs"))
+                                 || imports.contains(QStringLiteral("Qt.labs.platform"));
+            QVERIFY2(hasDialogs,
+                     qPrintable(filePath + QStringLiteral(" uses QtQuick.Dialogs types without importing QtQuick.Dialogs")));
+        }
+        ++checkedFiles;
+    }
+    QVERIFY(checkedFiles >= 50);
+}
+
+void EditorStateTest::tier6VideoScopesEnvelopeCurvesMediaSweepAndConsolidation()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString unusedPath = dir.filePath(QStringLiteral("unused.png"));
+    const QString usedPath = dir.filePath(QStringLiteral("used.png"));
+    QImage unusedImg(64, 64, QImage::Format_RGBA8888);
+    unusedImg.fill(Qt::blue);
+    QVERIFY(unusedImg.save(unusedPath));
+    QImage usedImg(64, 64, QImage::Format_RGBA8888);
+    usedImg.fill(Qt::red);
+    QVERIFY(usedImg.save(usedPath));
+
+    AssetLibrary library;
+    AppController state(&library);
+
+    // 1. Live Video Scopes metrics on synthetic color image
+    PreviewController *preview = state.preview();
+    QVERIFY(preview != nullptr);
+    QCOMPARE(preview->videoScopesVisible(), false);
+    preview->setVideoScopesVisible(true);
+    QCOMPARE(preview->videoScopesVisible(), true);
+    preview->setVideoScopeMode(QStringLiteral("parade"));
+    QCOMPARE(preview->videoScopeMode(), QStringLiteral("parade"));
+
+    QImage scopeImg(160, 90, QImage::Format_RGBA8888);
+    scopeImg.fill(QColor(220, 110, 40));
+    const QVariantMap scopes = preview->computeVideoScopesForImage(scopeImg, 24, 32);
+    QCOMPARE(scopes.value(QStringLiteral("valid")).toBool(), true);
+    QCOMPARE(scopes.value(QStringLiteral("histLuma")).toList().size(), 32);
+    QCOMPARE(scopes.value(QStringLiteral("paradeR")).toList().size(), 24);
+    QCOMPARE(scopes.value(QStringLiteral("waveformLuma")).toList().size(), 24);
+    QVERIFY(!scopes.value(QStringLiteral("vectorscopePoints")).toList().isEmpty());
+    QVERIFY(scopes.value(QStringLiteral("lumaAvg")).toDouble() > 0.3);
+
+    // 2. Track & Clip automation envelope curve shapes ("smooth", "fast", "slow", "sharp", "hold", "linear")
+    state.addTrackEnvelopePoint(0, QStringLiteral("volume"), 0.0, 0.0);
+    state.addTrackEnvelopePoint(0, QStringLiteral("volume"), 2.0, 2.0);
+    QVERIFY(state.setTrackEnvelopePointCurve(0, QStringLiteral("volume"), 0.0, QStringLiteral("hold")));
+    QCOMPARE(state.evaluateTrackEnvelopeAt(0, QStringLiteral("volume"), 1.0), 0.0);
+
+    QVERIFY(state.setTrackEnvelopePointCurve(0, QStringLiteral("volume"), 0.0, QStringLiteral("fast")));
+    const double midFast = state.evaluateTrackEnvelopeAt(0, QStringLiteral("volume"), 1.0);
+    QVERIFY(midFast > 1.05);
+
+    QVERIFY(state.setTrackEnvelopePointCurve(0, QStringLiteral("volume"), 0.0, QStringLiteral("slow")));
+    const double midSlow = state.evaluateTrackEnvelopeAt(0, QStringLiteral("volume"), 1.0);
+    QVERIFY(midSlow < 0.95);
+
+    // Add an audio clip and verify clip gain envelope curve shapes
+    state.project()->tracks().append(drift::Track{.id = QStringLiteral("a1"), .type = drift::TrackType::Audio});
+    const int aTrackIdx = int(state.project()->tracks().size()) - 1;
+    drift::Clip ac;
+    ac.id = QStringLiteral("ac-1");
+    ac.type = drift::ClipType::Audio;
+    ac.path = dir.filePath(QStringLiteral("tone.wav"));
+    ac.timelineStart = 0;
+    ac.timelineDuration = drift::secondsToUs(4.0);
+    ac.srcIn = 0;
+    ac.srcOut = drift::secondsToUs(4.0);
+    state.project()->tracks()[aTrackIdx].clips.append(ac);
+
+    state.addClipVolumeEnvelopePoint(aTrackIdx, 0, 0.0, 0.0);
+    state.addClipVolumeEnvelopePoint(aTrackIdx, 0, 2.0, 2.0);
+    QVERIFY(state.setClipVolumeEnvelopePointCurve(aTrackIdx, 0, 0, QStringLiteral("hold")));
+    QCOMPARE(state.evaluateClipVolumeEnvelopeAt(aTrackIdx, 0, 1.0), 0.0);
+    QVERIFY(state.setClipVolumeEnvelopePointCurve(aTrackIdx, 0, 0, QStringLiteral("fast")));
+    QVERIFY(state.evaluateClipVolumeEnvelopeAt(aTrackIdx, 0, 1.0) > 1.05);
+
+    // 3. Additional Media Generators
+    QStringList genIds;
+    for (const QVariant &v : state.mediaGeneratorCatalog())
+        genIds.append(v.toMap().value(QStringLiteral("id")).toString());
+    QVERIFY(genIds.contains(QStringLiteral("checkerboard")));
+    QVERIFY(genIds.contains(QStringLiteral("testGrid")));
+    QVERIFY(genIds.contains(QStringLiteral("whiteNoise")));
+    QVERIFY(!state.insertMediaGenerator(QStringLiteral("checkerboard"), 0.0, 2.0).isEmpty());
+    QVERIFY(!state.insertMediaGenerator(QStringLiteral("whiteNoise"), 3.0, 2.0).isEmpty());
+
+    // 4. Unused Media Sweep (with Undo) & Consolidate Project Media
+    drift::MediaAsset unusedAsset;
+    unusedAsset.name = QStringLiteral("Unused");
+    unusedAsset.path = unusedPath;
+    unusedAsset.kind = drift::MediaKind::Image;
+    unusedAsset.width = 64;
+    unusedAsset.height = 64;
+    const QString unusedId = library.addGeneratedAsset(unusedAsset);
+
+    drift::MediaAsset usedAsset;
+    usedAsset.name = QStringLiteral("Used");
+    usedAsset.path = usedPath;
+    usedAsset.kind = drift::MediaKind::Image;
+    usedAsset.width = 64;
+    usedAsset.height = 64;
+    const QString usedId = library.addGeneratedAsset(usedAsset);
+    QVERIFY(!unusedId.isEmpty() && !usedId.isEmpty());
+
+    drift::Clip imgClip;
+    imgClip.id = QStringLiteral("used-c1");
+    imgClip.assetId = usedId;
+    imgClip.type = drift::ClipType::Image;
+    imgClip.path = usedPath;
+    imgClip.timelineStart = 0;
+    imgClip.timelineDuration = drift::secondsToUs(2.0);
+    imgClip.srcIn = 0;
+    imgClip.srcOut = drift::secondsToUs(2.0);
+    const int shapeIdx = drift::ensureTrackForClipType(*state.project(), drift::ClipType::Image, true);
+    state.project()->tracks()[shapeIdx].clips.append(imgClip);
+
+    const int beforeSweep = library.count();
+    const int swept = state.removeUnusedMedia();
+    QVERIFY(swept >= 1);
+    QVERIFY(library.count() < beforeSweep);
+    QVERIFY(library.indexOfId(unusedId) < 0);
+    QVERIFY(library.indexOfId(usedId) >= 0);
+
+    // Undo restores the removed unused asset
+    state.undo();
+    QCOMPARE(library.count(), beforeSweep);
+    state.redo();
+    QVERIFY(library.indexOfId(unusedId) < 0);
+
+    // Consolidate used media into a fresh folder
+    const QString consDir = dir.filePath(QStringLiteral("consolidated_media"));
+    const QVariantMap consRes = state.consolidateProjectMedia(QUrl::fromLocalFile(consDir), true);
+    QCOMPARE(consRes.value(QStringLiteral("ok")).toBool(), true);
+    QVERIFY(consRes.value(QStringLiteral("copiedCount")).toInt() >= 1);
+    QVERIFY(QFileInfo::exists(QDir(consDir).filePath(QStringLiteral("used.png"))));
 }
 
 QTEST_MAIN(EditorStateTest)

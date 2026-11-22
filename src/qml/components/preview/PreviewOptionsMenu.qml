@@ -111,6 +111,15 @@ Popup {
         ThemedSwitch {
             Layout.columnSpan: 2
             Layout.fillWidth: true
+            text: qsTr("Video Scopes (Histogram / Waveform / Parade / Vectorscope)")
+            tooltip: qsTr("Show live luminance histogram, waveform, RGB parade, and vectorscope over the preview")
+            checked: EditorState.preview.videoScopesVisible
+            onToggled: EditorState.preview.videoScopesVisible = checked
+        }
+
+        ThemedSwitch {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
             text: qsTr("Split Screen View (A/B Compare)")
             tooltip: qsTr("Split the preview window to compare the timeline with FX bypass, clipboard, or reference snapshot")
             checked: EditorState.preview.splitPreviewEnabled
