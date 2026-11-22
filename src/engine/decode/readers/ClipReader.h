@@ -273,13 +273,16 @@ private:
     struct AVFormatContext *m_fmt = nullptr;
     struct AVCodecContext *m_videoCtx = nullptr;
     struct AVCodecContext *m_audioCtx = nullptr;
+    struct AVCodecContext *m_pairedRightAudioCtx = nullptr;
     struct AVBufferRef *m_hwDeviceCtx = nullptr;
     struct SwsContext *m_sws = nullptr;
     struct SwsContext *m_swsNv12 = nullptr;
     struct SwsContext *m_swsRgba = nullptr;
     struct SwrContext *m_swr = nullptr;
+    struct SwrContext *m_pairedRightSwr = nullptr;
     int m_videoStream = -1;
     int m_audioStream = -1;
+    int m_pairedRightAudioStream = -1;
     int m_audioStreamOrdinal = 0;
     // Source display-matrix rotation (0/90/180/270), applied to every decoded frame
     // so everything downstream sees upright pixels.
@@ -423,6 +426,8 @@ private:
     bool m_audioPositioned = false;
     drift::TimeUs m_audioNextPtsUs = 0; // source position of m_audioLeftover front
     QVector<float> m_audioLeftover;     // decoded-but-unreturned interleaved stereo
+    QVector<float> m_pairedLeftBuf;     // mono float samples for dual-mono L stream
+    QVector<float> m_pairedRightBuf;    // mono float samples for dual-mono R stream
     static constexpr drift::TimeUs kAudioSeekToleranceUs = 50'000;
     static constexpr drift::TimeUs kAudioForwardSeekThresholdUs = 2 * drift::kUsPerSecond;
 };

@@ -354,7 +354,7 @@ option(DRIFT_BUNDLE_CORE_PACKAGES_ONLY
     "Ship only the core effect/transition packages in the drift app (the rest are addons)" OFF)
 set(DRIFT_CORE_EFFECTS
     color_grade film_grain chromatic_aberration adjust_brightness adjust_contrast adjust_gamma
-    adjust_hue adjust_levels adjust_saturation adjust_temperature gaussian_blur bloom_glow halation stylize_vignette)
+    adjust_hue adjust_saturation adjust_temperature gaussian_blur bloom_glow halation stylize_vignette)
 set(DRIFT_CORE_TRANSITIONS crossfade dip dip_white)
 set(DRIFT_CORE_AUDIO_EFFECTS "")
 set(DRIFT_CORE_EFFECT_TEMPLATES "")

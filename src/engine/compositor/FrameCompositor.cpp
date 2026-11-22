@@ -300,9 +300,23 @@ void forEachLaneMediaMask(const drift::Project &project, int trackIndex, const d
 // The stream id is the *adjustment's*, not the host's: the pool keys workers by path but the
 // cursor by stream id, so reusing the host's id would make the coverage fight the host's own
 // media read for one cursor.
+bool hasVisualSolo(const drift::Project &project)
+{
+    for (const drift::Track &track : project.tracks()) {
+        if (track.hidden || track.type == drift::TrackType::Audio)
+            continue;
+        if (track.isTransformLayer() || track.isCameraLayer() || track.isAdjustmentLane())
+            continue;
+        if (track.solo)
+            return true;
+    }
+    return false;
+}
+
 template <typename Visit>
 void forEachMediaMask(const drift::Project &project, drift::TimeUs timelineUs, Visit &&visit)
 {
+    const bool anyVisualSolo = hasVisualSolo(project);
     const QList<drift::Track> &tracks = project.tracks();
     for (int t = 0; t < tracks.size(); ++t) {
         const drift::Track &track = tracks.at(t);
@@ -311,6 +325,8 @@ void forEachMediaMask(const drift::Project &project, drift::TimeUs timelineUs, V
         // A lane's masks are gathered through the track they are nested in, where the host clips
         // that give them a source time live.
         if (track.isAdjustmentLane())
+            continue;
+        if (anyVisualSolo && track.type != drift::TrackType::Audio && !track.solo)
             continue;
 
         if (track.isAdjustment()) {
@@ -449,10 +465,13 @@ QList<TrackParamRead> trackParamReads(const drift::Project &project, const QList
 template <typename Visit>
 void forEachTrackParamRead(const drift::Project &project, drift::TimeUs timelineUs, Visit &&visit)
 {
+    const bool anyVisualSolo = hasVisualSolo(project);
     const QList<drift::Track> &tracks = project.tracks();
     for (int t = 0; t < tracks.size(); ++t) {
         const drift::Track &track = tracks.at(t);
         if (track.hidden || track.isAdjustment() || track.type == drift::TrackType::Audio)
+            continue;
+        if (anyVisualSolo && !track.solo)
             continue;
 
         const QSet<QString> transitionClipIds = activeTransitionClipIds(track, timelineUs);
@@ -507,8 +526,12 @@ void collectActivePaths(const drift::Project *project, drift::TimeUs timelineUs,
             forEachLaneMediaMask(*project, read.input.trackIndex, source, timelineUs, retainMask);
     });
 
+    const bool anyVisualSolo = hasVisualSolo(*project);
     for (const drift::Track &track : project->tracks()) {
         if (track.hidden)
+            continue;
+        if (anyVisualSolo && track.type != drift::TrackType::Audio && !track.isTransformLayer()
+            && !track.isCameraLayer() && !track.isAdjustmentLane() && !track.solo)
             continue;
 
         const QSet<QString> transitionClipIds = activeTransitionClipIds(track, timelineUs);
@@ -636,8 +659,12 @@ QList<ClipReaderPool::VideoRequest> collectVideoRequests(const drift::Project *p
             forEachLaneMediaMask(*project, read.input.trackIndex, source, timelineUs, warmMask);
     });
 
+    const bool anyVisualSolo = hasVisualSolo(*project);
     for (const drift::Track &track : project->tracks()) {
         if (track.hidden || track.type == drift::TrackType::Audio)
+            continue;
+        if (anyVisualSolo && !track.isTransformLayer() && !track.isCameraLayer()
+            && !track.isAdjustmentLane() && !track.solo)
             continue;
 
         const QSet<QString> transitionClipIds = activeTransitionClipIds(track, timelineUs);
@@ -1089,10 +1116,14 @@ double contentScaleForClip(const drift::Clip &clip, drift::TimeUs timelineUs)
 // Track 0 is topmost, so walk tracks back-to-front and take the first hit.
 QImage bottommostVisualFrame(const drift::Project &project, drift::TimeUs timelineUs, int width, int height)
 {
+    const bool anyVisualSolo = hasVisualSolo(project);
     const QList<drift::Track> &tracks = project.tracks();
     for (int ti = tracks.size() - 1; ti >= 0; --ti) {
         const drift::Track &track = tracks.at(ti);
         if (track.hidden || track.type == drift::TrackType::Audio)
+            continue;
+        if (anyVisualSolo && !track.isTransformLayer() && !track.isCameraLayer()
+            && !track.isAdjustmentLane() && !track.solo)
             continue;
         for (const drift::Clip &clip : track.clips) {
             if (!clip.activeAt(timelineUs))
@@ -2025,6 +2056,7 @@ GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, 
     };
 
     // Track 0 is topmost and composites in front, so emit back-to-front.
+    const bool anyVisualSolo = hasVisualSolo(project);
     const QList<drift::Track> &tracks = project.tracks();
     for (int ti = tracks.size() - 1; ti >= 0; --ti) {
         const drift::Track &track = tracks.at(ti);
@@ -2041,6 +2073,8 @@ GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, 
         // A nested lane has no z-position of its own — it is drawn inside its parent's clips,
         // gathered below as laneEffects. Emitting it here would apply it to the whole canvas.
         if (track.isAdjustmentLane())
+            continue;
+        if (anyVisualSolo && !track.solo)
             continue;
 
 

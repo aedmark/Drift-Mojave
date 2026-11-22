@@ -880,16 +880,21 @@ void ClipReader::close()
     }
     if (m_swr)
         swr_free(&m_swr);
+    if (m_pairedRightSwr)
+        swr_free(&m_pairedRightSwr);
 
     teardownVideoDecoder();
 
     if (m_audioCtx)
         avcodec_free_context(&m_audioCtx);
+    if (m_pairedRightAudioCtx)
+        avcodec_free_context(&m_pairedRightAudioCtx);
     if (m_fmt)
         avformat_close_input(&m_fmt);
 
     m_videoStream = -1;
     m_audioStream = -1;
+    m_pairedRightAudioStream = -1;
     m_audioStreamOrdinal = 0;
     m_sourceRotation = 0;
     m_hwAccelDisabled = false;
@@ -897,6 +902,8 @@ void ClipReader::close()
     m_audioPositioned = false;
     m_audioNextPtsUs = 0;
     m_audioLeftover.clear();
+    m_pairedLeftBuf.clear();
+    m_pairedRightBuf.clear();
     m_path.clear();
     syncOpenCount();
 }
@@ -943,6 +950,23 @@ bool ClipReader::open(const QString &path, int audioStreamOrdinal)
         }
     }
 
+    m_pairedRightAudioStream = -1;
+    if (m_audioStreamOrdinal == 0 && m_audioStream >= 0) {
+        const AVCodecParameters *lpar = m_fmt->streams[m_audioStream]->codecpar;
+        if (av_get_bits_per_sample(lpar->codec_id) > 0 && lpar->ch_layout.nb_channels == 1) {
+            for (unsigned i = static_cast<unsigned>(m_audioStream) + 1; i < m_fmt->nb_streams; ++i) {
+                const AVCodecParameters *rpar = m_fmt->streams[i]->codecpar;
+                if (rpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                    if (rpar->ch_layout.nb_channels == 1 && rpar->codec_id == lpar->codec_id
+                        && rpar->sample_rate == lpar->sample_rate) {
+                        m_pairedRightAudioStream = static_cast<int>(i);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     if (m_videoStream >= 0) {
         m_sourceRotation = displayRotationOf(m_fmt->streams[m_videoStream]);
         const AVRational rate = m_fmt->streams[m_videoStream]->avg_frame_rate;
@@ -965,12 +989,19 @@ void ClipReader::setAudioStreamOrdinal(int ordinal)
 
     if (m_audioCtx)
         avcodec_free_context(&m_audioCtx);
+    if (m_pairedRightAudioCtx)
+        avcodec_free_context(&m_pairedRightAudioCtx);
     if (m_swr)
         swr_free(&m_swr);
+    if (m_pairedRightSwr)
+        swr_free(&m_pairedRightSwr);
     m_audioStream = -1;
+    m_pairedRightAudioStream = -1;
     m_audioPositioned = false;
     m_audioNextPtsUs = 0;
     m_audioLeftover.clear();
+    m_pairedLeftBuf.clear();
+    m_pairedRightBuf.clear();
 
     int audioCount = 0;
     for (unsigned i = 0; i < m_fmt->nb_streams; ++i) {
@@ -987,6 +1018,23 @@ void ClipReader::setAudioStreamOrdinal(int ordinal)
             if (m_fmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
                 m_audioStream = static_cast<int>(i);
                 break;
+            }
+        }
+    }
+
+    m_pairedRightAudioStream = -1;
+    if (m_audioStreamOrdinal == 0 && m_audioStream >= 0) {
+        const AVCodecParameters *lpar = m_fmt->streams[m_audioStream]->codecpar;
+        if (av_get_bits_per_sample(lpar->codec_id) > 0 && lpar->ch_layout.nb_channels == 1) {
+            for (unsigned i = static_cast<unsigned>(m_audioStream) + 1; i < m_fmt->nb_streams; ++i) {
+                const AVCodecParameters *rpar = m_fmt->streams[i]->codecpar;
+                if (rpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                    if (rpar->ch_layout.nb_channels == 1 && rpar->codec_id == lpar->codec_id
+                        && rpar->sample_rate == lpar->sample_rate) {
+                        m_pairedRightAudioStream = static_cast<int>(i);
+                    }
+                    break;
+                }
             }
         }
     }
@@ -1211,6 +1259,19 @@ bool ClipReader::tryOpenHardwareDecoder()
     // stay on software so convertFramePreview can keep RGBA.
     if (videoStreamHasAlpha(m_fmt->streams[m_videoStream]))
         return false;
+
+    // 4:2:2 / 4:4:4 chroma streams (such as XDCAM HD422 .mxf) are not supported by most
+    // desktop hwaccel decoders and decode cleanly on the multithreaded software decoder.
+    const AVCodecParameters *vpar = m_fmt->streams[m_videoStream]->codecpar;
+    const auto vfmt = static_cast<AVPixelFormat>(vpar->format);
+    if (vfmt == AV_PIX_FMT_YUV422P || vfmt == AV_PIX_FMT_YUVJ422P
+        || vfmt == AV_PIX_FMT_YUV422P10LE || vfmt == AV_PIX_FMT_YUV422P10BE
+        || vfmt == AV_PIX_FMT_YUV444P || vfmt == AV_PIX_FMT_YUVJ444P
+        || vfmt == AV_PIX_FMT_YUV444P10LE
+        || (vpar->codec_id == AV_CODEC_ID_MPEG2VIDEO && vpar->profile == AV_PROFILE_MPEG2_422)) {
+        m_hwAccelDisabled = true;
+        return false;
+    }
 
     const HardwareDecodeMode mode = hardwareDecodeMode();
     if (mode == HardwareDecodeMode::Software)
@@ -1705,6 +1766,18 @@ bool ClipReader::ensureAudioDecoder()
         avcodec_free_context(&m_audioCtx);
         return false;
     }
+
+    if (m_pairedRightAudioStream >= 0 && !m_pairedRightAudioCtx) {
+        const AVCodecParameters *rpar = m_fmt->streams[m_pairedRightAudioStream]->codecpar;
+        const AVCodec *rcodec = avcodec_find_decoder(rpar->codec_id);
+        m_pairedRightAudioCtx = rcodec ? avcodec_alloc_context3(rcodec) : nullptr;
+        if (!m_pairedRightAudioCtx || avcodec_parameters_to_context(m_pairedRightAudioCtx, rpar) < 0
+            || avcodec_open2(m_pairedRightAudioCtx, rcodec, nullptr) < 0) {
+            if (m_pairedRightAudioCtx)
+                avcodec_free_context(&m_pairedRightAudioCtx);
+            m_pairedRightAudioStream = -1;
+        }
+    }
     return true;
 }
 
@@ -1739,8 +1812,12 @@ bool ClipReader::seekAudioStream(drift::TimeUs sourceUs)
     if (av_seek_frame(m_fmt, m_audioStream, targetTs, AVSEEK_FLAG_BACKWARD) < 0)
         return false;
     avcodec_flush_buffers(m_audioCtx);
+    if (m_pairedRightAudioCtx)
+        avcodec_flush_buffers(m_pairedRightAudioCtx);
     if (m_swr)
         swr_free(&m_swr);
+    if (m_pairedRightSwr)
+        swr_free(&m_pairedRightSwr);
     return true;
 }
 
@@ -2307,27 +2384,45 @@ int ClipReader::readAudioInterleaved(drift::TimeUs sourceStartUs, int sampleCoun
                           || sourceStartUs < m_audioNextPtsUs - kAudioSeekToleranceUs
                           || sourceStartUs > m_audioNextPtsUs + kAudioForwardSeekThresholdUs;
 
+    const bool dualMono = m_pairedRightAudioStream >= 0 && m_pairedRightAudioCtx != nullptr;
     bool alignToStart = false;
     if (needSeek) {
         if (!seekAudioStream(sourceStartUs)) // flushes the codec and frees m_swr
             return 0;
         m_audioLeftover.clear();
+        m_pairedLeftBuf.clear();
+        m_pairedRightBuf.clear();
         m_audioPositioned = true;
         alignToStart = true;
     }
 
-    if (!m_swr) {
-        AVChannelLayout outLayout = AV_CHANNEL_LAYOUT_STEREO;
-        if (swr_alloc_set_opts2(&m_swr, &outLayout, AV_SAMPLE_FMT_FLT, outputSampleRate,
-                                &m_audioCtx->ch_layout, static_cast<AVSampleFormat>(m_audioCtx->sample_fmt),
-                                m_audioCtx->sample_rate, 0, nullptr)
-                < 0
-            || swr_init(m_swr) < 0) {
-            if (m_swr)
-                swr_free(&m_swr);
-            return 0;
+    auto initResampler = [outputSampleRate](SwrContext *&swr, AVCodecContext *ctx, int outChannels) -> bool {
+        if (swr)
+            return true;
+        AVChannelLayout outLayout = (outChannels == 1) ? AVChannelLayout(AV_CHANNEL_LAYOUT_MONO)
+                                                       : AVChannelLayout(AV_CHANNEL_LAYOUT_STEREO);
+        AVChannelLayout inLayout{};
+        const AVChannelLayout *inLayoutPtr = &ctx->ch_layout;
+        if (ctx->ch_layout.order == AV_CHANNEL_ORDER_UNSPEC && ctx->ch_layout.nb_channels > 0) {
+            av_channel_layout_default(&inLayout, ctx->ch_layout.nb_channels);
+            inLayoutPtr = &inLayout;
         }
-    }
+        const int rc = swr_alloc_set_opts2(&swr, &outLayout, AV_SAMPLE_FMT_FLT, outputSampleRate,
+                                           inLayoutPtr, static_cast<AVSampleFormat>(ctx->sample_fmt),
+                                           ctx->sample_rate, 0, nullptr);
+        av_channel_layout_uninit(&inLayout);
+        if (rc < 0 || swr_init(swr) < 0) {
+            if (swr)
+                swr_free(&swr);
+            return false;
+        }
+        return true;
+    };
+
+    if (!initResampler(m_swr, m_audioCtx, dualMono ? 1 : 2))
+        return 0;
+    if (dualMono && !initResampler(m_pairedRightSwr, m_pairedRightAudioCtx, 1))
+        return 0;
 
     AVPacket *packet = av_packet_alloc();
     AVFrame *frame = av_frame_alloc();
@@ -2340,56 +2435,95 @@ int ClipReader::readAudioInterleaved(drift::TimeUs sourceStartUs, int sampleCoun
     QVector<float> scratch;
     int pendingDrop = 0; // leading output frames to discard so playback starts at sourceStartUs
     bool sentFlush = false;
+    bool leftDone = false;
+    bool rightDone = !dualMono;
 
-    while (m_audioLeftover.size() < sampleCount * 2) {
-        const int rc = avcodec_receive_frame(m_audioCtx, frame);
-        if (rc == AVERROR(EAGAIN)) {
-            if (sentFlush)
-                break;
-            if (av_read_frame(m_fmt, packet) < 0) {
-                avcodec_send_packet(m_audioCtx, nullptr); // drain the decoder at EOF
-                sentFlush = true;
-                continue;
+    auto convertAndStore = [&](AVCodecContext *ctx, SwrContext *swr, int outChannels, QVector<float> &dest, bool isPrimary) {
+        while (true) {
+            const int rc = avcodec_receive_frame(ctx, frame);
+            if (rc == AVERROR(EAGAIN))
+                return false;
+            if (rc < 0) {
+                av_frame_unref(frame);
+                return true;
             }
-            if (packet->stream_index != m_audioStream) {
-                av_packet_unref(packet);
-                continue;
+            if (isPrimary && alignToStart) {
+                const drift::TimeUs framePtsUs = audioPtsToUs(frame);
+                m_audioNextPtsUs = framePtsUs;
+                if (sourceStartUs > framePtsUs)
+                    pendingDrop = static_cast<int>(((sourceStartUs - framePtsUs) * outputSampleRate)
+                                                   / drift::kUsPerSecond);
+                alignToStart = false;
             }
-            avcodec_send_packet(m_audioCtx, packet);
-            av_packet_unref(packet);
-            continue;
-        }
-        if (rc < 0) { // AVERROR_EOF or a decode error
+            const int maxOut = swr_get_out_samples(swr, frame->nb_samples);
+            scratch.resize(maxOut * outChannels);
+            uint8_t *outData[1] = {reinterpret_cast<uint8_t *>(scratch.data())};
+            const int converted = swr_convert(swr, outData, maxOut,
+                                              const_cast<const uint8_t **>(frame->data), frame->nb_samples);
             av_frame_unref(frame);
+            if (converted <= 0)
+                continue;
+            if (!dualMono) {
+                int offset = 0;
+                if (pendingDrop > 0) {
+                    const int drop = qMin(pendingDrop, converted);
+                    offset = drop;
+                    pendingDrop -= drop;
+                    m_audioNextPtsUs += static_cast<drift::TimeUs>(drop) * drift::kUsPerSecond / outputSampleRate;
+                }
+                for (int i = offset * 2; i < converted * 2; ++i)
+                    dest.append(scratch[i]);
+            } else {
+                for (int i = 0; i < converted; ++i)
+                    dest.append(scratch[i]);
+            }
+        }
+    };
+
+    while (m_audioLeftover.size() < sampleCount * 2 && !(leftDone && rightDone)) {
+        if (!leftDone)
+            leftDone = convertAndStore(m_audioCtx, m_swr, dualMono ? 1 : 2,
+                                       dualMono ? m_pairedLeftBuf : m_audioLeftover, true);
+        if (dualMono && !rightDone)
+            rightDone = convertAndStore(m_pairedRightAudioCtx, m_pairedRightSwr, 1, m_pairedRightBuf, false);
+
+        if (dualMono) {
+            const int pairs = qMin(m_pairedLeftBuf.size(), m_pairedRightBuf.size());
+            if (pairs > 0) {
+                int offset = 0;
+                if (pendingDrop > 0) {
+                    const int drop = qMin(pendingDrop, pairs);
+                    offset = drop;
+                    pendingDrop -= drop;
+                    m_audioNextPtsUs += static_cast<drift::TimeUs>(drop) * drift::kUsPerSecond / outputSampleRate;
+                }
+                for (int i = offset; i < pairs; ++i) {
+                    m_audioLeftover.append(m_pairedLeftBuf[i]);
+                    m_audioLeftover.append(m_pairedRightBuf[i]);
+                }
+                m_pairedLeftBuf.remove(0, pairs);
+                m_pairedRightBuf.remove(0, pairs);
+            }
+        }
+
+        if (m_audioLeftover.size() >= sampleCount * 2 || (leftDone && rightDone))
             break;
-        }
 
-        if (alignToStart) {
-            const drift::TimeUs framePtsUs = audioPtsToUs(frame);
-            m_audioNextPtsUs = framePtsUs;
-            if (sourceStartUs > framePtsUs)
-                pendingDrop = static_cast<int>(((sourceStartUs - framePtsUs) * outputSampleRate)
-                                               / drift::kUsPerSecond);
-            alignToStart = false;
-        }
-
-        const int maxOut = swr_get_out_samples(m_swr, frame->nb_samples);
-        scratch.resize(maxOut * 2);
-        uint8_t *outData[1] = {reinterpret_cast<uint8_t *>(scratch.data())};
-        const int converted = swr_convert(m_swr, outData, maxOut,
-                                          const_cast<const uint8_t **>(frame->data), frame->nb_samples);
-        if (converted <= 0)
+        if (sentFlush)
+            break;
+        if (av_read_frame(m_fmt, packet) < 0) {
+            avcodec_send_packet(m_audioCtx, nullptr);
+            if (dualMono)
+                avcodec_send_packet(m_pairedRightAudioCtx, nullptr);
+            sentFlush = true;
             continue;
-
-        int offset = 0;
-        if (pendingDrop > 0) {
-            const int drop = qMin(pendingDrop, converted);
-            offset = drop;
-            pendingDrop -= drop;
-            m_audioNextPtsUs += static_cast<drift::TimeUs>(drop) * drift::kUsPerSecond / outputSampleRate;
         }
-        for (int i = offset * 2; i < converted * 2; ++i)
-            m_audioLeftover.append(scratch[i]);
+        if (packet->stream_index == m_audioStream) {
+            avcodec_send_packet(m_audioCtx, packet);
+        } else if (dualMono && packet->stream_index == m_pairedRightAudioStream) {
+            avcodec_send_packet(m_pairedRightAudioCtx, packet);
+        }
+        av_packet_unref(packet);
     }
 
     av_frame_unref(frame);

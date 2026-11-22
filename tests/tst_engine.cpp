@@ -605,6 +605,7 @@ private slots:
     void audioMixerBusToBusRoutingAndCycleGuard();
     void smartRenderIdentifiesUnmodifiedProRes422();
     void tier5SmartRenderPassThroughAndLoudnessNormalization();
+    void compositorRespectsVideoTrackSoloAndMxfDecode();
 
 private:
     static QString makeColorSegmentsVideo(QTemporaryDir &dir);
@@ -20482,6 +20483,78 @@ void EngineTest::videoTrackFxMasterFxAndTrackMotionCompositing()
     QVERIFY(scene.items.at(1).isAdjustment);
     QCOMPARE(scene.items.at(1).layer.effects.size(), 1);
     QCOMPARE(scene.items.at(1).layer.effects.at(0).catalogId, QStringLiteral("contrast"));
+}
+
+void EngineTest::compositorRespectsVideoTrackSoloAndMxfDecode()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString imgA = dir.filePath(QStringLiteral("a.png"));
+    const QString imgB = dir.filePath(QStringLiteral("b.png"));
+    QImage imA(64, 64, QImage::Format_RGBA8888);
+    imA.fill(Qt::red);
+    QVERIFY(imA.save(imgA));
+    QImage imB(64, 64, QImage::Format_RGBA8888);
+    imB.fill(Qt::blue);
+    QVERIFY(imB.save(imgB));
+
+    drift::Project project;
+    drift::Track t0;
+    t0.id = QStringLiteral("t0");
+    t0.type = drift::TrackType::Video;
+    drift::Clip c0;
+    c0.id = QStringLiteral("c0");
+    c0.type = drift::ClipType::Image;
+    c0.path = imgA;
+    c0.timelineStart = 0;
+    c0.timelineDuration = drift::secondsToUs(2.0);
+    c0.srcOut = c0.timelineDuration;
+    t0.clips.append(c0);
+
+    drift::Track t1;
+    t1.id = QStringLiteral("t1");
+    t1.type = drift::TrackType::Video;
+    t1.solo = true;
+    drift::Clip c1;
+    c1.id = QStringLiteral("c1");
+    c1.type = drift::ClipType::Image;
+    c1.path = imgB;
+    c1.timelineStart = 0;
+    c1.timelineDuration = drift::secondsToUs(2.0);
+    c1.srcOut = c1.timelineDuration;
+    t1.clips.append(c1);
+
+    project.tracks().append(t0);
+    project.tracks().append(t1);
+
+    FrameCompositor compositor;
+    compositor.setProject(&project);
+    GpuScene scene;
+    QVERIFY(compositor.buildSceneAt(0, {}, &scene));
+    QCOMPARE(scene.items.size(), 1);
+    QCOMPARE(scene.items.at(0).layer.source.pixelColor(0, 0), QColor(Qt::blue));
+
+    const QString mxfPath = QStringLiteral("/mnt/Jellyfish/Videos/Odds/Episode 5 & 6/Assets/Security Cam.mxf");
+    if (QFileInfo::exists(mxfPath)) {
+        ClipReader reader;
+        QVERIFY(reader.open(mxfPath));
+        QVERIFY(reader.hasVideo());
+        QVERIFY(reader.hasAudio());
+        QImage f0;
+        QImage f5;
+        QVERIFY(reader.readVideoFrameAt(0, f0, 320, 180));
+        QVERIFY(reader.readVideoFrameAt(drift::secondsToUs(5.0), f5, 320, 180));
+        QVERIFY(!f0.isNull());
+        QVERIFY(!f5.isNull());
+
+        QVector<float> pcm(4096 * 2, 0.0f);
+        const int framesRead = reader.readAudioInterleaved(drift::secondsToUs(1.0), 4096, 48000, pcm.data());
+        QCOMPARE(framesRead, 4096);
+        float maxAbs = 0.0f;
+        for (float s : pcm)
+            maxAbs = std::max(maxAbs, std::abs(s));
+        QVERIFY(maxAbs > 1e-4f);
+    }
 }
 
 #include "tst_engine.moc"

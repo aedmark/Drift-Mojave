@@ -18864,13 +18864,13 @@ void EditorStateTest::vegasMediaPoolFxPreTimelineProcessing()
     QCOMPARE(resReEnabled.at(1).catalogId, QStringLiteral("adjust.brightness"));
 
     // 8. Reorder effects
-    state.addAssetEffect(QStringLiteral("asset_v1"), QStringLiteral("adjust.levels"));
+    state.addAssetEffect(QStringLiteral("asset_v1"), QStringLiteral("adjust.gamma"));
     QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.size(), 2);
     QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(0).catalogId, QStringLiteral("adjust.contrast"));
-    QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(1).catalogId, QStringLiteral("adjust.levels"));
+    QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(1).catalogId, QStringLiteral("adjust.gamma"));
 
     state.moveAssetEffect(QStringLiteral("asset_v1"), 0, 1);
-    QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(0).catalogId, QStringLiteral("adjust.levels"));
+    QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(0).catalogId, QStringLiteral("adjust.gamma"));
     QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(1).catalogId, QStringLiteral("adjust.contrast"));
 
     // 9. Test Undo / Redo
@@ -18878,7 +18878,7 @@ void EditorStateTest::vegasMediaPoolFxPreTimelineProcessing()
     state.undo();
     QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(0).catalogId, QStringLiteral("adjust.contrast"));
     state.redo();
-    QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(0).catalogId, QStringLiteral("adjust.levels"));
+    QCOMPARE(state.project()->asset(QStringLiteral("asset_v1"))->effects.at(0).catalogId, QStringLiteral("adjust.gamma"));
 
     // 10. Test JSON persistence roundtrip
     const QJsonObject json = state.project()->toJson();
@@ -18888,7 +18888,7 @@ void EditorStateTest::vegasMediaPoolFxPreTimelineProcessing()
     const drift::MediaAsset *rtV = roundtripped.asset(QStringLiteral("asset_v1"));
     QVERIFY(rtV != nullptr);
     QCOMPARE(rtV->effects.size(), 2);
-    QCOMPARE(rtV->effects.at(0).catalogId, QStringLiteral("adjust.levels"));
+    QCOMPARE(rtV->effects.at(0).catalogId, QStringLiteral("adjust.gamma"));
     QCOMPARE(rtV->effects.at(1).catalogId, QStringLiteral("adjust.contrast"));
 
     const drift::MediaAsset *rtA = roundtripped.asset(QStringLiteral("asset_a1"));

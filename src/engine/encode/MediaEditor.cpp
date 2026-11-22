@@ -876,11 +876,17 @@ bool editAudio(const MediaEditSpec &request, QString *errorOut,
     const int channels = 2;
     SwrContext *swr = nullptr;
     AVChannelLayout outLayout = AV_CHANNEL_LAYOUT_STEREO;
-    if (swr_alloc_set_opts2(&swr, &outLayout, AV_SAMPLE_FMT_FLT, sampleRate, &dec->ch_layout,
-                            static_cast<AVSampleFormat>(dec->sample_fmt), dec->sample_rate, 0,
-                            nullptr)
-            < 0
-        || swr_init(swr) < 0) {
+    AVChannelLayout inLayout{};
+    const AVChannelLayout *inLayoutPtr = &dec->ch_layout;
+    if (dec->ch_layout.order == AV_CHANNEL_ORDER_UNSPEC && dec->ch_layout.nb_channels > 0) {
+        av_channel_layout_default(&inLayout, dec->ch_layout.nb_channels);
+        inLayoutPtr = &inLayout;
+    }
+    const int swrAllocRc = swr_alloc_set_opts2(&swr, &outLayout, AV_SAMPLE_FMT_FLT, sampleRate,
+                                               inLayoutPtr, static_cast<AVSampleFormat>(dec->sample_fmt),
+                                               dec->sample_rate, 0, nullptr);
+    av_channel_layout_uninit(&inLayout);
+    if (swrAllocRc < 0 || swr_init(swr) < 0) {
         if (swr)
             swr_free(&swr);
         avcodec_free_context(&dec);
@@ -1522,11 +1528,17 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
         if (aDec && avcodec_parameters_to_context(aDec, aStream->codecpar) == 0
             && avcodec_open2(aDec, aDecCodec, nullptr) == 0) {
             AVChannelLayout outLayout = AV_CHANNEL_LAYOUT_STEREO;
-            if (swr_alloc_set_opts2(&swr, &outLayout, AV_SAMPLE_FMT_FLT, 48000, &aDec->ch_layout,
-                                    static_cast<AVSampleFormat>(aDec->sample_fmt),
-                                    aDec->sample_rate, 0, nullptr)
-                    < 0
-                || swr_init(swr) < 0) {
+            AVChannelLayout inLayout{};
+            const AVChannelLayout *inLayoutPtr = &aDec->ch_layout;
+            if (aDec->ch_layout.order == AV_CHANNEL_ORDER_UNSPEC && aDec->ch_layout.nb_channels > 0) {
+                av_channel_layout_default(&inLayout, aDec->ch_layout.nb_channels);
+                inLayoutPtr = &inLayout;
+            }
+            const int swrAllocRc = swr_alloc_set_opts2(&swr, &outLayout, AV_SAMPLE_FMT_FLT, 48000,
+                                                       inLayoutPtr, static_cast<AVSampleFormat>(aDec->sample_fmt),
+                                                       aDec->sample_rate, 0, nullptr);
+            av_channel_layout_uninit(&inLayout);
+            if (swrAllocRc < 0 || swr_init(swr) < 0) {
                 if (swr)
                     swr_free(&swr);
                 avcodec_free_context(&aDec);

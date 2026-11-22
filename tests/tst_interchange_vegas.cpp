@@ -50,6 +50,7 @@ private slots:
     void readsRegionsEnvelopesBezierMasksAndTrackAudioFx();
     void exportsFcpxmlEdlOtioAndVegasTsv();
     void readsDeeperVegasEventTagsAndCompositeBlend();
+    void readsImageMxfTrackFlagsAndLevelsToColorGrade();
 };
 
 void TestInterchangeVegas::detectsVegasProject()
@@ -838,10 +839,10 @@ void TestInterchangeVegas::readsVideoEffectsLevelsAndColor()
 
         const auto inspectFx = [&](const QList<drift::Effect> &effects) {
             for (const auto &fx : effects) {
-                if (fx.catalogId == QStringLiteral("adjust.levels")) {
+                if (fx.catalogId == QStringLiteral("color.grade")
+                    && fx.parameters.contains(QStringLiteral("curveMaster"))) {
                     foundLevels = true;
-                    QVERIFY(fx.parameters.contains(QStringLiteral("gamma")));
-                    QVERIFY(fx.parameters.value(QStringLiteral("gamma")).toDouble() > 1.0);
+                    QVERIFY(!fx.parameters.value(QStringLiteral("curveMaster")).toString().isEmpty());
                 } else if (fx.catalogId == QStringLiteral("color.grade")) {
                     foundColorGrade = true;
                     QVERIFY(fx.parameters.contains(QStringLiteral("saturation")));
@@ -950,10 +951,10 @@ void TestInterchangeVegas::readsVignetteAndSoftlightEffects()
                         foundSoftlightVignette = true;
                         QVERIFY(fx.parameters.contains(QStringLiteral("amount")));
                         QVERIFY(fx.parameters.contains(QStringLiteral("feather")));
-                    } else if (fx.catalogId == QStringLiteral("adjust.levels")) {
+                    } else if (fx.catalogId == QStringLiteral("color.grade")
+                               && fx.parameters.contains(QStringLiteral("curveMaster"))) {
                         foundTakeLevels = true;
-                        QVERIFY(fx.parameters.contains(QStringLiteral("gamma")));
-                        QVERIFY(fx.parameters.value(QStringLiteral("gamma")).toDouble() > 2.0);
+                        QVERIFY(!fx.parameters.value(QStringLiteral("curveMaster")).toString().isEmpty());
                     }
                 }
             }
@@ -1631,6 +1632,160 @@ void TestInterchangeVegas::readsDeeperVegasEventTagsAndCompositeBlend()
     QCOMPARE(loaded->tracks().at(0).clips.size(), 1);
     QVERIFY(!loaded->tracks().at(0).clips.at(0).enabled);
     QVERIFY(loaded->tracks().at(0).clips.at(0).locked);
+}
+
+void TestInterchangeVegas::readsImageMxfTrackFlagsAndLevelsToColorGrade()
+{
+    auto appendU32 = [](QByteArray &out, quint32 v) {
+        for (int i = 0; i < 4; ++i)
+            out.append(char((v >> (i * 8)) & 0xFF));
+    };
+    auto appendU64 = [](QByteArray &out, quint64 v) {
+        for (int i = 0; i < 8; ++i)
+            out.append(char((v >> (i * 8)) & 0xFF));
+    };
+    auto appendUtf16 = [](QByteArray &out, const QString &s) {
+        const QByteArray u16(reinterpret_cast<const char *>(s.utf16()), s.size() * 2);
+        out.append(u16);
+        out.append('\0');
+        out.append('\0');
+    };
+    auto makeChunk = [&](const uint8_t guid[16], const QByteArray &payload) -> QByteArray {
+        QByteArray out;
+        out.append(reinterpret_cast<const char *>(guid), 16);
+        appendU64(out, 24 + quint64(payload.size()));
+        out.append(payload);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto makeList = [&](const uint8_t outer[16], const uint8_t type[16], const QByteArray &body) -> QByteArray {
+        QByteArray out;
+        out.append(reinterpret_cast<const char *>(outer), 16);
+        appendU64(out, 40 + quint64(body.size()));
+        out.append(reinterpret_cast<const char *>(type), 16);
+        out.append(body);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+
+    static const uint8_t kW64Riff[16] = {0x72,0x69,0x66,0x66,0x2e,0x91,0xcf,0x11,0xa5,0xd6,0x28,0xdb,0x04,0xc1,0x00,0x00};
+    static const uint8_t kW64List[16] = {0x6c,0x69,0x73,0x74,0x2f,0x91,0xcf,0x11,0xa5,0xd6,0x28,0xdb,0x04,0xc1,0x00,0x00};
+    static const uint8_t kMediaPool[16] = {0x5b,0x2d,0x8f,0xb2,0x0f,0x23,0xd2,0x11,0x86,0xaf,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kMediaEntry[16] = {0x5d,0x2d,0x8f,0xb2,0x0f,0x23,0xd2,0x11,0x86,0xaf,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kTimeline[16] = {0x47,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kTrack[16] = {0x48,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvCont[16] = {0x49,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvent[16] = {0x4a,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvTime[16] = {0x6a,0x20,0x8d,0x16,0x21,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kEvTake[16] = {0x6d,0x20,0x8d,0x16,0x21,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kTrkHdr[16] = {0xe5,0x2a,0x6c,0x5a,0x11,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a};
+    static const uint8_t kDummyForm[16] = {0x53,0x46,0x43,0x46,0,0,0,0,0,0,0,0,0,0,0,0};
+
+    auto makeMediaPayload = [&](quint32 mid, const QString &path, bool withLevels) -> QByteArray {
+        QByteArray p(64, '\0');
+        for (int i = 0; i < 4; ++i)
+            p[60 + i] = char((mid >> (i * 8)) & 0xFF);
+        appendUtf16(p, path);
+        if (withLevels) {
+            appendUtf16(p, QStringLiteral("{Svfx:com.sonycreativesoftware:levels}"));
+            appendUtf16(p, QStringLiteral("InputStart"));
+            QByteArray dbl(8, '\0');
+            auto putD = [&](double v) {
+                std::memcpy(dbl.data(), &v, 8);
+                p.append(dbl);
+            };
+            putD(0.1);
+            appendUtf16(p, QStringLiteral("InputEnd"));
+            putD(0.9);
+            appendUtf16(p, QStringLiteral("Gamma"));
+            putD(1.5);
+            appendUtf16(p, QStringLiteral("OutputStart"));
+            putD(0.05);
+            appendUtf16(p, QStringLiteral("OutputEnd"));
+            putD(0.95);
+        }
+        return p;
+    };
+
+    const QByteArray mpBody = makeChunk(kMediaEntry, makeMediaPayload(1, QStringLiteral("C:\\proj\\overlay.png"), true))
+                            + makeChunk(kMediaEntry, makeMediaPayload(2, QStringLiteral("C:\\proj\\cam.mxf"), false));
+
+    auto makeTrack = [&](quint32 flags, quint32 mid) -> QByteArray {
+        QByteArray trkHdr(64, '\0');
+        for (int i = 0; i < 4; ++i)
+            trkHdr[4 + i] = char((flags >> (i * 8)) & 0xFF);
+        trkHdr[32] = char(2); // Video
+
+        QByteArray evTime(72, '\0');
+        quint64 dur = 20000000;
+        std::memcpy(evTime.data() + 24, &dur, 8);
+
+        QByteArray evTake(40, '\0');
+        std::memcpy(evTake.data() + 36, &mid, 4);
+
+        const QByteArray evChunk = makeList(kW64List, kEvent,
+                                            makeChunk(kEvTime, evTime) + makeChunk(kEvTake, evTake));
+        return makeList(kW64List, kTrack,
+                        makeChunk(kTrkHdr, trkHdr) + makeList(kW64List, kEvCont, evChunk));
+    };
+
+    const QByteArray vegBytes = makeList(
+        kW64Riff, kDummyForm,
+        makeList(kW64List, kMediaPool, mpBody)
+            + makeList(kW64List, kTimeline, makeTrack(0x00000001u, 1) + makeTrack(0x00020002u, 2)));
+
+    QString err;
+    const auto loaded = drift::vegas::readProjectData(vegBytes, QString(), &err);
+    QVERIFY2(loaded.has_value(), qPrintable(err));
+    QCOMPARE(loaded->tracks().size(), 2);
+    QVERIFY(loaded->tracks().at(0).solo);
+    QVERIFY(!loaded->tracks().at(0).muted);
+    QVERIFY(!loaded->tracks().at(0).hidden);
+    QVERIFY(!loaded->tracks().at(1).solo);
+    QVERIFY(loaded->tracks().at(1).muted);
+    QVERIFY(loaded->tracks().at(1).hidden);
+
+    QCOMPARE(loaded->tracks().at(0).clips.at(0).type, drift::ClipType::Image);
+    QCOMPARE(loaded->tracks().at(1).clips.at(0).type, drift::ClipType::Video);
+
+    bool foundPng = false, foundMxf = false, foundColorGradeCurve = false;
+    for (const auto &asset : loaded->assets()) {
+        if (asset.path.endsWith(QLatin1String("overlay.png"))) {
+            foundPng = true;
+            QCOMPARE(asset.kind, drift::MediaKind::Image);
+            QVERIFY(asset.editFriendly);
+            for (const auto &fx : asset.effects) {
+                if (fx.catalogId == QStringLiteral("color.grade")
+                    && fx.parameters.contains(QStringLiteral("curveMaster"))) {
+                    foundColorGradeCurve = true;
+                    QVERIFY(fx.parameters.value(QStringLiteral("curveMaster")).toString().contains(QStringLiteral("\"ease\":\"linear\"")));
+                }
+            }
+        } else if (asset.path.endsWith(QLatin1String("cam.mxf"))) {
+            foundMxf = true;
+            QCOMPARE(asset.kind, drift::MediaKind::Video);
+        }
+    }
+    QVERIFY(foundPng);
+    QVERIFY(foundMxf);
+    QVERIFY(foundColorGradeCurve);
+
+    const QString realVeg = QStringLiteral("/mnt/Jellyfish/Videos/Odds/Episode 5 & 6/Bryan Enters Lair (Scene 1 & 8).veg");
+    if (QFileInfo::exists(realVeg)) {
+        QString realErr;
+        const auto realProj = drift::vegas::readProject(realVeg, &realErr);
+        QVERIFY2(realProj.has_value(), qPrintable(realErr));
+        QVERIFY(realProj->tracks().size() >= 4);
+        QVERIFY(!realProj->tracks().at(0).hidden);
+        QVERIFY(!realProj->tracks().at(0).solo);
+        QVERIFY(realProj->tracks().at(1).hidden);
+        QVERIFY(realProj->tracks().at(2).hidden);
+        QVERIFY(realProj->tracks().at(3).hidden);
+        QCOMPARE(realProj->tracks().at(2).clips.at(0).type, drift::ClipType::Image);
+        QCOMPARE(realProj->tracks().at(3).clips.at(0).type, drift::ClipType::Video);
+    }
 }
 
 QTEST_MAIN(TestInterchangeVegas)

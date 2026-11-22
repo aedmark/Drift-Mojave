@@ -11,6 +11,10 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QImageReader>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMap>
 #include <QRegularExpression>
 #include <QStringList>
@@ -632,27 +636,58 @@ QList<Effect> extractVideoEffects(const uint8_t *payload, qsizetype payloadSize)
     if (payloadSize < 16)
         return effects;
 
-    // 1. Levels (Sony / VEGAS levels)
+    // 1. Levels (Sony / VEGAS levels) -> mapped to Drift's built-in color.grade master curve
     qsizetype lPos = 0;
     while ((lPos = findUtf16(payload, payloadSize, "levels}", lPos)) >= 0) {
         const qsizetype subSize = std::min<qsizetype>(payloadSize - lPos, 800);
         const uint8_t *sub = payload + lPos;
 
-        const double inStart = parseDoubleParam(sub, subSize, "InputStart", 0.0);
-        const double inEnd = parseDoubleParam(sub, subSize, "InputEnd", 1.0);
-        const double gamma = parseDoubleParam(sub, subSize, "Gamma", 1.0);
-        const double outStart = parseDoubleParam(sub, subSize, "OutputStart", 0.0);
-        const double outEnd = parseDoubleParam(sub, subSize, "OutputEnd", 1.0);
+        const double inStart = qBound(0.0, parseDoubleParam(sub, subSize, "InputStart", 0.0), 1.0);
+        const double inEnd = qBound(0.0, parseDoubleParam(sub, subSize, "InputEnd", 1.0), 1.0);
+        const double gamma = qBound(0.1, parseDoubleParam(sub, subSize, "Gamma", 1.0), 10.0);
+        const double outStart = qBound(0.0, parseDoubleParam(sub, subSize, "OutputStart", 0.0), 1.0);
+        const double outEnd = qBound(0.0, parseDoubleParam(sub, subSize, "OutputEnd", 1.0), 1.0);
 
         if (inStart > 0.001 || inEnd < 0.999 || std::abs(gamma - 1.0) > 0.01 || outStart > 0.001 || outEnd < 0.999) {
+            QJsonArray pts;
+            auto appendPt = [&](double x, double y) {
+                x = qBound(0.0, x, 1.0);
+                y = qBound(0.0, y, 1.0);
+                if (!pts.isEmpty()) {
+                    const double prevX = pts.last().toObject().value(QStringLiteral("x")).toDouble();
+                    if (x - prevX < 1e-4)
+                        return;
+                }
+                QJsonObject obj;
+                obj.insert(QStringLiteral("x"), x);
+                obj.insert(QStringLiteral("y"), y);
+                obj.insert(QStringLiteral("ease"), QStringLiteral("linear"));
+                pts.append(obj);
+            };
+
+            const double span = std::max(inEnd - inStart, 1e-5);
+            const double invGamma = 1.0 / gamma;
+            if (inStart > 1e-4)
+                appendPt(0.0, outStart);
+            appendPt(inStart, outStart);
+            if (std::abs(gamma - 1.0) > 0.01 && span > 0.01) {
+                constexpr int kInteriorSamples = 7;
+                for (int si = 1; si <= kInteriorSamples; ++si) {
+                    const double t = double(si) / double(kInteriorSamples + 1);
+                    const double x = inStart + t * span;
+                    const double y = outStart + (outEnd - outStart) * std::pow(t, invGamma);
+                    appendPt(x, y);
+                }
+            }
+            appendPt(inEnd, outEnd);
+            if (inEnd < 1.0 - 1e-4)
+                appendPt(1.0, outEnd);
+
             Effect fx;
-            fx.catalogId = QStringLiteral("adjust.levels");
+            fx.catalogId = QStringLiteral("color.grade");
             fx.name = QStringLiteral("Levels");
-            fx.parameters[QStringLiteral("input_start")] = inStart;
-            fx.parameters[QStringLiteral("input_end")] = inEnd;
-            fx.parameters[QStringLiteral("gamma")] = gamma;
-            fx.parameters[QStringLiteral("output_start")] = outStart;
-            fx.parameters[QStringLiteral("output_end")] = outEnd;
+            fx.parameters[QStringLiteral("curveMaster")] =
+                QString::fromUtf8(QJsonDocument(pts).toJson(QJsonDocument::Compact));
             effects.append(fx);
         }
         lPos += 14;
@@ -1801,6 +1836,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
         QString assetId;
         QString sequenceId;
         bool isNestedProject = false;
+        bool isImage = false;
         bool isTextGenerator = false;
         bool isSolidColorGenerator = false;
         QString textContent;
@@ -1971,10 +2007,20 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                         }
                     }
 
+                    auto isStillImagePath = [](const QString &p) {
+                        const QString ext = QFileInfo(p).suffix().toLower();
+                        return ext == QLatin1String("png") || ext == QLatin1String("jpg")
+                            || ext == QLatin1String("jpeg") || ext == QLatin1String("bmp")
+                            || ext == QLatin1String("webp") || ext == QLatin1String("tif")
+                            || ext == QLatin1String("tiff") || ext == QLatin1String("tga")
+                            || ext == QLatin1String("gif");
+                    };
+
                     MediaEntry entry;
                     entry.rawFilename = diskName;
                     entry.resolvedPath = resolved;
                     entry.assetId = assetId;
+                    entry.isImage = isStillImagePath(resolved) || isStillImagePath(diskName);
                     entry.mediaEffects = extractVideoEffects(payload, payloadSize);
                     mediaPool.insert(mid, entry);
 
@@ -1985,7 +2031,27 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                     asset.effects = entry.mediaEffects;
 
                     const QFileInfo resolvedInfo(resolved);
-                    if (resolvedInfo.exists() && resolvedInfo.isFile()) {
+                    if (entry.isImage) {
+                        asset.kind = MediaKind::Image;
+                        asset.editFriendly = true;
+                        QSize imgSize;
+                        if (resolvedInfo.exists() && resolvedInfo.isFile()) {
+                            imgSize = QImageReader(resolved).size();
+                            if (!imgSize.isValid()) {
+                                const MediaInfo probed = MediaProbe::probe(resolved);
+                                if (probed.ok) {
+                                    for (const StreamInfo &st : probed.streams) {
+                                        if (st.type == StreamInfo::Type::Video && !st.attachedPicture) {
+                                            imgSize = QSize(st.width, st.height);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        asset.width = imgSize.isValid() ? imgSize.width() : canvasWidth;
+                        asset.height = imgSize.isValid() ? imgSize.height() : canvasHeight;
+                    } else if (resolvedInfo.exists() && resolvedInfo.isFile()) {
                         const MediaInfo probed = MediaProbe::probe(resolved);
                         if (probed.ok) {
                             bool hasVideo = false;
@@ -2018,7 +2084,11 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                     } else {
                         const QString ext = resolvedInfo.suffix().toLower();
                         if (ext == QLatin1String("mov") || ext == QLatin1String("mp4")
-                            || ext == QLatin1String("mts")
+                            || ext == QLatin1String("mts") || ext == QLatin1String("m2ts")
+                            || ext == QLatin1String("mxf") || ext == QLatin1String("avi")
+                            || ext == QLatin1String("mkv") || ext == QLatin1String("webm")
+                            || ext == QLatin1String("mpg") || ext == QLatin1String("mpeg")
+                            || ext == QLatin1String("wmv") || ext == QLatin1String("ts")
                             || winPath.contains(QLatin1String("titlesandtext"), Qt::CaseInsensitive)) {
                             asset.kind = MediaKind::Video;
                             asset.width = canvasWidth;
@@ -2143,8 +2213,8 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
 
                             if (cpayloadSize >= 8) {
                                 const quint32 flags = readU32LE(cpayload + 4);
-                                trackMuted = (flags & 0x01) != 0;
-                                trackSolo = (flags & 0x02) != 0;
+                                trackSolo = (flags & 0x01) != 0;
+                                trackMuted = (flags & 0x02) != 0;
                             }
                             if (cpayloadSize >= 20) {
                                 const quint32 nameBytes = readU32LE(cpayload + 16);
@@ -2165,6 +2235,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                     track.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
                     track.number = trackNumber++;
                     track.muted = trackMuted;
+                    track.hidden = (trackType == TrackType::Video) ? trackMuted : false;
                     track.solo = trackSolo;
                     if (trackType == TrackType::Video) {
                         const uint8_t *tPtr = bytes + tpos;
@@ -2376,8 +2447,13 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                                 clip.sequenceId = nestedSeqId;
                                             }
                                         } else if (clip.type != ClipType::Text && clip.type != ClipType::Shape) {
-                                            clip.type = (trackType == TrackType::Video) ? ClipType::Video
-                                                                                        : ClipType::Audio;
+                                            if (trackType == TrackType::Video && mediaPool.contains(mid)
+                                                && mediaPool[mid].isImage) {
+                                                clip.type = ClipType::Image;
+                                            } else {
+                                                clip.type = (trackType == TrackType::Video) ? ClipType::Video
+                                                                                            : ClipType::Audio;
+                                            }
                                         }
 
                                         // Convert 100ns ticks to microseconds
