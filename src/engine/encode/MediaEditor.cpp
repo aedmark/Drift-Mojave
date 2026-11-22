@@ -148,14 +148,19 @@ bool editImage(const MediaEditSpec &spec, QString *errorOut,
     return true;
 }
 
-int64_t framePtsUs(const AVFrame *frame, AVRational timeBase)
+int64_t streamStartTs(const AVStream *stream)
+{
+    return (stream && stream->start_time != AV_NOPTS_VALUE) ? stream->start_time : 0;
+}
+
+int64_t framePtsUs(const AVFrame *frame, const AVStream *stream)
 {
     const int64_t pts = frame->best_effort_timestamp != AV_NOPTS_VALUE
                             ? frame->best_effort_timestamp
                             : frame->pts;
-    if (pts == AV_NOPTS_VALUE)
+    if (pts == AV_NOPTS_VALUE || !stream)
         return 0;
-    return av_rescale_q(pts, timeBase, {1, AV_TIME_BASE});
+    return av_rescale_q(pts - streamStartTs(stream), stream->time_base, {1, AV_TIME_BASE});
 }
 
 // The nearest broadcast rate to `rate`, for conforming a variable-rate recording. Anything that
@@ -909,7 +914,7 @@ bool editAudio(const MediaEditSpec &request, QString *errorOut,
     }
 
     if (inUs > 0) {
-        const int64_t ts = av_rescale_q(inUs, {1, AV_TIME_BASE}, stream->time_base);
+        const int64_t ts = av_rescale_q(inUs, {1, AV_TIME_BASE}, stream->time_base) + streamStartTs(stream);
         av_seek_frame(fmt, streamIndex, ts, AVSEEK_FLAG_BACKWARD);
         avcodec_flush_buffers(dec);
     }
@@ -1666,7 +1671,7 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
     AVFrame *hooked = spec.frameHook ? av_frame_alloc() : nullptr;
 
     if (inUs > 0) {
-        const int64_t ts = av_rescale_q(inUs, {1, AV_TIME_BASE}, vStream->time_base);
+        const int64_t ts = av_rescale_q(inUs, {1, AV_TIME_BASE}, vStream->time_base) + streamStartTs(vStream);
         av_seek_frame(fmt, videoIndex, ts, AVSEEK_FLAG_BACKWARD);
         avcodec_flush_buffers(vDec);
         if (aDec)
@@ -1833,7 +1838,7 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
     };
 
     auto handleVideo = [&](AVFrame *decoded) -> bool {
-        const TimeUs ptsUs = framePtsUs(decoded, vStream->time_base);
+        const TimeUs ptsUs = framePtsUs(decoded, vStream);
         if (ptsUs + 1000 < inUs)
             return true;
         if (ptsUs >= outUs) {
@@ -1878,7 +1883,7 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
         if (!ctxSwr)
             return true;
         AVStream *aStream = aFmt->streams[streamIdx];
-        const TimeUs ptsUs = framePtsUs(decoded, aStream->time_base);
+        const TimeUs ptsUs = framePtsUs(decoded, aStream);
         if (ptsUs + 20000 < audioInUs)
             return true;
         if (ptsUs >= audioOutUs) {
@@ -1940,7 +1945,7 @@ bool editVideo(const MediaEditSpec &spec, QString *errorOut,
             if (send < 0 && send != AVERROR(EAGAIN))
                 continue;
             while (mine && avcodec_receive_frame(aDec, extFrame) >= 0) {
-                extDecodedUs = framePtsUs(extFrame, extFmt->streams[extIndex]->time_base)
+                extDecodedUs = framePtsUs(extFrame, extFmt->streams[extIndex])
                     + (TimeUs(extFrame->nb_samples) * kUsPerSecond) / std::max(1, aDec->sample_rate);
                 const bool handled = handleAudio(extFrame);
                 av_frame_unref(extFrame);
@@ -2119,7 +2124,7 @@ bool analyzeVideo(const QString &inputPath, TimeUs inUs, TimeUs outUs, const QSt
                                                                {1, AV_TIME_BASE});
     const TimeUs spanUs = (outUs == std::numeric_limits<TimeUs>::max() ? durationUs : outUs) - inUs;
     if (inUs > 0) {
-        const int64_t ts = av_rescale_q(inUs, {1, AV_TIME_BASE}, vStream->time_base);
+        const int64_t ts = av_rescale_q(inUs, {1, AV_TIME_BASE}, vStream->time_base) + streamStartTs(vStream);
         av_seek_frame(fmt, videoIndex, ts, AVSEEK_FLAG_BACKWARD);
         avcodec_flush_buffers(vDec);
     }
@@ -2144,7 +2149,7 @@ bool analyzeVideo(const QString &inputPath, TimeUs inUs, TimeUs outUs, const QSt
     // Same seek, timestamp handling and trim as editVideo's handleVideo, so both passes feed the
     // filter the same frames.
     auto handleVideo = [&](AVFrame *decoded) -> bool {
-        const TimeUs ptsUs = framePtsUs(decoded, vStream->time_base);
+        const TimeUs ptsUs = framePtsUs(decoded, vStream);
         if (ptsUs + 1000 < inUs)
             return true;
         if (ptsUs >= outUs) {
@@ -2316,9 +2321,11 @@ TimeUs keyframeAtOrBefore(const QString &path, TimeUs t)
         avformat_close_input(&fmt);
         return t;
     }
-    const AVRational timeBase = fmt->streams[index]->time_base;
+    const AVStream *stream = fmt->streams[index];
+    const AVRational timeBase = stream->time_base;
+    const int64_t startTs = streamStartTs(stream);
     if (t > 0
-        && av_seek_frame(fmt, index, av_rescale_q(t, {1, AV_TIME_BASE}, timeBase),
+        && av_seek_frame(fmt, index, av_rescale_q(t, {1, AV_TIME_BASE}, timeBase) + startTs,
                          AVSEEK_FLAG_BACKWARD)
             < 0) {
         avformat_close_input(&fmt);
@@ -2332,7 +2339,7 @@ TimeUs keyframeAtOrBefore(const QString &path, TimeUs t)
         const int64_t stamp = packet->pts != AV_NOPTS_VALUE ? packet->pts : packet->dts;
         av_packet_unref(packet);
         if (wanted && stamp != AV_NOPTS_VALUE) {
-            found = av_rescale_q(stamp, timeBase, {1, AV_TIME_BASE});
+            found = av_rescale_q(stamp - startTs, timeBase, {1, AV_TIME_BASE});
             break;
         }
     }
@@ -2427,9 +2434,12 @@ bool remuxRange(const QString &input, const QString &output, TimeUs inUs, TimeUs
         return fail(trEdit("Could not write the output header"));
     }
 
-    if (inUs > 0)
-        av_seek_frame(in, ref, av_rescale_q(inUs, {1, AV_TIME_BASE}, in->streams[ref]->time_base),
+    if (inUs > 0) {
+        AVStream *refStream = in->streams[ref];
+        av_seek_frame(in, ref,
+                      av_rescale_q(inUs, {1, AV_TIME_BASE}, refStream->time_base) + streamStartTs(refStream),
                       AVSEEK_FLAG_BACKWARD);
+    }
 
     AVPacket *packet = av_packet_alloc();
     bool ok = packet != nullptr;
@@ -2448,8 +2458,9 @@ bool remuxRange(const QString &input, const QString &output, TimeUs inUs, TimeUs
             av_packet_unref(packet);
             continue;
         }
-        const TimeUs ptsUs = av_rescale_q(pts, ist->time_base, {1, AV_TIME_BASE});
-        const TimeUs dtsUs = av_rescale_q(dts, ist->time_base, {1, AV_TIME_BASE});
+        const int64_t startTs = streamStartTs(ist);
+        const TimeUs ptsUs = av_rescale_q(pts - startTs, ist->time_base, {1, AV_TIME_BASE});
+        const TimeUs dtsUs = av_rescale_q(dts - startTs, ist->time_base, {1, AV_TIME_BASE});
         if (isRef && !sawKey) {
             if (!(packet->flags & AV_PKT_FLAG_KEY)) {
                 av_packet_unref(packet);
@@ -2470,7 +2481,7 @@ bool remuxRange(const QString &input, const QString &output, TimeUs inUs, TimeUs
             continue;
         }
 
-        const int64_t shift = av_rescale_q(startUs, {1, AV_TIME_BASE}, ist->time_base);
+        const int64_t shift = streamStartTs(ist) + av_rescale_q(startUs, {1, AV_TIME_BASE}, ist->time_base);
         packet->pts -= shift;
         if (packet->dts != AV_NOPTS_VALUE)
             packet->dts -= shift;

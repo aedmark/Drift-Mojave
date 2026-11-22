@@ -2291,6 +2291,8 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     quint64 srcInTicks = 0;
                                     quint32 mid = 0;
                                     quint32 eventId = 0;
+                                    quint32 eventActiveTakeIndex = 0;
+                                    double playbackRate = 1.0;
                                     bool eventMuted = false;
                                     bool eventLocked = false;
                                     VelocityEnvelope eventVelocity;
@@ -2299,6 +2301,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     struct VegasParsedTake {
                                         quint64 srcInTicks = 0;
                                         quint32 mid = 0;
+                                        bool isActive = false;
                                         QList<Effect> effects;
                                     };
                                     QList<VegasParsedTake> parsedTakes;
@@ -2316,6 +2319,14 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                             if (cpayloadSize >= 32) {
                                                 startTicks = readU64LE(cpayload + 16);
                                                 durTicks = readU64LE(cpayload + 24);
+                                            }
+                                            if (cpayloadSize >= 36) {
+                                                eventActiveTakeIndex = readU32LE(cpayload + 32);
+                                            }
+                                            if (cpayloadSize >= 48) {
+                                                const double rate = readDoubleLE(cpayload + 40);
+                                                if (!std::isnan(rate) && !std::isinf(rate) && rate >= 0.01 && rate <= 100.0)
+                                                    playbackRate = rate;
                                             }
                                             if (cpayloadSize >= 68) {
                                                 eventId = readU32LE(cpayload + 64);
@@ -2356,8 +2367,9 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                         } else if (std::memcmp(cptr, kChunkEventTake, 16) == 0) {
                                             if (cpayloadSize >= 40) {
                                                 srcInTicks = readU64LE(cpayload + 16);
+                                                const quint32 takeFlags = readU32LE(cpayload + 32);
                                                 mid = readU32LE(cpayload + 36);
-                                                parsedTakes.append({srcInTicks, mid, {}});
+                                                parsedTakes.append({srcInTicks, mid, (takeFlags & 0x20u) != 0, {}});
                                             }
                                         } else if ((std::memcmp(cptr, kGuidW64List, 16) == 0 && cpayloadSize >= 16
                                                     && std::memcmp(cpayload, kListEventFx, 16) == 0)
@@ -2385,9 +2397,22 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                         cpos += (csize + 7) & ~7;
                                     }
 
+                                    int activeTakeIdx = 0;
                                     if (!parsedTakes.isEmpty()) {
-                                        srcInTicks = parsedTakes.first().srcInTicks;
-                                        mid = parsedTakes.first().mid;
+                                        bool foundActiveFlag = false;
+                                        for (int ti = 0; ti < parsedTakes.size(); ++ti) {
+                                            if (parsedTakes.at(ti).isActive) {
+                                                activeTakeIdx = ti;
+                                                foundActiveFlag = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!foundActiveFlag && eventActiveTakeIndex < static_cast<quint32>(parsedTakes.size()))
+                                            activeTakeIdx = static_cast<int>(eventActiveTakeIndex);
+                                        srcInTicks = parsedTakes.at(activeTakeIdx).srcInTicks;
+                                        mid = parsedTakes.at(activeTakeIdx).mid;
+                                        if (parsedTakes.size() > 1 && !parsedTakes.at(activeTakeIdx).effects.isEmpty())
+                                            takeEffects = parsedTakes.at(activeTakeIdx).effects;
                                     }
 
                                     if (durTicks > 0) {
@@ -2457,10 +2482,15 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                         }
 
                                         // Convert 100ns ticks to microseconds
+                                        const TimeUs timelineDurUs = static_cast<TimeUs>(durTicks / 10);
+                                        const TimeUs srcDurUs = (std::abs(playbackRate - 1.0) > 1e-6)
+                                            ? static_cast<TimeUs>(std::llround(static_cast<double>(timelineDurUs) * playbackRate))
+                                            : timelineDurUs;
                                         clip.timelineStart = static_cast<TimeUs>(startTicks / 10);
-                                        clip.timelineDuration = static_cast<TimeUs>(durTicks / 10);
+                                        clip.timelineDuration = timelineDurUs;
                                         clip.srcIn = static_cast<TimeUs>(srcInTicks / 10);
-                                        clip.srcOut = static_cast<TimeUs>((srcInTicks + durTicks) / 10);
+                                        clip.srcOut = clip.srcIn + srcDurUs;
+                                        clip.speed = playbackRate;
                                         clip.fadeInUs = static_cast<TimeUs>(fadeInTicks / 10);
                                         clip.fadeOutUs = static_cast<TimeUs>(fadeOutTicks / 10);
                                         clip.enabled = !eventMuted;
@@ -2493,11 +2523,11 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                                     take.name = QStringLiteral("Take %1").arg(ti + 1);
                                                 }
                                                 take.srcIn = static_cast<TimeUs>(pt.srcInTicks / 10);
-                                                take.srcOut = static_cast<TimeUs>((pt.srcInTicks + durTicks) / 10);
+                                                take.srcOut = take.srcIn + srcDurUs;
                                                 take.effects = pt.effects;
                                                 clip.takes.append(take);
                                             }
-                                            clip.activeTakeIndex = 0;
+                                            clip.activeTakeIndex = activeTakeIdx;
                                         }
 
                                         track.clips.append(clip);

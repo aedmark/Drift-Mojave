@@ -207,6 +207,7 @@ private slots:
     void mediaEditorDownscalesAndChoosesContainers();
     void mediaEditorMuxesReplacementAudio();
     void audioReadAfterSeekHonoursStreamStartTime();
+    void mediaEditorTranscodeHonoursStreamStartTime();
     void mediaEditorRemuxStartsOnAKeyframe();
     void denoiseAudioRangeWritesFlac();
     void reverseProxyLookupIsByContainmentAndSourceIdentity();
@@ -6791,6 +6792,47 @@ void EngineTest::audioReadAfterSeekHonoursStreamStartTime()
     QVERIFY(onset >= 0);
     // Tone starts 0.5 s after the requested position.
     QVERIFY2(qAbs(onset - kRate / 2) <= 200, qPrintable(QString::number(onset)));
+}
+
+void EngineTest::mediaEditorTranscodeHonoursStreamStartTime()
+{
+    if (ffmpegExe().isEmpty())
+        QSKIP("ffmpeg not on PATH");
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString tsPath = dir.filePath(QStringLiteral("avchd_offset.ts"));
+    QVERIFY(runProcess(ffmpegExe(),
+                       {QStringLiteral("-y"), QStringLiteral("-loglevel"), QStringLiteral("error"),
+                        QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+                        QStringLiteral("testsrc2=duration=2:size=320x180:rate=24000/1001"),
+                        QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+                        QStringLiteral("sine=frequency=440:duration=2:sample_rate=48000"),
+                        QStringLiteral("-c:v"), QStringLiteral("libx264"),
+                        QStringLiteral("-pix_fmt"), QStringLiteral("yuv420p"),
+                        QStringLiteral("-c:a"), QStringLiteral("ac3"),
+                        QStringLiteral("-output_ts_offset"), QStringLiteral("1.041711"),
+                        tsPath}));
+
+    drift::MediaEditSpec spec;
+    spec.inputPath = tsPath;
+    spec.outputPath = dir.filePath(QStringLiteral("out.mov"));
+    spec.kind = QStringLiteral("video");
+    spec.inSeconds = 0.0;
+    spec.outSeconds = -1.0;
+    spec.output.container = QStringLiteral("mov");
+    spec.output.videoCodec = QStringLiteral("prores");
+    QString error;
+    QVERIFY2(drift::editMedia(spec, &error, {}), qPrintable(error));
+
+    const MediaInfo info = MediaProbe::probe(spec.outputPath);
+    QVERIFY(info.ok);
+    QCOMPARE(info.streams.size(), 2);
+    for (const StreamInfo &stream : info.streams) {
+        // Must match the ~2.0s content duration, not 2.0s + 1.0417s start_time padding.
+        QVERIFY2(qAbs(stream.durationUs - 2 * drift::kUsPerSecond) <= 150'000,
+                 qPrintable(QStringLiteral("Unexpected stream duration %1 us").arg(stream.durationUs)));
+    }
 }
 
 void EngineTest::mediaEditorRemuxStartsOnAKeyframe()

@@ -8,6 +8,8 @@ Tracks work done on `main` **since the last public release**. Use this to see wh
 
 ## ✅ Fixed
 
+- **AVCHD / MPEG-TS `start_time` offset in ProRes transcoding & media editing** (`MediaEditor.cpp`): Subtract `stream->start_time` when reading frame PTS, seeking, keyframe lookup, and remuxing so MPEG-TS inputs (e.g. Sony `.MTS` with `start_time = 1.0417 s`) no longer prepend ~1.04 s of padded video frames during ProRes transcoding.
+- **VEGAS playback rate & multi-take active selection** (`VegasReader.cpp`): Parse `playbackRate` (offset 40 of `kChunkEventTime`) into `Clip::speed` and `Clip::srcOut`, and select the active take via `takeFlags & 0x20` / `activeTakeIndex` instead of always defaulting to take 0.
 - **VEGAS Pro compositing, still-image overlays & track solo/mute** (`dda9b077`): Fixed swapped VEGAS track header flags (`0x01` = Solo, `0x02` = Mute/Hidden), added visual `track.solo` support in `FrameCompositor`, and classified `.png`/still-image overlays as `ClipType::Image` (`editFriendly = true`) so alpha channels are preserved.
 - **Broadcast `.mxf` playback & ProRes/edit-friendly transcoding** (`dda9b077`, `30e1cf2c`): Bypassed hwaccel for 4:2:2 / 4:4:4 chroma streams (`mpeg2video` 4:2:2 `yuv422p`), normalized `AV_CHANNEL_ORDER_UNSPEC` for `libswresample`, and paired dual-mono PCM L/R streams into stereo in both `ClipReader` and `MediaEditor`.
 - **ProRes transcode error reporting** (`30e1cf2c`): `MediaBinController::convertToProRes` now logs and surfaces `transcodeError` and locked-track relink warnings instead of failing silently.

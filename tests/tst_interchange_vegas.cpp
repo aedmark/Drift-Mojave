@@ -51,6 +51,7 @@ private slots:
     void exportsFcpxmlEdlOtioAndVegasTsv();
     void readsDeeperVegasEventTagsAndCompositeBlend();
     void readsImageMxfTrackFlagsAndLevelsToColorGrade();
+    void readsPlaybackRateAndActiveTakeSelection();
 };
 
 void TestInterchangeVegas::detectsVegasProject()
@@ -1785,6 +1786,161 @@ void TestInterchangeVegas::readsImageMxfTrackFlagsAndLevelsToColorGrade()
         QVERIFY(realProj->tracks().at(3).hidden);
         QCOMPARE(realProj->tracks().at(2).clips.at(0).type, drift::ClipType::Image);
         QCOMPARE(realProj->tracks().at(3).clips.at(0).type, drift::ClipType::Video);
+    }
+}
+
+void TestInterchangeVegas::readsPlaybackRateAndActiveTakeSelection()
+{
+    auto guid = [](std::initializer_list<uint8_t> bytes) {
+        QByteArray ba;
+        for (uint8_t b : bytes)
+            ba.append(char(b));
+        return ba;
+    };
+    auto makeChunk = [](const QByteArray &id, const QByteArray &payload) {
+        QByteArray out = id;
+        const quint64 total = 24 + static_cast<quint64>(payload.size());
+        for (int i = 0; i < 8; ++i)
+            out.append(char((total >> (i * 8)) & 0xFF));
+        out.append(payload);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto makeList = [](const QByteArray &listGuid, const QByteArray &typeGuid, const QByteArray &children) {
+        QByteArray out = listGuid;
+        const quint64 total = 40 + static_cast<quint64>(children.size());
+        for (int i = 0; i < 8; ++i)
+            out.append(char((total >> (i * 8)) & 0xFF));
+        out.append(typeGuid);
+        out.append(children);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+
+    const QByteArray kW64Riff = guid({0x72,0x69,0x66,0x66,0x2e,0x91,0xcf,0x11,0xa5,0xd6,0x28,0xdb,0x04,0xc1,0x00,0x00});
+    const QByteArray kW64List = guid({0x6c,0x69,0x73,0x74,0x2f,0x91,0xcf,0x11,0xa5,0xd6,0x28,0xdb,0x04,0xc1,0x00,0x00});
+    const QByteArray kMediaPool = guid({0x5b,0x2d,0x8f,0xb2,0x0f,0x23,0xd2,0x11,0x86,0xaf,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kTimeline = guid({0x47,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kTrack = guid({0x48,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kEvCont = guid({0x49,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kEvent = guid({0x4a,0x07,0x6c,0x4d,0x16,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kEvTime = guid({0x6a,0x20,0x8d,0x16,0x21,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kEvTake = guid({0x6d,0x20,0x8d,0x16,0x21,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kMediaEntry = guid({0x5d,0x2d,0x8f,0xb2,0x0f,0x23,0xd2,0x11,0x86,0xaf,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kTrkHdr = guid({0xe5,0x2a,0x6c,0x5a,0x11,0x23,0xd2,0x11,0x86,0xb0,0x00,0xc0,0x4f,0x8e,0xdb,0x8a});
+    const QByteArray kDummyForm = guid({0x53,0x46,0x43,0x46,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00});
+
+    auto makeMediaPayload = [](quint32 id, const QString &path) {
+        QByteArray p(64, '\0');
+        for (int i = 0; i < 4; ++i)
+            p[60 + i] = char((id >> (i * 8)) & 0xFF);
+        const ushort *u16 = path.utf16();
+        p.append(reinterpret_cast<const char *>(u16), (path.size() + 1) * 2);
+        return p;
+    };
+
+    const QByteArray mpBody = makeChunk(kMediaEntry, makeMediaPayload(1, QStringLiteral("C:\\proj\\takeA.mov")))
+                            + makeChunk(kMediaEntry, makeMediaPayload(2, QStringLiteral("C:\\proj\\takeB.mov")));
+
+    // Track with Event 1 (playbackRate = 2.5) and Event 2 (2 takes, take 1 active via takeFlags 0x2c)
+    QByteArray trkHdr(64, '\0');
+    trkHdr[32] = char(2); // Video
+
+    QByteArray ev1Time(72, '\0');
+    quint64 dur1 = 20000000; // 2.0s timeline
+    double rate1 = 2.5;
+    std::memcpy(ev1Time.data() + 24, &dur1, 8);
+    std::memcpy(ev1Time.data() + 40, &rate1, 8);
+    QByteArray ev1Take(40, '\0');
+    quint32 mid1 = 1;
+    std::memcpy(ev1Take.data() + 36, &mid1, 4);
+    const QByteArray ev1 = makeList(kW64List, kEvent, makeChunk(kEvTime, ev1Time) + makeChunk(kEvTake, ev1Take));
+
+    QByteArray ev2Time(72, '\0');
+    quint64 start2 = 30000000;
+    quint64 dur2 = 40000000; // 4.0s timeline
+    quint32 activeIdx2 = 1;
+    double rate2 = 0.5;
+    std::memcpy(ev2Time.data() + 16, &start2, 8);
+    std::memcpy(ev2Time.data() + 24, &dur2, 8);
+    std::memcpy(ev2Time.data() + 32, &activeIdx2, 4);
+    std::memcpy(ev2Time.data() + 40, &rate2, 8);
+
+    QByteArray ev2Take0(40, '\0');
+    quint64 srcIn0 = 10000000; // 1.0s
+    quint32 flags0 = 12;       // inactive
+    quint32 mid0 = 1;
+    std::memcpy(ev2Take0.data() + 16, &srcIn0, 8);
+    std::memcpy(ev2Take0.data() + 32, &flags0, 4);
+    std::memcpy(ev2Take0.data() + 36, &mid0, 4);
+
+    QByteArray ev2Take1(40, '\0');
+    quint64 srcIn1 = 50000000; // 5.0s
+    quint32 flags1 = 44;       // 0x2c -> active (bit 0x20)
+    quint32 mid2 = 2;
+    std::memcpy(ev2Take1.data() + 16, &srcIn1, 8);
+    std::memcpy(ev2Take1.data() + 32, &flags1, 4);
+    std::memcpy(ev2Take1.data() + 36, &mid2, 4);
+
+    const QByteArray ev2 = makeList(kW64List, kEvent,
+                                    makeChunk(kEvTime, ev2Time) + makeChunk(kEvTake, ev2Take0) + makeChunk(kEvTake, ev2Take1));
+
+    const QByteArray track = makeList(kW64List, kTrack,
+                                      makeChunk(kTrkHdr, trkHdr) + makeList(kW64List, kEvCont, ev1 + ev2));
+    const QByteArray vegBytes = makeList(kW64Riff, kDummyForm,
+                                         makeList(kW64List, kMediaPool, mpBody) + makeList(kW64List, kTimeline, track));
+
+    QString err;
+    const auto loaded = drift::vegas::readProjectData(vegBytes, QString(), &err);
+    QVERIFY2(loaded.has_value(), qPrintable(err));
+    QCOMPARE(loaded->tracks().size(), 1);
+    QCOMPARE(loaded->tracks().at(0).clips.size(), 2);
+
+    const auto &c1 = loaded->tracks().at(0).clips.at(0);
+    QCOMPARE(c1.timelineDuration, drift::TimeUs(2'000'000));
+    QVERIFY(qAbs(c1.speed - 2.5) < 1e-6);
+    QCOMPARE(c1.srcOut - c1.srcIn, drift::TimeUs(5'000'000));
+
+    const auto &c2 = loaded->tracks().at(0).clips.at(1);
+    QCOMPARE(c2.activeTakeIndex, 1);
+    QCOMPARE(c2.srcIn, drift::TimeUs(5'000'000));
+    QCOMPARE(c2.srcOut - c2.srcIn, drift::TimeUs(2'000'000));
+    QVERIFY(qAbs(c2.speed - 0.5) < 1e-6);
+    QVERIFY(c2.path.endsWith(QLatin1String("takeB.mov")));
+    QCOMPARE(c2.takes.size(), 2);
+    QCOMPARE(c2.takes.at(0).srcIn, drift::TimeUs(1'000'000));
+    QCOMPARE(c2.takes.at(1).srcIn, drift::TimeUs(5'000'000));
+
+    const QString e3s8Veg = findExtendedVeg(QStringLiteral("Episode 3/Remaster/Scene 8,9,10/e3s8-9-10.veg"));
+    if (!e3s8Veg.isEmpty()) {
+        QString rErr;
+        const auto p = drift::vegas::readProject(e3s8Veg, &rErr);
+        QVERIFY2(p.has_value(), qPrintable(rErr));
+        bool found25x = false;
+        for (const auto &t : p->tracks()) {
+            for (const auto &c : t.clips) {
+                if (qAbs(c.speed - 2.5) < 1e-4)
+                    found25x = true;
+            }
+        }
+        QVERIFY(found25x);
+    }
+
+    const QString e3s5Veg = findExtendedVeg(QStringLiteral("Episode 3/Remaster/Scene 5/e3s5.veg"));
+    if (!e3s5Veg.isEmpty()) {
+        QString rErr;
+        const auto p = drift::vegas::readProject(e3s5Veg, &rErr);
+        QVERIFY2(p.has_value(), qPrintable(rErr));
+        bool foundActiveTake1 = false;
+        for (const auto &t : p->tracks()) {
+            for (const auto &c : t.clips) {
+                if (c.takes.size() > 1 && c.activeTakeIndex == 1)
+                    foundActiveTake1 = true;
+            }
+        }
+        QVERIFY(foundActiveTake1);
     }
 }
 
