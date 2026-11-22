@@ -410,7 +410,7 @@ Item {
             anchors.centerIn: parent
             glyph: Theme.icons.lock
             iconSize: 11
-            iconColor: Theme.c.accent
+            iconColor: Theme.accent
         }
     }
 }

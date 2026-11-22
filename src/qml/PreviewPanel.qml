@@ -101,16 +101,17 @@ PanelFrame {
             radius: Theme.radiusSm
             color: Qt.rgba(0.08, 0.09, 0.12, 0.88)
             border.width: 1
-            border.color: Theme.c.accent
+            border.color: Theme.accent
 
-            RowLayout {
+            Row {
                 id: expandedEditRow
                 anchors.centerIn: parent
                 spacing: Theme.spacingSm
 
-                Label {
-                    color: Theme.c.textPrimary
-                    font.pixelSize: Theme.fontSm
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.c.previewOriginalBadge.foreground
+                    font.pixelSize: Theme.fontSizeSm
                     font.bold: true
                     text: {
                         const st = EditorState.expandedEditState
@@ -123,6 +124,7 @@ PanelFrame {
                     }
                 }
                 ThemedButton {
+                    anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("-1f")
                     onClicked: {
                         const st = EditorState.expandedEditState
@@ -131,6 +133,7 @@ PanelFrame {
                     }
                 }
                 ThemedButton {
+                    anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("+1f")
                     onClicked: {
                         const st = EditorState.expandedEditState
@@ -139,6 +142,7 @@ PanelFrame {
                     }
                 }
                 ThemedButton {
+                    anchors.verticalCenter: parent.verticalCenter
                     text: qsTr("Done")
                     onClicked: EditorState.endExpandedEdit()
                 }

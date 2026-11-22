@@ -54,15 +54,15 @@ Rectangle {
         width: outline.overlapInfo ? outline.overlapInfo.width : 0
         height: parent.height
         radius: outline.radius
-        color: Qt.rgba(Theme.c.accent.r, Theme.c.accent.g, Theme.c.accent.b, 0.22)
+        color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
         border.width: 1
-        border.color: Theme.c.accent
+        border.color: Theme.accent
 
         TimelineTransitionChevrons {
             anchors.fill: parent
             anchors.margins: 2
             visible: parent.width >= 16
-            color: Qt.rgba(Theme.c.accent.r, Theme.c.accent.g, Theme.c.accent.b, 0.45)
+            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.45)
         }
 
         Rectangle {
@@ -77,7 +77,7 @@ Rectangle {
                 id: crossfadeLabel
                 anchors.centerIn: parent
                 text: outline.overlapInfo ? (Math.round(outline.overlapInfo.duration * 10) / 10).toFixed(1) + "s" : ""
-                color: Theme.c.accent
+                color: Theme.accent
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSizeTiny
                 font.weight: Font.DemiBold

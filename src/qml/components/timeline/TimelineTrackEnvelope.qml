@@ -10,10 +10,10 @@ Item {
     required property int trackIndex
     required property var trackData
 
-    readonly property bool showVolume: trackData.showVolumeEnvelope === true
-    readonly property bool showPan: trackData.showPanEnvelope === true
-    readonly property bool showComposite: trackData.showCompositeEnvelope === true
-    readonly property bool showMute: trackData.showMuteEnvelope === true
+    readonly property bool showVolume: !!trackData && trackData.showVolumeEnvelope === true
+    readonly property bool showPan: !!trackData && trackData.showPanEnvelope === true
+    readonly property bool showComposite: !!trackData && trackData.showCompositeEnvelope === true
+    readonly property bool showMute: !!trackData && trackData.showMuteEnvelope === true
     readonly property bool anyVisible: showVolume || showPan || showComposite || showMute
 
     visible: anyVisible && width > 0 && height > 8
@@ -110,6 +110,8 @@ Item {
                 })
             }
         }
+        if (!trackData)
+            return list
         appendKind("volume", trackData.volumeEnvelopePoints, showVolume)
         appendKind("pan", trackData.panEnvelopePoints, showPan)
         appendKind("composite", trackData.compositeEnvelopePoints, showComposite)
@@ -164,6 +166,8 @@ Item {
                 ctx.restore()
             }
 
+            if (!trackData)
+                return
             drawCurve("volume", trackData.volumeEnvelopePoints, root.showVolume)
             drawCurve("pan", trackData.panEnvelopePoints, root.showPan)
             drawCurve("composite", trackData.compositeEnvelopePoints, root.showComposite)
@@ -175,7 +179,7 @@ Item {
     // normal clip clicks or drags anywhere on the track body.
     Rectangle {
         id: addPointChip
-        visible: root.anyVisible && root.height >= 26 && trackData.locked !== true
+        visible: root.anyVisible && root.height >= 26 && (!trackData || trackData.locked !== true)
         x: Math.max(6, Math.min(root.width - width - 6,
                                 (EditorState.playheadSeconds * (root.panel ? root.panel.pxPerSecond : 100)) + 8))
         y: 4
@@ -217,7 +221,7 @@ Item {
     }
 
     Repeater {
-        model: root.flattenedPoints.length
+        model: root.flattenedPoints ? root.flattenedPoints.length : 0
 
         Item {
             id: ptItem
