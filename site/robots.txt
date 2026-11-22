@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://aedmark.github.io/Drift-Mojave/sitemap.xml
+Sitemap: https://oopismcgoopis.com/drift-mojave/sitemap.xml

@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="https://aedmark.github.io/Drift-Mojave/">Website</a> ·
+  <a href="https://oopismcgoopis.com/drift-mojave/">Website</a> ·
   <a href="https://github.com/aedmark/Drift-Mojave/releases/tag/v1.4.0">Download v1.4.0</a> ·
   <a href="docs/ROADMAP.md">Roadmap</a> ·
   <a href="#building-from-source">Build from Source</a>
@@ -49,11 +49,12 @@ Open and edit VEGAS Pro projects directly inside Drift Mojave without intermedia
 - **In-Engine Compound RIFF Binary Parser**: Reads VEGAS 14–21 `.veg` streams natively (`VegasReader`).
 - **Sample-Accurate Timing**: Translates VEGAS 100ns internal ticks to microsecond timeline positions.
 - **Nested Timelines & Project Nesting**: Imports nested `.veg`, `.drift`, or `.json` timelines onto the active timeline as reusable `Composite` clips.
-- **Titles, FX, Pan/Crop & Automation**: Extracts RTF titles, Levels / 3-Way Color Corrector / Vignette / Softlight Glow / Sharpen FX, Event Pan/Crop motion, Velocity Envelopes, Track Envelopes, Bezier Masks, Event Mute/Lock flags, Blend Modes, Markers, and Regions.
+- **Titles, FX, Pan/Crop & Overlays**: Extracts RTF titles, RGBA still-image overlays (`Image` clips with alpha), Levels (mapped to Drift's built-in `color.grade` `curveMaster`), 3-Way Color Corrector, Vignette, Softlight Glow, Sharpen FX, Event Pan/Crop motion, Velocity Envelopes, Track Envelopes, Bezier Masks, Event Mute/Lock flags, Video Track Solo/Mute compositing, Blend Modes, Markers, and Regions.
 - **Event Grouping & Companion Linking**: Reconstructs symmetric multi-track audio/video link groups (`G` / `U` / `Ctrl+Shift+U`).
 
-### 2. Edit-Friendly Apple ProRes 422 & Smart Render Pipeline
+### 2. Edit-Friendly Apple ProRes 422, Broadcast MXF & Smart Render Pipeline
 - **Zero-Prompt Intra-Frame Detection**: Automatically recognizes Apple ProRes (422, HQ, LT, Proxy, 4444), Avid DNxHD/DNxHR, FFV1, and uncompressed codecs as edit-friendly on import.
+- **Broadcast `.mxf` Support**: Software-decodes XDCAM HD422 (`mpeg2video` 4:2:2 `yuv422p`) and pairs dual-mono PCM L/R audio streams (`pcm_s24le` / `pcm_s16le`) into stereo for both timeline playback and ProRes/edit-friendly transcoding.
 - **Native In-Process Batch ProRes 422 Transcoder**: Parallel multi-threaded `libav*` conversion of AVCHD/H.264/HEVC camera files into `Transcodes_ProRes/` with subdirectory collision protection (`Day 1/00001.MTS`, `Day 2/00001.MTS`), automatic timeline relinking, live progress dialog, and clickable top-header progress badge.
 - **True Zero-Generation ProRes 422 Smart Render**: `AVPacket` stream-copy pass-through in `Exporter::run` for unmodified ProRes 422 `.mov` segments with seamless fallback for composited segments.
 
