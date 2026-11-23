@@ -98,10 +98,22 @@ static const uint8_t kChunkTrackEnvelope[16] = {
 static const uint8_t kListTrackAudioFx[16] = {
     0x28, 0x6c, 0xd4, 0x69, 0x0b, 0x7f, 0xd2, 0x11, 0x87, 0x17, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
 };
+// DirectShow Audio FX Graph list/chunk GUIDs on audio tracks and audio events
+static const uint8_t kListTrackDirectShowAudioFx[16] = {
+    0xf4, 0x98, 0x92, 0xf7, 0x95, 0x56, 0x17, 0x4b, 0x9d, 0xdb, 0x19, 0xa0, 0x91, 0x2d, 0x39, 0xf3
+};
+static const uint8_t kListEventDirectShowAudioFx[16] = {
+    0xce, 0x95, 0x6a, 0xb6, 0x46, 0x59, 0xab, 0x48, 0xa4, 0xf4, 0xf8, 0x8c, 0x95, 0xac, 0xdc, 0x1d
+};
 
 inline quint32 readU32LE(const uint8_t *p)
 {
     return static_cast<quint32>(p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24));
+}
+
+inline qint32 readI32LE(const uint8_t *p)
+{
+    return static_cast<qint32>(readU32LE(p));
 }
 
 inline quint64 readU64LE(const uint8_t *p)
@@ -1041,6 +1053,167 @@ QList<Effect> extractAudioEffects(const uint8_t *payload, qsizetype payloadSize)
         fx.parameters[QStringLiteral("in_gain")] = 0.8;
         fx.parameters[QStringLiteral("out_gain")] = 0.88;
         effects.append(fx);
+    }
+
+    return effects;
+}
+
+QList<Effect> extractDirectShowAudioGraph(const uint8_t *payload, qsizetype payloadSize,
+                                          bool isTrackDefaultChain, double *outVolumeGain = nullptr)
+{
+    QList<Effect> effects;
+    if (!payload || payloadSize < 64)
+        return effects;
+
+    const qsizetype egPos = findUtf16(payload, payloadSize, "Empty Graph");
+    if (egPos < 0)
+        return extractAudioEffects(payload, payloadSize);
+
+    // "Empty Graph\0" (24 bytes) + 30 bytes WAVEFORMATEX / padding -> pluginCount (u32) + word (u32)
+    qsizetype p = egPos + 24 + 30;
+    if (p + 8 > payloadSize)
+        return effects;
+
+    const quint32 pluginCount = readU32LE(payload + p);
+    p += 8;
+    if (pluginCount == 0 || pluginCount > 32)
+        return effects;
+
+    for (quint32 i = 0; i < pluginCount; ++i) {
+        if (p + 24 > payloadSize)
+            break;
+        const quint32 nameByteLen = readU32LE(payload + p + 20);
+        p += 24;
+        if (nameByteLen > 512 || p + static_cast<qsizetype>(nameByteLen) + 24 > payloadSize)
+            break;
+
+        QString name = QString::fromUtf16(reinterpret_cast<const char16_t *>(payload + p),
+                                          static_cast<qsizetype>(nameByteLen / 2));
+        while (name.endsWith(QChar(u'\0')))
+            name.chop(1);
+        p += static_cast<qsizetype>(nameByteLen);
+
+        const quint32 stateSize1 = readU32LE(payload + p + 16);
+        p += 24;
+        if (p + static_cast<qsizetype>(stateSize1) > payloadSize)
+            break;
+
+        const uint8_t *params = (stateSize1 > 16) ? (payload + p + 16) : nullptr;
+        const qsizetype paramsSize = (stateSize1 > 16) ? static_cast<qsizetype>(stateSize1 - 16) : 0;
+
+        p += static_cast<qsizetype>(stateSize1);
+        if (p + 4 <= payloadSize && readU32LE(payload + p) == 0xffffffffu)
+            p += 4;
+
+        if (name.contains(QLatin1String("Track EQ"), Qt::CaseInsensitive)) {
+            if (params && paramsSize >= 16) {
+                const qint32 b0 = readI32LE(params);
+                const qint32 b1 = readI32LE(params + 4);
+                const qint32 b2 = readI32LE(params + 8);
+                const qint32 b3 = readI32LE(params + 12);
+                if (isTrackDefaultChain && b0 == 0 && b1 == 0 && b2 == 0 && b3 == 0)
+                    continue;
+                Effect fx;
+                fx.catalogId = QStringLiteral("utility.eq");
+                fx.name = QStringLiteral("EQ");
+                fx.parameters[QStringLiteral("low")] = qBound(-12.0, b0 / 10.0, 12.0);
+                fx.parameters[QStringLiteral("mid")] = qBound(-12.0, (b1 + b2) * 0.05, 12.0);
+                fx.parameters[QStringLiteral("high")] = qBound(-12.0, b3 / 10.0, 12.0);
+                effects.append(fx);
+            }
+        } else if (name.contains(QLatin1String("Graphic EQ"), Qt::CaseInsensitive)
+                   || name.contains(QLatin1String("Paragraphic EQ"), Qt::CaseInsensitive)) {
+            Effect fx;
+            fx.catalogId = QStringLiteral("utility.eq");
+            fx.name = QStringLiteral("EQ");
+            fx.parameters[QStringLiteral("low")] = 0.0;
+            fx.parameters[QStringLiteral("mid")] = 0.0;
+            fx.parameters[QStringLiteral("high")] = 0.0;
+            effects.append(fx);
+        } else if (name.contains(QLatin1String("Track Compressor"), Qt::CaseInsensitive)) {
+            if (params && paramsSize >= 24) {
+                const float outGain = readFloatLE(params + 4);
+                const float threshDb = readFloatLE(params + 8);
+                const float ratio = readFloatLE(params + 12);
+                const float attackMs = readFloatLE(params + 16);
+                const float releaseMs = readFloatLE(params + 20);
+                if (isTrackDefaultChain && ratio <= 1.01f && threshDb >= -0.1f && std::abs(outGain) < 0.05f)
+                    continue;
+                Effect fx;
+                fx.catalogId = QStringLiteral("utility.compressor");
+                fx.name = QStringLiteral("Compressor");
+                fx.parameters[QStringLiteral("threshold")] = qBound(-40.0, static_cast<double>(threshDb), -2.0);
+                fx.parameters[QStringLiteral("ratio")] = qBound(1.5, static_cast<double>(ratio), 12.0);
+                fx.parameters[QStringLiteral("attack")] = qBound(1.0, static_cast<double>(attackMs), 200.0);
+                fx.parameters[QStringLiteral("release")] = qBound(20.0, static_cast<double>(releaseMs), 1000.0);
+                fx.parameters[QStringLiteral("makeup")] = qBound(1.0, std::pow(10.0, static_cast<double>(outGain) / 20.0), 4.0);
+                effects.append(fx);
+            }
+        } else if (name.contains(QLatin1String("ExpressFX Dynamics"), Qt::CaseInsensitive)
+                   || name.contains(QLatin1String("Wave Hammer"), Qt::CaseInsensitive)) {
+            Effect fx;
+            fx.catalogId = QStringLiteral("utility.compressor");
+            fx.name = QStringLiteral("Compressor");
+            fx.parameters[QStringLiteral("threshold")] = -18.0;
+            fx.parameters[QStringLiteral("ratio")] = 3.0;
+            fx.parameters[QStringLiteral("attack")] = 20.0;
+            fx.parameters[QStringLiteral("release")] = 250.0;
+            fx.parameters[QStringLiteral("makeup")] = 1.0;
+            effects.append(fx);
+        } else if (name.contains(QLatin1String("Noise Gate"), Qt::CaseInsensitive)) {
+            if (params && paramsSize >= 12) {
+                const qint32 attackMs = readI32LE(params);
+                const qint32 releaseMs = readI32LE(params + 4);
+                const qint32 threshTenthsDb = readI32LE(params + 8);
+                if (isTrackDefaultChain && threshTenthsDb <= -790)
+                    continue;
+                Effect fx;
+                fx.catalogId = QStringLiteral("utility.gate");
+                fx.name = QStringLiteral("Noise Gate");
+                fx.parameters[QStringLiteral("threshold")] =
+                    qBound(0.001, std::pow(10.0, (threshTenthsDb / 10.0) / 20.0), 0.2);
+                fx.parameters[QStringLiteral("ratio")] = 3.0;
+                fx.parameters[QStringLiteral("attack")] = qBound(1.0, static_cast<double>(attackMs), 100.0);
+                fx.parameters[QStringLiteral("release")] = qBound(20.0, static_cast<double>(releaseMs), 1000.0);
+                effects.append(fx);
+            }
+        } else if ((name.contains(QLatin1String("Reverb"), Qt::CaseInsensitive)
+                    && !name.contains(QLatin1String("De-reverb"), Qt::CaseInsensitive))
+                   || name.contains(QLatin1String("Acoustic Mirror"), Qt::CaseInsensitive)) {
+            Effect fx;
+            fx.catalogId = QStringLiteral("space.reverb");
+            fx.name = QStringLiteral("Reverb");
+            double mix = 0.3;
+            if (params && paramsSize >= 12) {
+                const qint32 dryTenths = readI32LE(params);
+                const qint32 wetTenths = readI32LE(params + 4);
+                const double dryLin = std::pow(10.0, (dryTenths / 10.0) / 20.0);
+                const double wetLin = std::pow(10.0, (wetTenths / 10.0) / 20.0);
+                mix = qBound(0.05, wetLin / std::max(0.001, dryLin + wetLin), 1.0);
+            }
+            fx.parameters[QStringLiteral("size")] = 0.5;
+            fx.parameters[QStringLiteral("damping")] = 0.5;
+            fx.parameters[QStringLiteral("width")] = 1.0;
+            fx.parameters[QStringLiteral("mix")] = mix;
+            effects.append(fx);
+        } else if (name.contains(QLatin1String("Simple Delay"), Qt::CaseInsensitive)
+                   || name.contains(QLatin1String("Multi-Tap Delay"), Qt::CaseInsensitive)) {
+            Effect fx;
+            fx.catalogId = QStringLiteral("space.echo");
+            fx.name = QStringLiteral("Echo");
+            fx.parameters[QStringLiteral("delay")] = 60.0;
+            fx.parameters[QStringLiteral("decay")] = 0.4;
+            fx.parameters[QStringLiteral("in_gain")] = 0.8;
+            fx.parameters[QStringLiteral("out_gain")] = 0.88;
+            effects.append(fx);
+        } else if (name.contains(QLatin1String("Sony Volume"), Qt::CaseInsensitive)
+                   || name == QLatin1String("Volume")) {
+            if (outVolumeGain && params && paramsSize >= 4) {
+                const float gain = readFloatLE(params);
+                if (!std::isnan(gain) && !std::isinf(gain) && gain >= 0.0f && gain <= 4.0f)
+                    *outVolumeGain *= static_cast<double>(gain);
+            }
+        }
     }
 
     return effects;
@@ -2297,6 +2470,8 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     bool eventLocked = false;
                                     VelocityEnvelope eventVelocity;
                                     QList<Effect> takeEffects;
+                                    QList<Effect> eventAudioEffects;
+                                    double eventAudioFxGain = 1.0;
                                     PanCropData panCropData;
                                     struct VegasParsedTake {
                                         quint64 srcInTicks = 0;
@@ -2390,6 +2565,17 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                                         parsedTakes.last().effects.append(fx);
                                                 }
                                                 fpos += (fsize + 7) & ~7;
+                                            }
+                                        } else if ((std::memcmp(cptr, kGuidW64List, 16) == 0 && cpayloadSize >= 16
+                                                    && std::memcmp(cpayload, kListEventDirectShowAudioFx, 16) == 0)
+                                                   || std::memcmp(cptr, kListEventDirectShowAudioFx, 16) == 0) {
+                                            const bool isList = (std::memcmp(cptr, kGuidW64List, 16) == 0);
+                                            const qsizetype fxOff = isList ? 40 : 24;
+                                            if (csize > static_cast<quint64>(fxOff)) {
+                                                const QList<Effect> afx = extractDirectShowAudioGraph(
+                                                    cptr + fxOff, static_cast<qsizetype>(csize) - fxOff,
+                                                    /*isTrackDefaultChain=*/false, &eventAudioFxGain);
+                                                eventAudioEffects.append(afx);
                                             }
                                         } else if (std::memcmp(cptr, kChunkEventPanCrop, 16) == 0) {
                                             panCropData = parsePanCropChunk(cpayload, cpayloadSize);
@@ -2497,6 +2683,12 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                         clip.locked = eventLocked;
                                         if (eventVelocity.enabled() && !eventVelocity.isEmpty())
                                             clip.velocityEnvelope = eventVelocity;
+                                        if (!eventAudioEffects.isEmpty())
+                                            clip.audioEffects.append(eventAudioEffects);
+                                        if (std::abs(eventAudioFxGain - 1.0) > 1e-4) {
+                                            const double cur = clip.volume.isEmpty() ? 1.0 : clip.volume.evaluateAt(0);
+                                            clip.volume.setKeyframe(0, qBound(0.0, cur * eventAudioFxGain, 4.0));
+                                        }
 
                                         if (trackType == TrackType::Video) {
                                             if ((panCropData.sourceWidth == 0 || panCropData.sourceHeight == 0)
@@ -2565,6 +2757,16 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     }
                                 } else if (std::memcmp(aptr, kChunkTrackEnvelope, 16) == 0) {
                                     parseTrackEnvelopeChunk(aptr + 24, static_cast<qsizetype>(asize - 24), track);
+                                } else if (std::memcmp(aptr, kGuidW64List, 16) == 0 && asize >= 40
+                                           && std::memcmp(aptr + 24, kListTrackDirectShowAudioFx, 16) == 0) {
+                                    double trackGain = 1.0;
+                                    const QList<Effect> afx = extractDirectShowAudioGraph(
+                                        aptr + 40, static_cast<qsizetype>(asize - 40),
+                                        /*isTrackDefaultChain=*/true, &trackGain);
+                                    for (const Effect &e : afx)
+                                        track.audioEffects.append(e);
+                                    if (std::abs(trackGain - 1.0) > 1e-4)
+                                        track.volume = qBound(0.0, track.volume * trackGain, 4.0);
                                 } else if ((std::memcmp(aptr, kGuidW64List, 16) == 0 && asize >= 40
                                             && (std::memcmp(aptr + 24, kListTrackAudioFx, 16) == 0
                                                 || std::memcmp(aptr + 24, kListEventFx, 16) == 0))
@@ -2606,6 +2808,21 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                             }
                         } else if (std::memcmp(bytes + evpos, kChunkTrackEnvelope, 16) == 0) {
                             parseTrackEnvelopeChunk(bytes + evpos + 24, static_cast<qsizetype>(evsize - 24), track);
+                        } else if ((evsize >= 40 && std::memcmp(bytes + evpos, kGuidW64List, 16) == 0
+                                    && std::memcmp(bytes + evpos + 24, kListTrackDirectShowAudioFx, 16) == 0)
+                                   || std::memcmp(bytes + evpos, kListTrackDirectShowAudioFx, 16) == 0) {
+                            const bool isList = (std::memcmp(bytes + evpos, kGuidW64List, 16) == 0);
+                            const qsizetype fxOff = isList ? 40 : 24;
+                            if (evsize > static_cast<quint64>(fxOff) && trackType == TrackType::Audio) {
+                                double trackGain = 1.0;
+                                const QList<Effect> afx = extractDirectShowAudioGraph(
+                                    bytes + evpos + fxOff, static_cast<qsizetype>(evsize) - fxOff,
+                                    /*isTrackDefaultChain=*/true, &trackGain);
+                                for (const Effect &e : afx)
+                                    track.audioEffects.append(e);
+                                if (std::abs(trackGain - 1.0) > 1e-4)
+                                    track.volume = qBound(0.0, track.volume * trackGain, 4.0);
+                            }
                         } else if ((evsize >= 40 && std::memcmp(bytes + evpos, kGuidW64List, 16) == 0
                                     && (std::memcmp(bytes + evpos + 24, kListTrackAudioFx, 16) == 0
                                         || std::memcmp(bytes + evpos + 24, kListEventFx, 16) == 0))

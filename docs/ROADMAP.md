@@ -152,3 +152,24 @@ Status: **Shipped in `v1.6.0`**
    - `QSettings`-backed persistent render queue (`saveRenderQueue` / `loadRenderQueue`), curated `deliveryPresets()` (*YouTube 4K*, *YouTube 1080p*, *ProRes 422 HQ*, *Archival FFV1*, *Podcast WAV*), FFmpeg `AVChapter` embedding in `Exporter`, and `formatYouTubeChapters()` / `copyYouTubeChaptersToClipboard()` in `ExportDialog`.
 5. **Tier 8E — `.veg` Import Summary Report & Lightweight Project Snapshots** — ✅ Implemented on `main`
    - Post-import `VegasImportSummaryDialog` (`lastVegasImportReport`, `vegasImportSummaryReady`) with track/clip/marker/region/media breakdown and one-click `relinkMissingMediaInFolder()`, plus lightweight timestamped `.drift` milestone snapshots (`saveProjectSnapshot`, `listProjectSnapshots`, `deleteProjectSnapshot`) from the Projects menu.
+
+---
+
+## Tier 9 — VEGAS Deep Fidelity & Interchange Completeness (`v1.7.0`)
+
+Status: **In Progress (`9A` implemented on `main`)**
+
+1. **Tier 9A — Audio Track FX Chains (`f49892f7…`) & Event Audio FX (`ce956ab6…`)** — ✅ Implemented on `main`
+   - DirectShow FX Graph parser in `VegasReader` decoding `Sony Track EQ`, `Sony Track Compressor`, `Sony Track Noise Gate`, `Reverb` / `ExpressFX Reverb`, `ExpressFX Graphic EQ`, `ExpressFX Dynamics`, `Simple Delay`, and `Sony Volume` into `Track::audioEffects` and `Clip::audioEffects` (skipping untouched default no-op track strip plugins).
+2. **Tier 9B — Video Track-Level FX (`e5e4f01a…`)** — Planned
+   - Parse track-level video OFX lists (`e5e4f01a…`) on video tracks (e.g., track-wide Vignette, Levels, Color Corrector).
+3. **Tier 9C — Explicit Transition Plugin Mapping (`flash`, `linearwipe`)** — Planned
+   - Map VEGAS transition OFX plugins (`com.sonycreativesoftware:flash`, `com.sonycreativesoftware:linearwipe`, etc.) to matching Drift transition packages instead of defaulting all overlaps to dissolve.
+4. **Tier 9D — Extended OFX Video FX (`smart_zoom`, `colorcorrectorsecondary`, `colormatch`, `Stabilize`)** — Planned
+   - Translate `smart_zoom` and secondary color adjustments where Drift has native equivalents, and surface `Stabilize` / `colormatch` flags.
+5. **Tier 9E — Audio Master Bus & Sub-Buses (`e42b0d22…`)** — Planned
+   - Parse VEGAS Master Bus, sub-bus routing, bus volume/pan, and Master Bus FX chains into `Project::buses()` / `Project::masterAudioEffects()`.
+6. **Tier 9F — Media Pool Bins / Folders (`31af8cca…` / `135c58aa…`)** — Planned
+   - Import VEGAS Media Pool bin hierarchy into Drift's Media Bin folders (`Project::folders()`).
+7. **Tier 9G — Skipped / Unmapped FX Reporting in `VegasImportSummaryDialog`** — Planned
+   - Surface unmapped proprietary/third-party VEGAS plugins (VST3, DirectShow, OFX) in `VegasImportSummaryDialog` so imports are fully transparent.

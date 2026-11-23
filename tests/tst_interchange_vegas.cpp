@@ -52,6 +52,7 @@ private slots:
     void readsDeeperVegasEventTagsAndCompositeBlend();
     void readsImageMxfTrackFlagsAndLevelsToColorGrade();
     void readsPlaybackRateAndActiveTakeSelection();
+    void parsesDirectShowTrackAndEventAudioFxGraphs();
 };
 
 void TestInterchangeVegas::detectsVegasProject()
@@ -1943,6 +1944,231 @@ void TestInterchangeVegas::readsPlaybackRateAndActiveTakeSelection()
             }
         }
         QVERIFY(foundActiveTake1);
+    }
+}
+
+void TestInterchangeVegas::parsesDirectShowTrackAndEventAudioFxGraphs()
+{
+    auto appendU32 = [](QByteArray &out, quint32 v) {
+        char b[4] = {char(v & 0xff), char((v >> 8) & 0xff), char((v >> 16) & 0xff), char((v >> 24) & 0xff)};
+        out.append(b, 4);
+    };
+    auto appendI32 = [&](QByteArray &out, qint32 v) { appendU32(out, static_cast<quint32>(v)); };
+    auto appendF32 = [&](QByteArray &out, float f) {
+        quint32 u = 0;
+        std::memcpy(&u, &f, 4);
+        appendU32(out, u);
+    };
+    auto appendU64 = [](QByteArray &out, quint64 v) {
+        char b[8];
+        for (int i = 0; i < 8; ++i)
+            b[i] = char((v >> (i * 8)) & 0xff);
+        out.append(b, 8);
+    };
+    auto wrapW64Chunk = [&](const QByteArray &guid, const QByteArray &payload) {
+        QByteArray out = guid;
+        appendU64(out, static_cast<quint64>(24 + payload.size()));
+        out.append(payload);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto wrapW64List = [&](const QByteArray &typeGuid, const QByteArray &body) {
+        static const QByteArray kList = QByteArray::fromHex("6c6973742f91cf11a5d628db04c10000");
+        QByteArray out = kList;
+        appendU64(out, static_cast<quint64>(40 + body.size()));
+        out.append(typeGuid);
+        out.append(body);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+
+    struct DsNode {
+        QString name;
+        QByteArray params;
+    };
+    auto buildDsGraphList = [&](const QByteArray &listGuid, const QList<DsNode> &nodes) {
+        QByteArray graphBody;
+        // "Empty Graph\0" in UTF-16LE (24 bytes) + 30 bytes WAVEFORMATEX/padding
+        const QString eg = QStringLiteral("Empty Graph");
+        graphBody.append(reinterpret_cast<const char *>(eg.utf16()), (eg.size() + 1) * 2);
+        graphBody.append(QByteArray(30, '\0'));
+        appendU32(graphBody, static_cast<quint32>(nodes.size()));
+        appendU32(graphBody, 0x20);
+        for (int i = 0; i < nodes.size(); ++i) {
+            const DsNode &n = nodes.at(i);
+            const QByteArray nameUtf16(reinterpret_cast<const char *>(n.name.utf16()), (n.name.size() + 1) * 2);
+            graphBody.append(QByteArray(16, '\0')); // clsid1
+            appendU32(graphBody, 0);                 // flags
+            appendU32(graphBody, static_cast<quint32>(nameUtf16.size()));
+            graphBody.append(nameUtf16);
+            graphBody.append(QByteArray(16, '\0')); // clsid2
+            const quint32 stateSize = static_cast<quint32>(16 + n.params.size());
+            appendU32(graphBody, stateSize);
+            appendU32(graphBody, stateSize);
+            graphBody.append(QByteArray(16, '\0')); // state format GUID
+            graphBody.append(n.params);
+            if (i + 1 < nodes.size())
+                appendU32(graphBody, 0xffffffffu);
+        }
+        const QByteArray innerChunk = wrapW64Chunk(listGuid, graphBody);
+        return wrapW64List(listGuid, innerChunk);
+    };
+
+    const QByteArray kRiff = QByteArray::fromHex("726966662e91cf11a5d628db04c10000");
+    const QByteArray kMediaPool = QByteArray::fromHex("5b2d8fb20f23d21186af00c04f8edb8a");
+    const QByteArray kTimeline = QByteArray::fromHex("47076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kTrack = QByteArray::fromHex("48076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEventContainer = QByteArray::fromHex("49076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEvent = QByteArray::fromHex("4a076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEventTime = QByteArray::fromHex("6a208d162123d21186b000c04f8edb8a");
+    const QByteArray kEventTake = QByteArray::fromHex("6d208d162123d21186b000c04f8edb8a");
+    const QByteArray kTrackProps28 = QByteArray::fromHex("286cd4690b7fd211871700c04f8edb8a");
+    const QByteArray kF498 = QByteArray::fromHex("f49892f79556174b9ddb19a0912d39f3");
+    const QByteArray kCe95 = QByteArray::fromHex("ce956ab64659ab48a4f4f88c95acdc1d");
+
+    // 1. Media pool with 1 audio wav
+    QByteArray mpPayload(96, '\0');
+    const quint32 mid = 1;
+    std::memcpy(mpPayload.data() + 60, &mid, 4);
+    const QString wavPath = QStringLiteral("C:\\audio\\vox.wav");
+    mpPayload.append(reinterpret_cast<const char *>(wavPath.utf16()), (wavPath.size() + 1) * 2);
+    const QByteArray mpChunk = wrapW64Chunk(QByteArray::fromHex("5d2d8fb20f23d21186af00c04f8edb8a"), mpPayload);
+    const QByteArray mpList = wrapW64List(kMediaPool, mpChunk);
+
+    // Track 1: untouched default Sony Track Noise Gate (-800) + EQ (0,0,0,0) + Comp (ratio=1.0f, thresh=0.0f)
+    QByteArray gateDefault;
+    appendI32(gateDefault, 3);
+    appendI32(gateDefault, 100);
+    appendI32(gateDefault, -800);
+    QByteArray eqDefault;
+    appendI32(eqDefault, 0);
+    appendI32(eqDefault, 0);
+    appendI32(eqDefault, 0);
+    appendI32(eqDefault, 0);
+    QByteArray compDefault;
+    appendF32(compDefault, 0.0f);
+    appendF32(compDefault, 0.0f);
+    appendF32(compDefault, 0.0f);
+    appendF32(compDefault, 1.0f);
+    appendF32(compDefault, 15.0f);
+    appendF32(compDefault, 250.0f);
+
+    QByteArray t1Props(40, '\0');
+    const quint32 audioCode = 1;
+    std::memcpy(t1Props.data() + 32, &audioCode, 4);
+    const QByteArray t1List = wrapW64List(
+        kTrack,
+        wrapW64Chunk(kTrackProps28, t1Props)
+            + buildDsGraphList(kF498, {
+                                          {QStringLiteral("Sony Track Noise Gate"), gateDefault},
+                                          {QStringLiteral("Sony Track EQ"), eqDefault},
+                                          {QStringLiteral("Sony Track Compressor"), compDefault},
+                                      }));
+
+    // Track 2: modified EQ (-150, -63, -58, -150) + Reverb + 1 audio event with ce95 (Sony Volume 2.0f + EQ + ExpressFX Reverb)
+    QByteArray eqModified;
+    appendI32(eqModified, -150);
+    appendI32(eqModified, -63);
+    appendI32(eqModified, -58);
+    appendI32(eqModified, -150);
+    QByteArray revParams;
+    appendI32(revParams, 0);
+    appendI32(revParams, -418);
+    appendI32(revParams, -300);
+
+    QByteArray evTime(80, '\0');
+    const quint64 startTicks = 0;
+    const quint64 durTicks = 20'000'000ULL;
+    std::memcpy(evTime.data() + 16, &startTicks, 8);
+    std::memcpy(evTime.data() + 24, &durTicks, 8);
+
+    QByteArray evTake(44, '\0');
+    std::memcpy(evTake.data() + 36, &mid, 4);
+
+    QByteArray volParams;
+    appendF32(volParams, 2.0f);
+    QByteArray evEqParams;
+    appendI32(evEqParams, -150);
+    appendI32(evEqParams, -49);
+    appendI32(evEqParams, 52);
+    appendI32(evEqParams, 72);
+
+    const QByteArray evList = wrapW64List(
+        kEvent,
+        wrapW64Chunk(kEventTime, evTime)
+            + wrapW64Chunk(kEventTake, evTake)
+            + buildDsGraphList(kCe95, {
+                                          {QStringLiteral("Sony Volume"), volParams},
+                                          {QStringLiteral("Sony Track EQ"), evEqParams},
+                                          {QStringLiteral("ExpressFX Reverb"), revParams},
+                                      }));
+    const QByteArray t2List = wrapW64List(
+        kTrack,
+        wrapW64Chunk(kTrackProps28, t1Props)
+            + wrapW64List(kEventContainer, evList)
+            + buildDsGraphList(kF498, {
+                                          {QStringLiteral("Sony Track EQ"), eqModified},
+                                          {QStringLiteral("Reverb"), revParams},
+                                      }));
+
+    const QByteArray tlList = wrapW64List(kTimeline, t1List + t2List);
+    const QByteArray body = mpList + tlList;
+    QByteArray veg = kRiff;
+    appendU64(veg, static_cast<quint64>(40 + body.size()));
+    veg.append(QByteArray(16, '\0'));
+    veg.append(body);
+
+    QString err;
+    const auto loaded = drift::vegas::readProjectData(veg, QString(), &err);
+    QVERIFY2(loaded.has_value(), qPrintable(err));
+    QCOMPARE(loaded->tracks().size(), 2);
+
+    // Track 1: untouched defaults should NOT pollute audioEffects.
+    QVERIFY(loaded->tracks().at(0).audioEffects.isEmpty());
+
+    // Track 2: EQ + Reverb parsed cleanly.
+    const auto &t2Fx = loaded->tracks().at(1).audioEffects;
+    QCOMPARE(t2Fx.size(), 2);
+    QCOMPARE(t2Fx.at(0).catalogId, QStringLiteral("utility.eq"));
+    QCOMPARE(t2Fx.at(0).parameters.value(QStringLiteral("low")).toDouble(), -12.0);
+    QCOMPARE(t2Fx.at(0).parameters.value(QStringLiteral("high")).toDouble(), -12.0);
+    QCOMPARE(t2Fx.at(1).catalogId, QStringLiteral("space.reverb"));
+
+    // Event on Track 2: Sony Volume scaled clip.volume to 2.0, plus EQ + Reverb in clip.audioEffects.
+    QCOMPARE(loaded->tracks().at(1).clips.size(), 1);
+    const auto &clip = loaded->tracks().at(1).clips.at(0);
+    QVERIFY(!clip.volume.isEmpty());
+    QVERIFY(qAbs(clip.volume.evaluateAt(0) - 2.0) < 1e-3);
+    QCOMPARE(clip.audioEffects.size(), 2);
+    QCOMPARE(clip.audioEffects.at(0).catalogId, QStringLiteral("utility.eq"));
+    QCOMPARE(clip.audioEffects.at(1).catalogId, QStringLiteral("space.reverb"));
+
+    // Also validate against real Odds 4.1b.veg if mounted.
+    const QString veg41b = findExtendedVeg(QStringLiteral("Episode 4/OLD/4.1b.veg"));
+    if (!veg41b.isEmpty()) {
+        QString rErr;
+        const auto p = drift::vegas::readProject(veg41b, &rErr);
+        QVERIFY2(p.has_value(), qPrintable(rErr));
+        bool foundCleanAudioTrack = false;
+        bool foundTrackAudioFx = false;
+        bool foundClipAudioFx = false;
+        for (const auto &t : p->tracks()) {
+            if (t.type == drift::TrackType::Audio) {
+                if (t.audioEffects.isEmpty())
+                    foundCleanAudioTrack = true;
+                else
+                    foundTrackAudioFx = true;
+                for (const auto &c : t.clips) {
+                    if (!c.audioEffects.isEmpty())
+                        foundClipAudioFx = true;
+                }
+            }
+        }
+        QVERIFY(foundCleanAudioTrack);
+        QVERIFY(foundTrackAudioFx);
+        QVERIFY(foundClipAudioFx);
     }
 }
 
