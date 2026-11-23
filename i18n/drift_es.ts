@@ -9941,6 +9941,18 @@
         <translation>Guardar copia para compartir</translation>
     </message>
     <message>
+        <source>Project not saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The project couldn&apos;t be saved, and your changes are not on disk yet: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The project couldn&apos;t be saved, and your changes are not on disk yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Untitled Project</source>
         <translation>Proyecto sin título</translation>
     </message>
@@ -18554,6 +18566,22 @@ Si la reproducción se corta, prueba con otra opción.</translation>
     <message>
         <source>Failed to open Premiere Pro project</source>
         <translation>Error al abrir el proyecto de Premiere Pro</translation>
+    </message>
+    <message>
+        <source>Not enough memory to save the project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn’t save the project: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn’t save the project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Project saved without its undo history: the history was too large to save</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Couldn’t write %1</source>

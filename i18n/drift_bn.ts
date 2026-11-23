@@ -9941,6 +9941,18 @@
         <translation>শেয়ার করার উপযোগী অনুলিপি সংরক্ষণ করুন</translation>
     </message>
     <message>
+        <source>Project not saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The project couldn&apos;t be saved, and your changes are not on disk yet: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The project couldn&apos;t be saved, and your changes are not on disk yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Untitled Project</source>
         <translation>শিরোনামহীন প্রকল্প</translation>
     </message>
@@ -18554,6 +18566,22 @@ If playback stutters, try another.</source>
     <message>
         <source>Failed to open Premiere Pro project</source>
         <translation>প্রিমিয়ার প্রো প্রোজেক্ট খুলতে ব্যর্থ হয়েছে</translation>
+    </message>
+    <message>
+        <source>Not enough memory to save the project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn’t save the project: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn’t save the project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Project saved without its undo history: the history was too large to save</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Couldn’t write %1</source>
