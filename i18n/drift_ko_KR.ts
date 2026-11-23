@@ -12640,6 +12640,30 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Prev Cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jump to previous multicam cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next Cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jump to next multicam cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished">실행 취소</translation>
+    </message>
+    <message>
+        <source>Undo last angle cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Pause</source>
         <translation type="unfinished">일시정지</translation>
     </message>
@@ -18790,6 +18814,37 @@ If playback stutters, try another.</source>
     </message>
 </context>
 <context>
+    <name>ProjectSnapshotsDialog</name>
+    <message>
+        <source>Project Milestone Snapshots</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Optional milestone label (e.g. Picture Lock)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save Snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No milestone snapshots yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="unfinished">복원</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">삭제</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">닫기</translation>
+    </message>
+</context>
+<context>
     <name>PropertiesEmptyState</name>
     <message>
         <source>It&apos;s empty here</source>
@@ -19718,6 +19773,10 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Save milestone snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Manage snapshots…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -26819,6 +26878,10 @@ If playback stutters, try another.</source>
     </message>
     <message>
         <source>Unmute / Enable event (Alt+Shift+Q)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sync by Audio &amp; Start Multicamera</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -160,6 +160,7 @@ public:
                                                 const QString &directoryOverride = QString());
     Q_INVOKABLE QVariantList listProjectSnapshots(const QString &directoryOverride = QString()) const;
     Q_INVOKABLE bool deleteProjectSnapshot(const QString &snapshotPath);
+    Q_INVOKABLE bool restoreProjectSnapshot(const QString &snapshotPath);
     // Copies (or moves) every file the project uses — bin media, the images Lottie/SVG documents
     // load, textures and the derived mattes, face tracks, depth maps and stabilized renders — into
     // Video/Audio/Images/Derived/Other under the chosen folder, then relinks the project to them.

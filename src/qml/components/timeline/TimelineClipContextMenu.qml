@@ -128,6 +128,10 @@ ThemedContextMenu {
             actionMethod: function() { EditorState.createMulticamTrackFromSelection() }
         }))
         sub.addItem(takeActionComponent.createObject(null, {
+            text: qsTr("Sync by Audio & Start Multicamera"),
+            actionMethod: function() { EditorState.syncAndStartInlineMulticam(false) }
+        }))
+        sub.addItem(takeActionComponent.createObject(null, {
             text: EditorState.inlineMulticamEnabled
                   ? qsTr("Exit Inline Multicamera Mode (Alt+Shift+C)")
                   : qsTr("Inline Multicamera Mode (Alt+Shift+C)"),

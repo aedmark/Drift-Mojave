@@ -12684,6 +12684,30 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Prev Cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jump to previous multicam cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next Cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jump to next multicam cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished">Annuler</translation>
+    </message>
+    <message>
+        <source>Undo last angle cut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Pause</source>
         <translation type="unfinished">Pause</translation>
     </message>
@@ -18879,6 +18903,37 @@ En cas de saccades à la lecture, essayez un autre mode.</translation>
     </message>
 </context>
 <context>
+    <name>ProjectSnapshotsDialog</name>
+    <message>
+        <source>Project Milestone Snapshots</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Optional milestone label (e.g. Picture Lock)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save Snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No milestone snapshots yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="unfinished">Restaurer</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Supprimer</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">Fermer</translation>
+    </message>
+</context>
+<context>
     <name>PropertiesEmptyState</name>
     <message>
         <source>It&apos;s empty here</source>
@@ -19808,6 +19863,10 @@ En cas de saccades à la lecture, essayez un autre mode.</translation>
     </message>
     <message>
         <source>Save milestone snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Manage snapshots…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -26921,6 +26980,10 @@ En cas de saccades à la lecture, essayez un autre mode.</translation>
     </message>
     <message>
         <source>Unmute / Enable event (Alt+Shift+Q)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sync by Audio &amp; Start Multicamera</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

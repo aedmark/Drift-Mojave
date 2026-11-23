@@ -56,6 +56,7 @@ private slots:
     void parsesVideoTrackFxAndExplicitTransitionPlugins();
     void parsesSmartZoomSecondaryColorAndUnmappedFx();
     void parsesAudioBusesMasterFxAndMediaPoolBins();
+    void parsesChromaKeyerInvertEqualizationAndPitchShift();
 };
 
 void TestInterchangeVegas::detectsVegasProject()
@@ -2654,6 +2655,152 @@ void TestInterchangeVegas::parsesAudioBusesMasterFxAndMediaPoolBins()
         }
         QVERIFY(hasMainTimelineFolder);
     }
+}
+
+void TestInterchangeVegas::parsesChromaKeyerInvertEqualizationAndPitchShift()
+{
+    auto appendU32 = [](QByteArray &out, quint32 v) {
+        char b[4] = {char(v & 0xff), char((v >> 8) & 0xff), char((v >> 16) & 0xff), char((v >> 24) & 0xff)};
+        out.append(b, 4);
+    };
+    auto appendI32 = [&](QByteArray &out, qint32 v) { appendU32(out, static_cast<quint32>(v)); };
+    auto appendU64 = [](QByteArray &out, quint64 v) {
+        char b[8];
+        for (int i = 0; i < 8; ++i)
+            b[i] = char((v >> (i * 8)) & 0xff);
+        out.append(b, 8);
+    };
+    auto wrapW64Chunk = [&](const QByteArray &guid, const QByteArray &payload) {
+        QByteArray out = guid;
+        appendU64(out, static_cast<quint64>(24 + payload.size()));
+        out.append(payload);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto wrapW64List = [&](const QByteArray &typeGuid, const QByteArray &body) {
+        static const QByteArray kList = QByteArray::fromHex("6c6973742f91cf11a5d628db04c10000");
+        QByteArray out = kList;
+        appendU64(out, static_cast<quint64>(40 + body.size()));
+        out.append(typeGuid);
+        out.append(body);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto utf16 = [](const QString &s) {
+        return QByteArray(reinterpret_cast<const char *>(s.utf16()), (s.size() + 1) * 2);
+    };
+
+    const QByteArray kRiff = QByteArray::fromHex("726966662e91cf11a5d628db04c10000");
+    const QByteArray kMediaPool = QByteArray::fromHex("5b2d8fb20f23d21186af00c04f8edb8a");
+    const QByteArray kTimeline = QByteArray::fromHex("47076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kTrack = QByteArray::fromHex("48076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEventContainer = QByteArray::fromHex("49076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEvent = QByteArray::fromHex("4a076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEventTime = QByteArray::fromHex("6a208d162123d21186b000c04f8edb8a");
+    const QByteArray kEventTake = QByteArray::fromHex("6d208d162123d21186b000c04f8edb8a");
+    const QByteArray kTrackProps28 = QByteArray::fromHex("286cd4690b7fd211871700c04f8edb8a");
+    const QByteArray kE4E4 = QByteArray::fromHex("e4e4f01a7f6ed211870500c04f8edb8a");
+    const QByteArray kE6E4 = QByteArray::fromHex("e6e4f01a7f6ed211870500c04f8edb8a");
+    const QByteArray kCe95 = QByteArray::fromHex("ce956ab64659ab48a4f4f88c95acdc1d");
+
+    QByteArray mpPayload(96, '\0');
+    const quint32 mid = 1;
+    std::memcpy(mpPayload.data() + 60, &mid, 4);
+    mpPayload.append(utf16(QStringLiteral("C:\\video\\shot.mov")));
+    const QByteArray mpList = wrapW64List(
+        kMediaPool, wrapW64Chunk(QByteArray::fromHex("5d2d8fb20f23d21186af00c04f8edb8a"), mpPayload));
+
+    QByteArray evTime(80, '\0');
+    const quint64 durTicks = 30'000'000ULL;
+    std::memcpy(evTime.data() + 24, &durTicks, 8);
+    QByteArray evTake(44, '\0');
+    std::memcpy(evTake.data() + 36, &mid, 4);
+
+    // Video event with chromakeyer + invert
+    QByteArray vfxBody;
+    vfxBody.append(utf16(QStringLiteral("{Svfx:com.sonycreativesoftware:chromakeyer}")));
+    vfxBody.append(utf16(QStringLiteral("{Svfx:com.sonycreativesoftware:invert}")));
+    const QByteArray vEv = wrapW64List(
+        kEvent,
+        wrapW64Chunk(kEventTime, evTime)
+            + wrapW64Chunk(kEventTake, evTake)
+            + wrapW64List(kE4E4, wrapW64Chunk(kE6E4, vfxBody)));
+    QByteArray vProps(40, '\0');
+    const quint32 videoCode = 2;
+    std::memcpy(vProps.data() + 32, &videoCode, 4);
+    const QByteArray vTrack = wrapW64List(
+        kTrack, wrapW64Chunk(kTrackProps28, vProps) + wrapW64List(kEventContainer, vEv));
+
+    // Audio event with ExpressFX Equalization + Pitch Shift (-3 semitones)
+    QByteArray graphBody;
+    graphBody.append(utf16(QStringLiteral("Empty Graph")));
+    graphBody.append(QByteArray(30, '\0'));
+    appendU32(graphBody, 2);
+    appendU32(graphBody, 0x20);
+    auto appendNode = [&](const QString &name, const QByteArray &params, bool last) {
+        const QByteArray n16 = utf16(name);
+        graphBody.append(QByteArray(16, '\0'));
+        appendU32(graphBody, 0);
+        appendU32(graphBody, static_cast<quint32>(n16.size()));
+        graphBody.append(n16);
+        graphBody.append(QByteArray(16, '\0'));
+        const quint32 sz = static_cast<quint32>(16 + params.size());
+        appendU32(graphBody, sz);
+        appendU32(graphBody, sz);
+        graphBody.append(QByteArray(16, '\0'));
+        graphBody.append(params);
+        if (!last)
+            appendU32(graphBody, 0xffffffffu);
+    };
+    QByteArray pitchParams;
+    appendI32(pitchParams, -3);
+    appendNode(QStringLiteral("ExpressFX Equalization"), QByteArray(16, '\0'), false);
+    appendNode(QStringLiteral("Pitch Shift"), pitchParams, true);
+
+    const QByteArray aEv = wrapW64List(
+        kEvent,
+        wrapW64Chunk(kEventTime, evTime)
+            + wrapW64Chunk(kEventTake, evTake)
+            + wrapW64List(kCe95, wrapW64Chunk(kCe95, graphBody)));
+    QByteArray aProps(40, '\0');
+    const quint32 audioCode = 1;
+    std::memcpy(aProps.data() + 32, &audioCode, 4);
+    const QByteArray aTrack = wrapW64List(
+        kTrack, wrapW64Chunk(kTrackProps28, aProps) + wrapW64List(kEventContainer, aEv));
+
+    const QByteArray body = mpList + wrapW64List(kTimeline, vTrack + aTrack);
+    QByteArray veg = kRiff;
+    appendU64(veg, static_cast<quint64>(40 + body.size()));
+    veg.append(QByteArray(16, '\0'));
+    veg.append(body);
+
+    QString err;
+    const auto loaded = drift::vegas::readProjectData(veg, QString(), &err);
+    QVERIFY2(loaded.has_value(), qPrintable(err));
+    QCOMPARE(loaded->tracks().size(), 2);
+
+    const auto &vClip = loaded->tracks().at(0).clips.at(0);
+    bool hasChroma = false;
+    bool hasInvert = false;
+    for (const auto &fx : vClip.effects) {
+        if (fx.catalogId == QLatin1String("key.chroma"))
+            hasChroma = true;
+        if (fx.catalogId == QLatin1String("color.grade") && fx.name == QLatin1String("Invert"))
+            hasInvert = true;
+    }
+    QVERIFY(hasChroma);
+    QVERIFY(hasInvert);
+
+    const auto &aClip = loaded->tracks().at(1).clips.at(0);
+    QCOMPARE(aClip.audioEffects.size(), 1);
+    QCOMPARE(aClip.audioEffects.at(0).catalogId, QStringLiteral("utility.eq"));
+    QCOMPARE(aClip.pitchSemitones, -3.0);
+
+    const QStringList unmapped = drift::vegas::collectUnmappedPluginsFromData(veg);
+    QVERIFY(!unmapped.contains(QStringLiteral("chromakeyer")));
+    QVERIFY(!unmapped.contains(QStringLiteral("invert")));
 }
 
 QTEST_MAIN(TestInterchangeVegas)

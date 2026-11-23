@@ -152,6 +152,7 @@ private slots:
     void sceneCutMarkSplitAndSilencePresets();
     void persistentRenderQueueDeliveryPresetsAndChapters();
     void vegasImportSummaryAndProjectSnapshots();
+    void snapshotRestoreAndMulticamCutNavigation();
     void snapTimeEnabled();
     void compositeFromSelectionUndoRedo();
     void compositeClipGetsAPreviewBox();
@@ -20846,6 +20847,64 @@ void EditorStateTest::vegasImportSummaryAndProjectSnapshots()
     QVERIFY(state.projectFile()->deleteProjectSnapshot(snapPath));
     QVERIFY(!QFileInfo::exists(snapPath));
     QCOMPARE(state.projectFile()->listProjectSnapshots(snapDir).size(), 0);
+}
+
+void EditorStateTest::snapshotRestoreAndMulticamCutNavigation()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    AssetLibrary library;
+    AppController state(&library);
+
+    // 1. Snapshot save + restore
+    state.projectFile()->setProjectName(QStringLiteral("Milestone Alpha"));
+    const QString snapDir = dir.filePath(QStringLiteral("snapshots"));
+    const QVariantMap snap = state.projectFile()->saveProjectSnapshot(QStringLiteral("Cut 1"), snapDir);
+    QVERIFY(snap.value(QStringLiteral("ok")).toBool());
+    const QString snapPath = snap.value(QStringLiteral("path")).toString();
+    QVERIFY(QFileInfo::exists(snapPath));
+    QVERIFY(!state.projectFile()->restoreProjectSnapshot(QStringLiteral("/nonexistent/missing.drift")));
+
+    // 2. Multicam cut navigation
+    drift::Project proj;
+    proj.setFps(24);
+    drift::Track v1;
+    v1.id = QStringLiteral("v1");
+    v1.type = drift::TrackType::Video;
+
+    auto makeMulticamClip = [](const QString &id, qint64 startSec, qint64 durSec) {
+        drift::Clip c;
+        c.id = id;
+        c.timelineStart = startSec * drift::kUsPerSecond;
+        c.timelineDuration = durSec * drift::kUsPerSecond;
+        drift::ClipTake t1;
+        t1.id = id + QStringLiteral("_t1");
+        t1.name = QStringLiteral("Cam A");
+        drift::ClipTake t2;
+        t2.id = id + QStringLiteral("_t2");
+        t2.name = QStringLiteral("Cam B");
+        c.takes = {t1, t2};
+        return c;
+    };
+    v1.clips.append(makeMulticamClip(QStringLiteral("mc1"), 0, 3));
+    v1.clips.append(makeMulticamClip(QStringLiteral("mc2"), 3, 4));
+    v1.clips.append(makeMulticamClip(QStringLiteral("mc3"), 7, 3));
+    proj.tracks().clear();
+    proj.tracks().append(v1);
+
+    QString err;
+    QVERIFY(state.applyProjectJson(QJsonDocument(proj.toJson()).toJson(QJsonDocument::Compact), &err));
+    QCOMPARE(state.multicamCutCount(), 3);
+
+    state.setPlayheadSeconds(0.0);
+    QVERIFY(state.jumpToAdjacentMulticamCut(1));
+    QVERIFY(qAbs(state.playheadSeconds() - 3.0) < 0.05);
+    QVERIFY(state.jumpToAdjacentMulticamCut(1));
+    QVERIFY(qAbs(state.playheadSeconds() - 7.0) < 0.05);
+    QVERIFY(!state.jumpToAdjacentMulticamCut(1));
+    QVERIFY(state.jumpToAdjacentMulticamCut(-1));
+    QVERIFY(qAbs(state.playheadSeconds() - 3.0) < 0.05);
 }
 
 QTEST_MAIN(EditorStateTest)

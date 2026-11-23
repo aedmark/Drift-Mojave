@@ -173,3 +173,15 @@ Status: **Shipped in `v1.7.0`**
    - Recursively import VEGAS Media Pool bin hierarchy (`BinFolder` tree) into `Project::binFolders()` and assign `MediaAsset::folderId` to nested media items.
 7. **Tier 9G — Skipped / Unmapped FX Reporting in `VegasImportSummaryDialog`** — ✅ Implemented on `main`
    - `VegasReader::collectUnmappedPlugins()` scans `.veg` OFX and VST3/VST plugin strings and surfaces unmapped proprietary/third-party plugins (with counts) inside `VegasImportSummaryDialog`.
+
+---
+
+## Tier 10 — Snapshot Manager UI, Multicam Sync Polish & Final `.veg` Stragglers (`v1.8.0`)
+
+Status: **Implemented on `main` (`10A–10B`)**
+
+1. **Tier 10A — Project Snapshot Manager UI & Final 4 Native `.veg` Stragglers** — ✅ Implemented on `main`
+   - `ProjectSnapshotsDialog.qml` (`restoreProjectSnapshot()` in `ProjectFileController`, wired from `RecentProjectsPopup` → `Manage snapshots…`) to create labeled snapshots, inspect timestamps/sizes, restore, or delete `.drift` milestone snapshots.
+   - Completed the final 4 native `.veg` plugin stragglers in `VegasReader`: `chromakeyer` (`key.chroma`), `invert` (`color.grade` inverted master curve), `ExpressFX Equalization` (`utility.eq`), and `Pitch Shift` (`Clip::pitchSemitones`).
+2. **Tier 10B — Multicam Sync & Switcher Polish** — ✅ Implemented on `main`
+   - One-click `syncAndStartInlineMulticam()` (audio waveform auto-sync → multicam track creation → inline multicam mode), `jumpToAdjacentMulticamCut()` / `multicamCutCount()`, Prev Cut / Next Cut / Undo controls + broadcast Drop-Frame timecode in `InlineMulticamOverlay.qml` & `MulticamWindow.qml`.

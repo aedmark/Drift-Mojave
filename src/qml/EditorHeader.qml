@@ -365,6 +365,11 @@ Item {
         sourceComponent: Component { ProjectPropertiesDialog { } }
     }
 
+    LazyLoader {
+        id: projectSnapshotsDialogLoader
+        sourceComponent: Component { ProjectSnapshotsDialog { } }
+    }
+
     PackageProgressDialog {
         id: packageProgressDialog
     }
@@ -436,6 +441,7 @@ Item {
                 onCloseProjectRequested: root.closeProject()
                 onSaveAsRequested: root.saveProjectAs()
                 onSaveSnapshotRequested: EditorState.projectFile.saveProjectSnapshot()
+                onManageSnapshotsRequested: projectSnapshotsDialogLoader.ensure().openDialog()
                 onPackageRequested: root.packageProject()
                 onSaveJsonRequested: root.saveProjectJson()
                 onOpenJsonRequested: root.openProjectJson()

@@ -1033,6 +1033,31 @@ QList<Effect> extractVideoEffects(const uint8_t *payload, qsizetype payloadSize)
         xmlSearchPos = xmlEnd;
     }
 
+    // 8. Chroma Keyer (Sony / VEGAS chromakeyer) -> key.chroma
+    if (findUtf16(payload, payloadSize, "chromakeyer}") >= 0) {
+        Effect fx;
+        fx.catalogId = QStringLiteral("key.chroma");
+        fx.name = QStringLiteral("Chroma Key");
+        fx.parameters[QStringLiteral("u_keyMode")] = 0;
+        fx.parameters[QStringLiteral("u_keyHue")] = 120.0;
+        fx.parameters[QStringLiteral("u_tolerance")] = 0.5;
+        fx.parameters[QStringLiteral("u_softness")] = 0.35;
+        fx.parameters[QStringLiteral("u_spill")] = 1.0;
+        effects.append(fx);
+    }
+
+    // 9. Color Invert (Sony / VEGAS invert) -> color.grade inverted master curve
+    if (findUtf16(payload, payloadSize, "invert}") >= 0) {
+        Effect fx;
+        fx.catalogId = QStringLiteral("color.grade");
+        fx.name = QStringLiteral("Invert");
+        QJsonArray pts;
+        pts.append(QJsonObject{{QStringLiteral("x"), 0.0}, {QStringLiteral("y"), 1.0}, {QStringLiteral("ease"), QStringLiteral("linear")}});
+        pts.append(QJsonObject{{QStringLiteral("x"), 1.0}, {QStringLiteral("y"), 0.0}, {QStringLiteral("ease"), QStringLiteral("linear")}});
+        fx.parameters[QStringLiteral("curveMaster")] = QJsonDocument(pts).toJson(QJsonDocument::Compact);
+        effects.append(fx);
+    }
+
     return effects;
 }
 
@@ -1194,7 +1219,8 @@ QList<Effect> extractAudioEffects(const uint8_t *payload, qsizetype payloadSize)
 }
 
 QList<Effect> extractDirectShowAudioGraph(const uint8_t *payload, qsizetype payloadSize,
-                                          bool isTrackDefaultChain, double *outVolumeGain = nullptr)
+                                          bool isTrackDefaultChain, double *outVolumeGain = nullptr,
+                                          double *outPitchSemitones = nullptr)
 {
     QList<Effect> effects;
     if (!payload || payloadSize < 64)
@@ -1257,7 +1283,8 @@ QList<Effect> extractDirectShowAudioGraph(const uint8_t *payload, qsizetype payl
                 effects.append(fx);
             }
         } else if (name.contains(QLatin1String("Graphic EQ"), Qt::CaseInsensitive)
-                   || name.contains(QLatin1String("Paragraphic EQ"), Qt::CaseInsensitive)) {
+                   || name.contains(QLatin1String("Paragraphic EQ"), Qt::CaseInsensitive)
+                   || name.contains(QLatin1String("Equalization"), Qt::CaseInsensitive)) {
             Effect fx;
             fx.catalogId = QStringLiteral("utility.eq");
             fx.name = QStringLiteral("EQ");
@@ -1347,6 +1374,12 @@ QList<Effect> extractDirectShowAudioGraph(const uint8_t *payload, qsizetype payl
                 const float gain = readFloatLE(params);
                 if (!std::isnan(gain) && !std::isinf(gain) && gain >= 0.0f && gain <= 4.0f)
                     *outVolumeGain *= static_cast<double>(gain);
+            }
+        } else if (name.contains(QLatin1String("Pitch Shift"), Qt::CaseInsensitive)) {
+            if (outPitchSemitones && params && paramsSize >= 4) {
+                const qint32 semis = readI32LE(params);
+                if (semis >= -24 && semis <= 24 && semis != 0)
+                    *outPitchSemitones = static_cast<double>(semis);
             }
         }
     }
@@ -2608,6 +2641,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     QList<Effect> takeEffects;
                                     QList<Effect> eventAudioEffects;
                                     double eventAudioFxGain = 1.0;
+                                    double eventAudioFxPitch = 0.0;
                                     QString eventTransitionKind;
                                     SmartZoomData eventSmartZoom;
                                     PanCropData panCropData;
@@ -2715,7 +2749,8 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                             if (csize > static_cast<quint64>(fxOff)) {
                                                 const QList<Effect> afx = extractDirectShowAudioGraph(
                                                     cptr + fxOff, static_cast<qsizetype>(csize) - fxOff,
-                                                    /*isTrackDefaultChain=*/false, &eventAudioFxGain);
+                                                    /*isTrackDefaultChain=*/false, &eventAudioFxGain,
+                                                    &eventAudioFxPitch);
                                                 eventAudioEffects.append(afx);
                                             }
                                         } else if ((std::memcmp(cptr, kGuidW64List, 16) == 0 && cpayloadSize >= 16
@@ -2841,6 +2876,8 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                             const double cur = clip.volume.isEmpty() ? 1.0 : clip.volume.evaluateAt(0);
                                             clip.volume.setKeyframe(0, qBound(0.0, cur * eventAudioFxGain, 4.0));
                                         }
+                                        if (std::abs(eventAudioFxPitch) > 1e-4)
+                                            clip.pitchSemitones = eventAudioFxPitch;
 
                                         if (trackType == TrackType::Video) {
                                             if ((panCropData.sourceWidth == 0 || panCropData.sourceHeight == 0)
@@ -3437,6 +3474,8 @@ QStringList collectUnmappedPluginsFromData(const QByteArray &data)
         QStringLiteral("vignette"),
         QStringLiteral("colorbalance"),
         QStringLiteral("smart_zoom"),
+        QStringLiteral("chromakeyer"),
+        QStringLiteral("invert"),
         QStringLiteral("titlesandtext"),
         QStringLiteral("solidcolor"),
         QStringLiteral("creditroll"),

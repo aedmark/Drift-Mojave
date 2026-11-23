@@ -2867,4 +2867,14 @@ bool ProjectFileController::deleteProjectSnapshot(const QString &snapshotPath)
     return true;
 }
 
+bool ProjectFileController::restoreProjectSnapshot(const QString &snapshotPath)
+{
+    if (snapshotPath.isEmpty() || !snapshotPath.endsWith(QLatin1String(".drift"), Qt::CaseInsensitive))
+        return false;
+    if (!QFileInfo::exists(snapshotPath))
+        return false;
+    loadProject(QUrl::fromLocalFile(snapshotPath));
+    return true;
+}
+
 #include "moc_ProjectFileController.cpp"

@@ -61,11 +61,33 @@ Rectangle {
                 }
 
                 Text {
-                    text: root.formatTime(EditorState.playheadSeconds)
+                    text: EditorState.projectFile.formatTimecode(EditorState.playheadSeconds)
                     color: Theme.c.multicamAngleTile.foreground
                     opacity: 0.8
                     font.family: Theme.monoFontFamily
                     font.pixelSize: Theme.fontSizeXs
+                }
+
+                ThemedButton {
+                    text: qsTr("Prev Cut")
+                    variant: "text"
+                    tooltip: qsTr("Jump to previous multicam cut")
+                    onClicked: EditorState.jumpToAdjacentMulticamCut(-1)
+                }
+
+                ThemedButton {
+                    text: qsTr("Next Cut")
+                    variant: "text"
+                    tooltip: qsTr("Jump to next multicam cut")
+                    onClicked: EditorState.jumpToAdjacentMulticamCut(1)
+                }
+
+                ThemedButton {
+                    text: qsTr("Undo")
+                    variant: "text"
+                    enabled: EditorState.canUndo
+                    tooltip: qsTr("Undo last angle cut")
+                    onClicked: EditorState.undo()
                 }
 
                 ThemedButton {

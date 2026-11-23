@@ -1,5 +1,6 @@
 #include "app/editor/appcontroller/AppControllerInternal.h"
 #include "app/editor/AppController.h"
+#include "app/jobs/audio/AudioAlignController.h"
 #include "app/bin/AssetLibrary.h"
 #include "core/edit/TimelineOps.h"
 
@@ -573,5 +574,102 @@ bool AppController::punchMulticamTake(int takeIndex)
     emit inlineMulticamChanged();
     if (m_inlineMulticamEnabled)
         refreshInlineMulticamFrames();
+    return true;
+}
+
+bool AppController::syncAndStartInlineMulticam(bool muteScratchAudio)
+{
+    if (m_audioAlign && m_audioAlign->canSyncByAudio()) {
+        auto conn = std::make_shared<QMetaObject::Connection>();
+        *conn = connect(m_audioAlign, &AudioAlignController::runningChanged, this, [this, conn]() {
+            if (m_audioAlign && !m_audioAlign->running()) {
+                QObject::disconnect(*conn);
+                if (createMulticamTrackFromSelection())
+                    setInlineMulticamEnabled(true);
+            }
+        });
+        m_audioAlign->syncByAudio(/*groupSynced=*/false, muteScratchAudio);
+        return true;
+    }
+
+    if (createMulticamTrackFromSelection()) {
+        setInlineMulticamEnabled(true);
+        return true;
+    }
+    return false;
+}
+
+int AppController::multicamCutCount() const
+{
+    int ti = -1;
+    int ci = -1;
+    if (findActiveInlineMulticamClip(&ti, &ci) && ti >= 0 && ti < m_project.tracks().size())
+        return m_project.tracks().at(ti).clips.size();
+    for (const drift::Track &track : m_project.tracks()) {
+        if (track.type != drift::TrackType::Video)
+            continue;
+        for (const drift::Clip &c : track.clips) {
+            if (c.takes.size() > 1)
+                return track.clips.size();
+        }
+    }
+    return 0;
+}
+
+bool AppController::jumpToAdjacentMulticamCut(int direction)
+{
+    if (direction == 0)
+        return false;
+
+    int targetTrack = -1;
+    int ci = -1;
+    if (!findActiveInlineMulticamClip(&targetTrack, &ci)) {
+        for (int ti = 0; ti < m_project.tracks().size(); ++ti) {
+            const drift::Track &track = m_project.tracks().at(ti);
+            if (track.type != drift::TrackType::Video)
+                continue;
+            for (const drift::Clip &c : track.clips) {
+                if (c.takes.size() > 1) {
+                    targetTrack = ti;
+                    break;
+                }
+            }
+            if (targetTrack >= 0)
+                break;
+        }
+    }
+    if (targetTrack < 0 || targetTrack >= m_project.tracks().size())
+        return false;
+
+    QList<drift::TimeUs> starts;
+    for (const drift::Clip &c : m_project.tracks().at(targetTrack).clips) {
+        if (!starts.contains(c.timelineStart))
+            starts.append(c.timelineStart);
+    }
+    if (starts.isEmpty())
+        return false;
+    std::sort(starts.begin(), starts.end());
+
+    constexpr drift::TimeUs kTolUs = 10'000;
+    drift::TimeUs targetUs = -1;
+    if (direction > 0) {
+        for (drift::TimeUs s : std::as_const(starts)) {
+            if (s > m_playheadUs + kTolUs) {
+                targetUs = s;
+                break;
+            }
+        }
+    } else {
+        for (int i = starts.size() - 1; i >= 0; --i) {
+            if (starts.at(i) < m_playheadUs - kTolUs) {
+                targetUs = starts.at(i);
+                break;
+            }
+        }
+    }
+
+    if (targetUs < 0)
+        return false;
+    setPlayheadSeconds(static_cast<double>(targetUs) / static_cast<double>(drift::kUsPerSecond));
     return true;
 }

@@ -983,6 +983,9 @@ public:
     QVariantList inlineMulticamTakes() const;
     int inlineMulticamRevision() const { return m_inlineMulticamRevision; }
     Q_INVOKABLE bool createMulticamTrackFromSelection();
+    Q_INVOKABLE bool syncAndStartInlineMulticam(bool muteScratchAudio = false);
+    Q_INVOKABLE bool jumpToAdjacentMulticamCut(int direction);
+    Q_INVOKABLE int multicamCutCount() const;
     Q_INVOKABLE void setInlineMulticamEnabled(bool enabled);
     Q_INVOKABLE void toggleInlineMulticam();
     Q_INVOKABLE bool punchMulticamTake(int takeIndex);
