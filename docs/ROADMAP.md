@@ -178,7 +178,7 @@ Status: **Shipped in `v1.7.0`**
 
 ## Tier 10 — Snapshot Manager UI, Multicam Sync Polish & Final `.veg` Stragglers (`v1.8.0`)
 
-Status: **Implemented on `main` (`10A–10B`)**
+Status: **Ready for `v1.8.0` (local build)**
 
 1. **Tier 10A — Project Snapshot Manager UI & Final 4 Native `.veg` Stragglers** — ✅ Implemented on `main`
    - `ProjectSnapshotsDialog.qml` (`restoreProjectSnapshot()` in `ProjectFileController`, wired from `RecentProjectsPopup` → `Manage snapshots…`) to create labeled snapshots, inspect timestamps/sizes, restore, or delete `.drift` milestone snapshots.

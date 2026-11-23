@@ -1,6 +1,6 @@
 # Maintainer: Suhas Dissanayake <suhasdissa@gmail.com>
 pkgname=drift
-pkgver=1.7.0
+pkgver=1.8.0
 pkgrel=1
 pkgdesc="Drift Mojave — What happens in the timeline, stays in the timeline."
 arch=('x86_64' 'aarch64')

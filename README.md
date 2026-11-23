@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aedmark/Drift-Mojave/releases/tag/v1.7.0"><img src="https://img.shields.io/badge/version-1.7.0--mojave-feb504?style=flat&labelColor=28272f" alt="Version 1.7.0 Mojave"></a>
+  <a href="https://github.com/aedmark/Drift-Mojave/releases/tag/v1.8.0"><img src="https://img.shields.io/badge/version-1.8.0--mojave-feb504?style=flat&labelColor=28272f" alt="Version 1.8.0 Mojave"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-feb504?style=flat&labelColor=28272f" alt="License: GPL-3.0"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android-feb504?style=flat&labelColor=28272f" alt="Platform: Linux | Windows | macOS | Android">
   <img src="https://img.shields.io/badge/interchange-Sony%20%2F%20MAGIX%20VEGAS%20(.veg)-feb504?style=flat&labelColor=28272f" alt="VEGAS Pro Interchange">
@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="https://oopismcgoopis.com/drift-mojave/">Website</a> ·
-  <a href="https://github.com/aedmark/Drift-Mojave/releases/tag/v1.7.0">Download v1.7.0</a> ·
+  <a href="https://github.com/aedmark/Drift-Mojave/releases/tag/v1.8.0">Download v1.8.0</a> ·
   <a href="docs/ROADMAP.md">Roadmap</a> ·
   <a href="#building-from-source">Build from Source</a>
 </p>
@@ -30,15 +30,15 @@ No subscriptions, no accounts, no watermarks, no cloud lock-in.
 
 ---
 
-## Download Prebuilt Binaries (`v1.7.0`)
+## Download Prebuilt Binaries (`v1.8.0`)
 
 | Platform | Package | Link |
 |---|---|---|
-| **Linux (x86_64)** | AppImage + `.zsync` | [Drift-1.7.0-x86_64.AppImage](https://github.com/aedmark/Drift-Mojave/releases/download/v1.7.0/Drift-1.7.0-x86_64.AppImage) · [`.zsync`](https://github.com/aedmark/Drift-Mojave/releases/download/v1.7.0/Drift-1.7.0-x86_64.AppImage.zsync) |
-| **Windows (x64)** | Installer (`.exe`) | [Drift-Setup-1.7.0-x64.exe](https://github.com/aedmark/Drift-Mojave/releases/download/v1.7.0/Drift-Setup-1.7.0-x64.exe) |
-| **Windows (x64)** | Portable Archive (`.zip`) | [Drift-Portable-1.7.0-x64.zip](https://github.com/aedmark/Drift-Mojave/releases/download/v1.7.0/Drift-Portable-1.7.0-x64.zip) |
-| **macOS (Apple Silicon)** | Disk Image (`.dmg`) | [Drift-1.7.0-arm64.dmg](https://github.com/aedmark/Drift-Mojave/releases/download/v1.7.0/Drift-1.7.0-arm64.dmg) |
-| **Verification** | Checksums | [SHA256SUMS](https://github.com/aedmark/Drift-Mojave/releases/download/v1.7.0/SHA256SUMS) |
+| **Linux (x86_64)** | AppImage + `.zsync` | [Drift-1.8.0-x86_64.AppImage](https://github.com/aedmark/Drift-Mojave/releases/download/v1.8.0/Drift-1.8.0-x86_64.AppImage) · [`.zsync`](https://github.com/aedmark/Drift-Mojave/releases/download/v1.8.0/Drift-1.8.0-x86_64.AppImage.zsync) |
+| **Windows (x64)** | Installer (`.exe`) | [Drift-Setup-1.8.0-x64.exe](https://github.com/aedmark/Drift-Mojave/releases/download/v1.8.0/Drift-Setup-1.8.0-x64.exe) |
+| **Windows (x64)** | Portable Archive (`.zip`) | [Drift-Portable-1.8.0-x64.zip](https://github.com/aedmark/Drift-Mojave/releases/download/v1.8.0/Drift-Portable-1.8.0-x64.zip) |
+| **macOS (Apple Silicon)** | Disk Image (`.dmg`) | [Drift-1.8.0-arm64.dmg](https://github.com/aedmark/Drift-Mojave/releases/download/v1.8.0/Drift-1.8.0-arm64.dmg) |
+| **Verification** | Checksums | [SHA256SUMS](https://github.com/aedmark/Drift-Mojave/releases/download/v1.8.0/SHA256SUMS) |
 
 ---
 
@@ -76,7 +76,7 @@ Open and edit VEGAS Pro projects directly inside Drift Mojave without intermedia
 - **Media Bin Audit, Sweep & Consolidation**: Smart Bin Filters (*Unused*, *Unconverted*, *Missing*, *Subclips*), timeline usage counts, undoable *Remove Unused Media*, and *Consolidate Project Media*.
 - **Bidirectional Timeline Export**: Export active sequences to `.fcpxml` (Final Cut Pro XML), `.edl` (CMX 3600 EDL), `.otio` (OpenTimelineIO), and `.txt` (VEGAS Marker/Region TSV).
 
-> See **[docs/ROADMAP.md](docs/ROADMAP.md)** for the full tier-by-tier changelog from `v1.0.0` through `v1.7.0`.
+> See **[docs/ROADMAP.md](docs/ROADMAP.md)** for the full tier-by-tier changelog from `v1.0.0` through `v1.8.0`.
 
 ---
 

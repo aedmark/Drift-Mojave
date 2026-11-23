@@ -89,6 +89,18 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.8.0" date="2026-11-23">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.8.0</url>
+      <description>
+        <p>Drift Mojave 1.8.0 delivers VEGAS Parity Tier 10 (Snapshot Manager UI, Multicam Sync &amp; Cut Navigation, and the final 4 native .veg plugin stragglers) alongside 11 upstream stability and build fixes:</p>
+        <ul>
+          <li>Project Milestone Snapshots Manager UI (create labeled snapshots, inspect timestamps/sizes, restore, or delete .drift snapshots)</li>
+          <li>Completed remaining native .veg plugin stragglers: chromakeyer (key.chroma), invert, ExpressFX Equalization, and Pitch Shift</li>
+          <li>One-click Sync by Audio &amp; Start Multicamera, Prev Cut / Next Cut / Undo controls, and broadcast Drop-Frame timecode in multicam views</li>
+          <li>Upstream stability fixes: exit-time GPU/QApplication teardown, VAAPI vaMapBuffer2 guard, long-lived asset drag owner, microsecond rounding, chroma key brightness keying, and session-default undo history with save fallback</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.7.0" date="2026-11-23">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.7.0</url>
       <description>
