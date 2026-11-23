@@ -2571,6 +2571,10 @@ QVariantMap ProjectFileController::buildVegasImportReport(const QString &sourceP
     report.insert(QStringLiteral("missingFiles"), missingFiles);
     report.insert(QStringLiteral("autoRemappedProRes"), autoRemappedProRes);
     report.insert(QStringLiteral("unconvertedVideoCount"), unconvertedVideoCount);
+    const QStringList unmappedFx = (!sourcePath.isEmpty() && QFileInfo::exists(sourcePath))
+        ? drift::vegas::collectUnmappedPlugins(sourcePath)
+        : QStringList();
+    report.insert(QStringLiteral("unmappedFx"), unmappedFx);
     return report;
 }
 

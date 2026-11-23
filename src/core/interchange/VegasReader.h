@@ -52,4 +52,10 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                        QString *error = nullptr,
                                        QSet<QString> visitedPaths = {}, int depth = 0);
 
+// Scans a .veg file or raw Wave64 payload for proprietary/third-party OFX and VST3 plugins
+// that Drift does not natively translate (e.g. Stabilize, colormatch, Red Giant, iZotope RX),
+// returning formatted entries such as "Stabilize (3×)".
+QStringList collectUnmappedPlugins(const QString &filePath);
+QStringList collectUnmappedPluginsFromData(const QByteArray &data);
+
 } // namespace drift::vegas

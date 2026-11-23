@@ -781,6 +781,34 @@ QList<Effect> extractVideoEffects(const uint8_t *payload, qsizetype payloadSize)
         cPos += 30;
     }
 
+    // 2b. Secondary Color Corrector (Sony / VEGAS colorcorrectorsecondary)
+    qsizetype c2Pos = 0;
+    while ((c2Pos = findUtf16(payload, payloadSize, "colorcorrectorsecondary}", c2Pos)) >= 0) {
+        const qsizetype subSize = std::min<qsizetype>(payloadSize - c2Pos, 1200);
+        const uint8_t *sub = payload + c2Pos;
+
+        const double sat = parseDoubleParam(sub, subSize, "Saturation", 1.0);
+        const double gamma = parseDoubleParam(sub, subSize, "Gamma", 1.0);
+        const double gain = parseDoubleParam(sub, subSize, "Gain", 1.0);
+        const double offset = parseDoubleParam(sub, subSize, "Offset", 0.0);
+        const double rotateHue = parseDoubleParam(sub, subSize, "RotateHue", 0.0);
+
+        if (std::abs(sat - 1.0) > 0.01 || std::abs(gamma - 1.0) > 0.01 || std::abs(gain - 1.0) > 0.01
+            || std::abs(offset) > 0.01 || std::abs(rotateHue) > 0.01) {
+            Effect fx;
+            fx.catalogId = QStringLiteral("color.grade");
+            fx.name = QStringLiteral("Color Corrector (Secondary)");
+            fx.parameters[QStringLiteral("saturation")] = sat;
+            fx.parameters[QStringLiteral("gammaLuma")] = gamma - 1.0;
+            fx.parameters[QStringLiteral("gainLuma")] = gain - 1.0;
+            fx.parameters[QStringLiteral("liftLuma")] = offset / 100.0;
+            if (std::abs(rotateHue) > 0.01)
+                fx.parameters[QStringLiteral("hue")] = qBound(-180.0, rotateHue, 180.0);
+            effects.append(fx);
+        }
+        c2Pos += 48;
+    }
+
     // 3. Sharpen (Sony / VEGAS sharpen)
     qsizetype sPos = 0;
     while ((sPos = findUtf16(payload, payloadSize, "sharpen}", sPos)) >= 0) {
@@ -989,6 +1017,44 @@ QList<Effect> extractVideoEffects(const uint8_t *payload, qsizetype payloadSize)
     }
 
     return effects;
+}
+
+struct SmartZoomData
+{
+    bool active = false;
+    double centerX = 0.5;
+    double centerY = 0.5;
+    double zoom = 1.0;
+};
+
+SmartZoomData extractSmartZoom(const uint8_t *payload, qsizetype payloadSize)
+{
+    SmartZoomData out;
+    if (!payload || payloadSize < 64)
+        return out;
+    const qsizetype szPos = findUtf16(payload, payloadSize, "smart_zoom}");
+    if (szPos < 0)
+        return out;
+    const qsizetype searchEnd = std::min(payloadSize, szPos + 512);
+    const qsizetype locPos = findUtf16(payload, searchEnd, "LocationAndZoom", szPos);
+    if (locPos < 0)
+        return out;
+    // "LocationAndZoom" is 15 UTF-16 chars (30 bytes) + 2-byte NUL = 32 bytes, followed by 3 LE doubles (cx, cy, zoom).
+    const qsizetype valOff = locPos + 32;
+    if (valOff + 24 > payloadSize)
+        return out;
+    const double cx = readDoubleLE(payload + valOff);
+    const double cy = readDoubleLE(payload + valOff + 8);
+    const double z = readDoubleLE(payload + valOff + 16);
+    if (!std::isnan(cx) && !std::isnan(cy) && !std::isnan(z)
+        && z > 1.001 && z <= 16.0
+        && cx >= -1.0 && cx <= 2.0 && cy >= -1.0 && cy <= 2.0) {
+        out.active = true;
+        out.centerX = cx;
+        out.centerY = cy;
+        out.zoom = z;
+    }
+    return out;
 }
 
 QList<Effect> extractAudioEffects(const uint8_t *payload, qsizetype payloadSize)
@@ -2526,6 +2592,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     QList<Effect> eventAudioEffects;
                                     double eventAudioFxGain = 1.0;
                                     QString eventTransitionKind;
+                                    SmartZoomData eventSmartZoom;
                                     PanCropData panCropData;
                                     struct VegasParsedTake {
                                         quint64 srcInTicks = 0;
@@ -2618,6 +2685,9 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                                     if (!parsedTakes.isEmpty())
                                                         parsedTakes.last().effects.append(fx);
                                                 }
+                                                const SmartZoomData sz = extractSmartZoom(fpayload, fpayloadSize);
+                                                if (sz.active)
+                                                    eventSmartZoom = sz;
                                                 fpos += (fsize + 7) & ~7;
                                             }
                                         } else if ((std::memcmp(cptr, kGuidW64List, 16) == 0 && cpayloadSize >= 16
@@ -2764,6 +2834,34 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                                 }
                                             }
                                             applyPanCropToClip(clip, panCropData, canvasWidth, canvasHeight);
+                                            if (eventSmartZoom.active) {
+                                                auto scaleTrack = [&](KeyframeTrack<double> &kt, double factor) {
+                                                    if (kt.isEmpty()) {
+                                                        kt.setKeyframe(0, factor);
+                                                    } else {
+                                                        const auto keys = kt.keyframes();
+                                                        for (auto it = keys.constBegin(); it != keys.constEnd(); ++it)
+                                                            kt.setKeyframe(it.key(), it.value().value * factor);
+                                                    }
+                                                };
+                                                auto offsetTrack = [&](KeyframeTrack<double> &kt, double delta) {
+                                                    if (std::abs(delta) < 1e-4)
+                                                        return;
+                                                    if (kt.isEmpty()) {
+                                                        kt.setKeyframe(0, delta);
+                                                    } else {
+                                                        const auto keys = kt.keyframes();
+                                                        for (auto it = keys.constBegin(); it != keys.constEnd(); ++it)
+                                                            kt.setKeyframe(it.key(), it.value().value + delta);
+                                                    }
+                                                };
+                                                scaleTrack(clip.scaleX, eventSmartZoom.zoom);
+                                                scaleTrack(clip.scaleY, eventSmartZoom.zoom);
+                                                const double dx = (0.5 - eventSmartZoom.centerX) * canvasWidth * (eventSmartZoom.zoom - 1.0);
+                                                const double dy = (eventSmartZoom.centerY - 0.5) * canvasHeight * (eventSmartZoom.zoom - 1.0);
+                                                offsetTrack(clip.positionX, dx);
+                                                offsetTrack(clip.positionY, dy);
+                                            }
                                         }
 
                                         if (parsedTakes.size() > 1) {
@@ -3159,6 +3257,121 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
 
     project.ensureTrackIds();
     return project;
+}
+
+QStringList collectUnmappedPluginsFromData(const QByteArray &data)
+{
+    if (data.isEmpty())
+        return {};
+
+    static const QSet<QString> kHandledOfxSuffixes = {
+        QStringLiteral("levels"),
+        QStringLiteral("colorcorrector"),
+        QStringLiteral("colorcorrectorsecondary"),
+        QStringLiteral("sharpen"),
+        QStringLiteral("unsharpmask"),
+        QStringLiteral("vignette"),
+        QStringLiteral("colorbalance"),
+        QStringLiteral("smart_zoom"),
+        QStringLiteral("titlesandtext"),
+        QStringLiteral("solidcolor"),
+        QStringLiteral("creditroll"),
+        QStringLiteral("timecode"),
+        QStringLiteral("testpattern"),
+        QStringLiteral("colorgradient"),
+        QStringLiteral("noisetexture"),
+        QStringLiteral("checkerboard"),
+        QStringLiteral("flash"),
+        QStringLiteral("linearwipe"),
+        QStringLiteral("push"),
+        QStringLiteral("slide"),
+        QStringLiteral("barndoor"),
+        QStringLiteral("venetianblinds"),
+        QStringLiteral("zoom"),
+        QStringLiteral("iris"),
+        QStringLiteral("clockwipe"),
+        QStringLiteral("gradientwipe"),
+        QStringLiteral("dip"),
+        QStringLiteral("fadetocolor"),
+        QStringLiteral("dissolve"),
+        QStringLiteral("crosseffect"),
+    };
+
+    QMap<QString, int> counts;
+    const uint8_t *bytes = reinterpret_cast<const uint8_t *>(data.constData());
+    const qsizetype totalSize = data.size();
+
+    // 1. Scan UTF-16LE {Svfx:...} OFX plugin strings
+    qsizetype pos = 0;
+    while ((pos = findUtf16(bytes, totalSize, "{Svfx:", pos)) >= 0) {
+        const qsizetype start = pos + 12; // after "{Svfx:"
+        qsizetype end = start;
+        while (end + 1 < totalSize && (end - start) < 320) {
+            const char16_t ch = static_cast<char16_t>(bytes[end] | (bytes[end + 1] << 8));
+            if (ch == u'}' || ch == u'\0')
+                break;
+            end += 2;
+        }
+        if (end > start && end + 1 < totalSize) {
+            const QString fullId = QString::fromUtf16(reinterpret_cast<const char16_t *>(bytes + start),
+                                                      static_cast<qsizetype>((end - start) / 2)).trimmed();
+            const qsizetype colon = fullId.lastIndexOf(QLatin1Char(':'));
+            const QString suffix = (colon >= 0 ? fullId.mid(colon + 1) : fullId).trimmed();
+            if (!suffix.isEmpty() && !kHandledOfxSuffixes.contains(suffix.toLower())) {
+                QString display = fullId;
+                if (display.startsWith(QLatin1String("com.sonycreativesoftware:"), Qt::CaseInsensitive))
+                    display = display.mid(25);
+                else if (display.startsWith(QLatin1String("com.vegascreativesoftware:"), Qt::CaseInsensitive))
+                    display = display.mid(26);
+                counts[display] += 1;
+            }
+        }
+        pos = end + 2;
+    }
+
+    // 2. Scan VST3 / VST audio plugins: "(VST3, 64 Bit)" or "(VST, 64 Bit)"
+    for (const char *vstTag : {"(VST3, 64 Bit)", "(VST, 64 Bit)"}) {
+        qsizetype vpos = 0;
+        while ((vpos = findUtf16(bytes, totalSize, vstTag, vpos)) >= 0) {
+            // Walk backwards past NUL/size fields to find the preceding UTF-16LE plugin name
+            qsizetype scan = std::max<qsizetype>(0, vpos - 160);
+            QString bestName;
+            for (qsizetype p = vpos - 4; p >= scan; p -= 2) {
+                const char16_t ch = static_cast<char16_t>(bytes[p] | (bytes[p + 1] << 8));
+                if (ch == u'\0' && !bestName.isEmpty()) {
+                    if (bestName.size() >= 3)
+                        break;
+                    bestName.clear();
+                } else if (ch >= 0x20 && ch <= 0x7e) {
+                    bestName.prepend(QChar(ch));
+                } else if (!bestName.isEmpty()) {
+                    break;
+                }
+            }
+            const QString trimmed = bestName.trimmed();
+            if (trimmed.size() >= 3 && !trimmed.contains(QLatin1String("Empty Graph")))
+                counts[trimmed + QStringLiteral(" (VST)")] += 1;
+            vpos += 28;
+        }
+    }
+
+    QStringList out;
+    for (auto it = counts.constBegin(); it != counts.constEnd(); ++it) {
+        if (out.size() >= 40)
+            break;
+        out.append(it.value() > 1
+                       ? QStringLiteral("%1 (%2×)").arg(it.key()).arg(it.value())
+                       : it.key());
+    }
+    return out;
+}
+
+QStringList collectUnmappedPlugins(const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    return collectUnmappedPluginsFromData(file.readAll());
 }
 
 } // namespace drift::vegas

@@ -14,6 +14,7 @@ ThemedDialog {
     readonly property int onlineCount: Number(report.onlineAssets || 0)
     readonly property int autoProResCount: Number(report.autoRemappedProRes || 0)
     readonly property var missingFiles: report.missingFiles || []
+    readonly property var unmappedFx: report.unmappedFx || []
 
     title: qsTr("VEGAS Pro Import Summary")
     preferredWidth: Theme.dialogWidthMd
@@ -153,6 +154,45 @@ ThemedDialog {
                         delegate: ThemedLabel {
                             required property string modelData
                             width: missingListCol.width
+                            text: "• " + modelData
+                            tone: "muted"
+                            size: "xs"
+                            elide: Text.ElideMiddle
+                        }
+                    }
+                }
+            }
+        }
+
+        Column {
+            width: parent.width
+            spacing: Theme.spacingXs
+            visible: root.unmappedFx.length > 0
+
+            ThemedLabel {
+                width: parent.width
+                text: qsTr("Skipped / unmapped FX (%1):").arg(root.unmappedFx.length)
+                tone: "muted"
+                size: "sm"
+                font.weight: Font.Medium
+            }
+
+            ScrollView {
+                width: parent.width
+                height: Math.min(100, unmappedFxCol.implicitHeight + Theme.spacingSm * 2)
+                clip: true
+
+                Column {
+                    id: unmappedFxCol
+                    width: parent.width
+                    spacing: 2
+
+                    Repeater {
+                        model: root.unmappedFx
+
+                        delegate: ThemedLabel {
+                            required property string modelData
+                            width: unmappedFxCol.width
                             text: "• " + modelData
                             tone: "muted"
                             size: "xs"

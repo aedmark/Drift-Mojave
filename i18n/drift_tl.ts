@@ -30737,6 +30737,10 @@ Kung nag-i-stutter ang playback, subukan ang isa pa.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Skipped / unmapped FX (%1):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Locate Missing Media Folder…</source>
         <translation type="unfinished"></translation>
     </message>
