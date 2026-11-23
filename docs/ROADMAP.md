@@ -157,7 +157,7 @@ Status: **Shipped in `v1.6.0`**
 
 ## Tier 9 — VEGAS Deep Fidelity & Interchange Completeness (`v1.7.0`)
 
-Status: **In Progress (`9A–9D, 9G` implemented on `main`)**
+Status: **Implemented on `main` (`9A–9G`)**
 
 1. **Tier 9A — Audio Track FX Chains (`f49892f7…`) & Event Audio FX (`ce956ab6…`)** — ✅ Implemented on `main`
    - DirectShow FX Graph parser in `VegasReader` decoding `Sony Track EQ`, `Sony Track Compressor`, `Sony Track Noise Gate`, `Reverb` / `ExpressFX Reverb`, `ExpressFX Graphic EQ`, `ExpressFX Dynamics`, `Simple Delay`, and `Sony Volume` into `Track::audioEffects` and `Clip::audioEffects` (skipping untouched default no-op track strip plugins).
@@ -167,9 +167,9 @@ Status: **In Progress (`9A–9D, 9G` implemented on `main`)**
    - Parse `ce3b2bfc…` / `cf3b2bfc…` fade/transition plugin chunks and map VEGAS transition OFX plugins (`flash` → `dip_white`, `linearwipe` → directional `wipe_left`/`wipe_right`/`wipe_up`/`wipe_down`, `push`/`slide` → `push_left`, `barndoor`/`venetianblinds` → `linear_blinds`, `zoom` → `zoom_in`, `iris`/`clockwipe`/`gradientwipe` → `luma_fade`, `dip` → `dip`) instead of defaulting all overlaps to dissolve.
 4. **Tier 9D — Extended OFX Video FX (`smart_zoom`, `colorcorrectorsecondary`, `colormatch`, `Stabilize`)** — ✅ Implemented on `main`
    - Translate `smart_zoom` (`LocationAndZoom` center & zoom into `Clip::scaleX/Y` and `Clip::positionX/Y`) and `colorcorrectorsecondary` (`Saturation`, `Gamma`, `Gain`, `Offset`, `RotateHue` into `color.grade`), and report unmapped `Stabilize` / `colormatch` in `VegasImportSummaryDialog`.
-5. **Tier 9E — Audio Master Bus & Sub-Buses (`e42b0d22…`)** — Planned
-   - Parse VEGAS Master Bus, sub-bus routing, bus volume/pan, and Master Bus FX chains into `Project::buses()` / `Project::masterAudioEffects()`.
-6. **Tier 9F — Media Pool Bins / Folders (`31af8cca…` / `135c58aa…`)** — Planned
-   - Import VEGAS Media Pool bin hierarchy into Drift's Media Bin folders (`Project::folders()`).
+5. **Tier 9E — Audio Master Bus & Sub-Buses (`e42b0d22…`)** — ✅ Implemented on `main`
+   - Parse VEGAS Master Bus and custom sub-buses (`9d74b872…`), routing Master Bus DirectShow FX into `Project::masterAudioEffects()` and sub-buses + their FX into `Project::audioBuses()`.
+6. **Tier 9F — Media Pool Bins / Folders (`31af8cca…` / `135c58aa…`)** — ✅ Implemented on `main`
+   - Recursively import VEGAS Media Pool bin hierarchy (`BinFolder` tree) into `Project::binFolders()` and assign `MediaAsset::folderId` to nested media items.
 7. **Tier 9G — Skipped / Unmapped FX Reporting in `VegasImportSummaryDialog`** — ✅ Implemented on `main`
    - `VegasReader::collectUnmappedPlugins()` scans `.veg` OFX and VST3/VST plugin strings and surfaces unmapped proprietary/third-party plugins (with counts) inside `VegasImportSummaryDialog`.

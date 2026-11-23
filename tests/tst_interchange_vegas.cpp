@@ -55,6 +55,7 @@ private slots:
     void parsesDirectShowTrackAndEventAudioFxGraphs();
     void parsesVideoTrackFxAndExplicitTransitionPlugins();
     void parsesSmartZoomSecondaryColorAndUnmappedFx();
+    void parsesAudioBusesMasterFxAndMediaPoolBins();
 };
 
 void TestInterchangeVegas::detectsVegasProject()
@@ -2485,6 +2486,173 @@ void TestInterchangeVegas::parsesSmartZoomSecondaryColorAndUnmappedFx()
                 hasStabilize = true;
         }
         QVERIFY(hasStabilize);
+    }
+}
+
+void TestInterchangeVegas::parsesAudioBusesMasterFxAndMediaPoolBins()
+{
+    auto appendU32 = [](QByteArray &out, quint32 v) {
+        char b[4] = {char(v & 0xff), char((v >> 8) & 0xff), char((v >> 16) & 0xff), char((v >> 24) & 0xff)};
+        out.append(b, 4);
+    };
+    auto appendI32 = [&](QByteArray &out, qint32 v) { appendU32(out, static_cast<quint32>(v)); };
+    auto appendU64 = [](QByteArray &out, quint64 v) {
+        char b[8];
+        for (int i = 0; i < 8; ++i)
+            b[i] = char((v >> (i * 8)) & 0xff);
+        out.append(b, 8);
+    };
+    auto wrapW64Chunk = [&](const QByteArray &guid, const QByteArray &payload) {
+        QByteArray out = guid;
+        appendU64(out, static_cast<quint64>(24 + payload.size()));
+        out.append(payload);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto wrapW64List = [&](const QByteArray &typeGuid, const QByteArray &body) {
+        static const QByteArray kList = QByteArray::fromHex("6c6973742f91cf11a5d628db04c10000");
+        QByteArray out = kList;
+        appendU64(out, static_cast<quint64>(40 + body.size()));
+        out.append(typeGuid);
+        out.append(body);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto utf16 = [](const QString &s) {
+        return QByteArray(reinterpret_cast<const char *>(s.utf16()), (s.size() + 1) * 2);
+    };
+
+    const QByteArray kRiff = QByteArray::fromHex("726966662e91cf11a5d628db04c10000");
+    const QByteArray kMediaPool = QByteArray::fromHex("5b2d8fb20f23d21186af00c04f8edb8a");
+    const QByteArray kTimeline = QByteArray::fromHex("47076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kTrack = QByteArray::fromHex("48076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kTrackProps28 = QByteArray::fromHex("286cd4690b7fd211871700c04f8edb8a");
+    const QByteArray kE42B = QByteArray::fromHex("e42b0d22d37fd211871800c04f8edb8a");
+    const QByteArray k9D74 = QByteArray::fromHex("9d74b872ab14884594a939343aeef7cc");
+    const QByteArray k135C = QByteArray::fromHex("135c58aa895a7c4ba288cddd1066dacf");
+    const QByteArray k31AF = QByteArray::fromHex("31af8cca40cb9c4c992c659cb76624ba");
+    const QByteArray k32AF = QByteArray::fromHex("32af8cca40cb9c4c992c659cb76624ba");
+
+    QByteArray mpPayload(96, '\0');
+    const quint32 mid = 42;
+    std::memcpy(mpPayload.data() + 60, &mid, 4);
+    mpPayload.append(utf16(QStringLiteral("C:\\audio\\line.wav")));
+    const QByteArray mpList = wrapW64List(
+        kMediaPool, wrapW64Chunk(QByteArray::fromHex("5d2d8fb20f23d21186af00c04f8edb8a"), mpPayload));
+
+    QByteArray aProps(40, '\0');
+    const quint32 audioCode = 1;
+    std::memcpy(aProps.data() + 32, &audioCode, 4);
+    const QByteArray tlList = wrapW64List(
+        kTimeline, wrapW64List(kTrack, wrapW64Chunk(kTrackProps28, aProps)));
+
+    auto buildDs = [&](const QString &pluginName, const QByteArray &params) {
+        QByteArray graphBody;
+        graphBody.append(utf16(QStringLiteral("Empty Graph")));
+        graphBody.append(QByteArray(30, '\0'));
+        appendU32(graphBody, 1);
+        appendU32(graphBody, 0x20);
+        const QByteArray n16 = utf16(pluginName);
+        graphBody.append(QByteArray(16, '\0'));
+        appendU32(graphBody, 0);
+        appendU32(graphBody, static_cast<quint32>(n16.size()));
+        graphBody.append(n16);
+        graphBody.append(QByteArray(16, '\0'));
+        const quint32 sz = static_cast<quint32>(16 + params.size());
+        appendU32(graphBody, sz);
+        appendU32(graphBody, sz);
+        graphBody.append(QByteArray(16, '\0'));
+        graphBody.append(params);
+        return graphBody;
+    };
+
+    QByteArray revParams;
+    appendI32(revParams, 0);
+    appendI32(revParams, -418);
+    appendI32(revParams, -300);
+
+    const QByteArray busPreview = wrapW64Chunk(k9D74, utf16(QStringLiteral("Preview")));
+    const QByteArray busMaster = wrapW64Chunk(
+        k9D74, utf16(QStringLiteral("Master")) + buildDs(QStringLiteral("ExpressFX Dynamics"), QByteArray(16, '\0')));
+    const QByteArray busDialogue = wrapW64Chunk(
+        k9D74, utf16(QStringLiteral("Dialogue Bus")) + buildDs(QStringLiteral("Reverb"), revParams));
+    const QByteArray busList = wrapW64List(kE42B, busPreview + busMaster + busDialogue);
+
+    auto makeBinData = [&](quint32 nodeType, quint32 itemMid, const QString &folderName) {
+        QByteArray d(56, '\0');
+        const quint32 hdrSize = 56;
+        const QByteArray n16 = folderName.isEmpty() ? QByteArray() : utf16(folderName);
+        const quint32 nLen = static_cast<quint32>(n16.size());
+        std::memcpy(d.data() + 0, &hdrSize, 4);
+        std::memcpy(d.data() + 4, &nLen, 4);
+        std::memcpy(d.data() + 12, &itemMid, 4);
+        std::memcpy(d.data() + 20, &nodeType, 4);
+        d.append(n16);
+        return wrapW64Chunk(k32AF, d);
+    };
+
+    const QByteArray leafItem = wrapW64List(k31AF, makeBinData(2, mid, QString()));
+    const QByteArray subFolder = wrapW64List(k31AF, makeBinData(1, 0, QStringLiteral("Audio")) + leafItem);
+    const QByteArray rootFolder = wrapW64List(k31AF, makeBinData(1, 0, QStringLiteral("Main Timeline")) + subFolder);
+    const QByteArray binList = wrapW64List(k135C, rootFolder);
+
+    const QByteArray body = mpList + tlList + busList + binList;
+    QByteArray veg = kRiff;
+    appendU64(veg, static_cast<quint64>(40 + body.size()));
+    veg.append(QByteArray(16, '\0'));
+    veg.append(body);
+
+    QString err;
+    const auto loaded = drift::vegas::readProjectData(veg, QString(), &err);
+    QVERIFY2(loaded.has_value(), qPrintable(err));
+
+    // Tier 9E: Master FX + Sub-Bus
+    QCOMPARE(loaded->masterAudioEffects().size(), 1);
+    QCOMPARE(loaded->masterAudioEffects().at(0).catalogId, QStringLiteral("utility.compressor"));
+    QCOMPARE(loaded->audioBuses().size(), 1);
+    QCOMPARE(loaded->audioBuses().at(0).name, QStringLiteral("Dialogue Bus"));
+    QCOMPARE(loaded->audioBuses().at(0).audioEffects.size(), 1);
+    QCOMPARE(loaded->audioBuses().at(0).audioEffects.at(0).catalogId, QStringLiteral("space.reverb"));
+
+    // Tier 9F: BinFolders hierarchy & asset folderId assignment
+    QCOMPARE(loaded->binFolders().size(), 2);
+    QString mainId;
+    QString audioId;
+    QString audioParentId;
+    for (const auto &f : loaded->binFolders()) {
+        if (f.name == QLatin1String("Main Timeline"))
+            mainId = f.id;
+        else if (f.name == QLatin1String("Audio")) {
+            audioId = f.id;
+            audioParentId = f.parentId;
+        }
+    }
+    QVERIFY(!mainId.isEmpty());
+    QVERIFY(!audioId.isEmpty());
+    QCOMPARE(audioParentId, mainId);
+    QCOMPARE(loaded->assets().size(), 1);
+    QCOMPARE(loaded->assets().cbegin().value().folderId, audioId);
+
+    // Real E3S2.veg verification if Odds folder is mounted.
+    const QString e3s2Veg = findExtendedVeg(QStringLiteral("Episode 3/Remaster/Scene 2/E3S2.veg"));
+    if (!e3s2Veg.isEmpty()) {
+        QString rErr;
+        const auto p = drift::vegas::readProject(e3s2Veg, &rErr);
+        QVERIFY2(p.has_value(), qPrintable(rErr));
+        bool hasMasterComp = false;
+        for (const auto &fx : p->masterAudioEffects()) {
+            if (fx.catalogId == QLatin1String("utility.compressor"))
+                hasMasterComp = true;
+        }
+        QVERIFY(hasMasterComp);
+        bool hasMainTimelineFolder = false;
+        for (const auto &f : p->binFolders()) {
+            if (f.name == QLatin1String("Main Timeline"))
+                hasMainTimelineFolder = true;
+        }
+        QVERIFY(hasMainTimelineFolder);
     }
 }
 

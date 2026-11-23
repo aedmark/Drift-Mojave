@@ -116,6 +116,23 @@ static const uint8_t kListEventFadeTransition[16] = {
 static const uint8_t kChunkEventFadeTransition[16] = {
     0xcf, 0x3b, 0x2b, 0xfc, 0x85, 0x79, 0xd2, 0x11, 0x87, 0x11, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
 };
+// Audio Master Bus & Sub-Bus list / bus entry chunk GUIDs
+static const uint8_t kTypeAudioBusList[16] = {
+    0xe4, 0x2b, 0x0d, 0x22, 0xd3, 0x7f, 0xd2, 0x11, 0x87, 0x18, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
+};
+static const uint8_t kChunkAudioBus[16] = {
+    0x9d, 0x74, 0xb8, 0x72, 0xab, 0x14, 0x88, 0x45, 0x94, 0xa9, 0x39, 0x34, 0x3a, 0xee, 0xf7, 0xcc
+};
+// Media Pool Bins / Folder tree list & node chunk GUIDs
+static const uint8_t kTypeBinRoot[16] = {
+    0x13, 0x5c, 0x58, 0xaa, 0x89, 0x5a, 0x7c, 0x4b, 0xa2, 0x88, 0xcd, 0xdd, 0x10, 0x66, 0xda, 0xcf
+};
+static const uint8_t kTypeBinNode[16] = {
+    0x31, 0xaf, 0x8c, 0xca, 0x40, 0xcb, 0x9c, 0x4c, 0x99, 0x2c, 0x65, 0x9c, 0xb7, 0x66, 0x24, 0xba
+};
+static const uint8_t kChunkBinNodeData[16] = {
+    0x32, 0xaf, 0x8c, 0xca, 0x40, 0xcb, 0x9c, 0x4c, 0x99, 0x2c, 0x65, 0x9c, 0xb7, 0x66, 0x24, 0xba
+};
 
 inline quint32 readU32LE(const uint8_t *p)
 {
@@ -3253,6 +3270,153 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
             if (!project.openSequenceTabs().contains(seqId))
                 project.openSequenceTabs().append(seqId);
         }
+    }
+
+    // 5. Parse Audio Master Bus & Sub-Buses (kTypeAudioBusList e42b0d22...)
+    {
+        auto extractBusName = [](const uint8_t *payload, qsizetype payloadSize) -> QString {
+            const qsizetype egPos = findUtf16(payload, payloadSize, "Empty Graph");
+            const qsizetype limit = (egPos >= 0) ? egPos : payloadSize;
+            QStringList candidates;
+            QString current;
+            for (qsizetype i = 0; i + 1 < limit; i += 2) {
+                const char16_t ch = static_cast<char16_t>(payload[i] | (payload[i + 1] << 8));
+                if (ch >= 0x20 && ch <= 0x7e) {
+                    current.append(QChar(ch));
+                } else {
+                    if (current.size() >= 2)
+                        candidates.append(current.trimmed());
+                    current.clear();
+                }
+            }
+            if (current.size() >= 2)
+                candidates.append(current.trimmed());
+
+            for (const QString &c : candidates) {
+                if (c == QLatin1String("Master") || c == QLatin1String("Preview"))
+                    return c;
+            }
+            for (qsizetype i = candidates.size() - 1; i >= 0; --i) {
+                const QString &c = candidates.at(i);
+                if (c.contains(QLatin1String("Sound Mapper"), Qt::CaseInsensitive)
+                    || c.contains(QLatin1String("Surround Mapper"), Qt::CaseInsensitive)
+                    || c == QLatin1String("Left/Right Front")
+                    || c == QLatin1String("Stereo")
+                    || c == QLatin1String("Surround")) {
+                    continue;
+                }
+                return c;
+            }
+            return {};
+        };
+
+        qsizetype pos = 40;
+        while (pos + 40 <= totalSize) {
+            const uint8_t *ptr = bytes + pos;
+            const quint64 size = readU64LE(ptr + 16);
+            if (size < 24 || pos + static_cast<qsizetype>(size) > totalSize)
+                break;
+            if (std::memcmp(ptr, kGuidW64List, 16) == 0
+                && std::memcmp(ptr + 24, kTypeAudioBusList, 16) == 0) {
+                qsizetype bpos = pos + 40;
+                const qsizetype bend = pos + static_cast<qsizetype>(size);
+                while (bpos + 24 <= bend) {
+                    const uint8_t *bptr = bytes + bpos;
+                    const quint64 bsize = readU64LE(bptr + 16);
+                    if (bsize < 24 || bpos + static_cast<qsizetype>(bsize) > bend)
+                        break;
+                    if (std::memcmp(bptr, kChunkAudioBus, 16) == 0) {
+                        const uint8_t *bpayload = bptr + 24;
+                        const qsizetype bpayloadSize = static_cast<qsizetype>(bsize - 24);
+                        const QString busName = extractBusName(bpayload, bpayloadSize);
+                        if (busName != QLatin1String("Preview")) {
+                            const QList<Effect> busFx = extractDirectShowAudioGraph(
+                                bpayload, bpayloadSize, /*isTrackDefaultChain=*/false);
+                            if (busName == QLatin1String("Master")) {
+                                for (const Effect &fx : busFx)
+                                    project.masterAudioEffects().append(fx);
+                            } else if (!busName.isEmpty()) {
+                                AudioBus bus;
+                                bus.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                                bus.name = busName;
+                                bus.audioEffects = busFx;
+                                project.audioBuses().append(bus);
+                            }
+                        }
+                    }
+                    bpos += (bsize + 7) & ~7;
+                }
+            }
+            pos += (size + 7) & ~7;
+        }
+    }
+
+    // 6. Parse Media Pool Bins / Folders (kTypeBinRoot 135c58aa... / kTypeBinNode 31af8cca...)
+    {
+        std::function<void(qsizetype, qsizetype, const QString &)> parseBinTree =
+            [&](qsizetype start, qsizetype end, const QString &parentFolderId) {
+                QString currentFolderId = parentFolderId;
+                qsizetype p = start;
+                while (p + 24 <= end) {
+                    const uint8_t *ptr = bytes + p;
+                    const quint64 size = readU64LE(ptr + 16);
+                    if (size < 24 || p + static_cast<qsizetype>(size) > end)
+                        break;
+                    const qsizetype pend = p + static_cast<qsizetype>(size);
+
+                    if (std::memcmp(ptr, kGuidW64List, 16) == 0 && size >= 40) {
+                        const uint8_t *ltype = ptr + 24;
+                        if (std::memcmp(ltype, kTypeBinRoot, 16) == 0) {
+                            parseBinTree(p + 40, pend, parentFolderId);
+                        } else if (std::memcmp(ltype, kTypeBinNode, 16) == 0) {
+                            QString nodeFolderId = parentFolderId;
+                            // First pass: inspect kChunkBinNodeData (32af8cca...) to create folder or assign asset
+                            qsizetype c = p + 40;
+                            while (c + 24 <= pend) {
+                                const uint8_t *cptr = bytes + c;
+                                const quint64 csize = readU64LE(cptr + 16);
+                                if (csize < 24 || c + static_cast<qsizetype>(csize) > pend)
+                                    break;
+                                if (std::memcmp(cptr, kChunkBinNodeData, 16) == 0 && csize >= 48) {
+                                    const uint8_t *dp = cptr + 24;
+                                    const qsizetype dsize = static_cast<qsizetype>(csize - 24);
+                                    const quint32 hdrSize = readU32LE(dp);
+                                    const quint32 nameBytes = readU32LE(dp + 4);
+                                    const quint32 mid = readU32LE(dp + 12);
+                                    const quint32 nodeType = readU32LE(dp + 20);
+                                    if (nodeType == 1 && nameBytes >= 2 && hdrSize < static_cast<quint32>(dsize)
+                                        && static_cast<qsizetype>(hdrSize) + static_cast<qsizetype>(nameBytes) <= dsize) {
+                                        QString folderName = QString::fromUtf16(
+                                            reinterpret_cast<const char16_t *>(dp + hdrSize),
+                                            static_cast<qsizetype>(nameBytes / 2));
+                                        while (folderName.endsWith(QChar(u'\0')))
+                                            folderName.chop(1);
+                                        folderName = folderName.trimmed();
+                                        if (!folderName.isEmpty()) {
+                                            BinFolder folder;
+                                            folder.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                                            folder.name = folderName;
+                                            folder.parentId = parentFolderId;
+                                            project.addBinFolder(folder);
+                                            nodeFolderId = folder.id;
+                                        }
+                                    } else if (nodeType == 2 && !parentFolderId.isEmpty() && mediaPool.contains(mid)) {
+                                        if (MediaAsset *asset = project.asset(mediaPool[mid].assetId)) {
+                                            if (asset->folderId.isEmpty())
+                                                asset->folderId = parentFolderId;
+                                        }
+                                    }
+                                }
+                                c += (csize + 7) & ~7;
+                            }
+                            // Second pass: recurse into nested bin nodes / roots
+                            parseBinTree(p + 40, pend, nodeFolderId);
+                        }
+                    }
+                    p += (size + 7) & ~7;
+                }
+            };
+        parseBinTree(40, totalSize, QString());
     }
 
     project.ensureTrackIds();
