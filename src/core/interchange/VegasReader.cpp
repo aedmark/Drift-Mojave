@@ -105,6 +105,17 @@ static const uint8_t kListTrackDirectShowAudioFx[16] = {
 static const uint8_t kListEventDirectShowAudioFx[16] = {
     0xce, 0x95, 0x6a, 0xb6, 0x46, 0x59, 0xab, 0x48, 0xa4, 0xf4, 0xf8, 0x8c, 0x95, 0xac, 0xdc, 0x1d
 };
+// Video Track-Level FX list GUID (sibling of kListEventFx e4e4f01a...)
+static const uint8_t kListTrackVideoFx[16] = {
+    0xe5, 0xe4, 0xf0, 0x1a, 0x7f, 0x6e, 0xd2, 0x11, 0x87, 0x05, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
+};
+// Event Fade / Transition plugin list & chunk GUIDs
+static const uint8_t kListEventFadeTransition[16] = {
+    0xce, 0x3b, 0x2b, 0xfc, 0x85, 0x79, 0xd2, 0x11, 0x87, 0x11, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
+};
+static const uint8_t kChunkEventFadeTransition[16] = {
+    0xcf, 0x3b, 0x2b, 0xfc, 0x85, 0x79, 0xd2, 0x11, 0x87, 0x11, 0x00, 0xc0, 0x4f, 0x8e, 0xdb, 0x8a
+};
 
 inline quint32 readU32LE(const uint8_t *p)
 {
@@ -222,7 +233,45 @@ std::optional<ParsedMarker> parseMarkerPayload(const uint8_t *p, qsizetype avail
     return m;
 }
 
-void detectTransitionsForTrack(Track &track)
+qsizetype findUtf16(const uint8_t *data, qsizetype size, const char *ascii, qsizetype startOffset = 0);
+
+QString extractTransitionKindId(const uint8_t *payload, qsizetype payloadSize)
+{
+    if (!payload || payloadSize < 32)
+        return {};
+    if (findUtf16(payload, payloadSize, ":flash}") >= 0)
+        return QStringLiteral("dip_white");
+    if (findUtf16(payload, payloadSize, ":linearwipe}") >= 0) {
+        if (findUtf16(payload, payloadSize, "Right-Left") >= 0)
+            return QStringLiteral("wipe_left");
+        if (findUtf16(payload, payloadSize, "Top-Bottom") >= 0)
+            return QStringLiteral("wipe_down");
+        if (findUtf16(payload, payloadSize, "Bottom-Top") >= 0)
+            return QStringLiteral("wipe_up");
+        return QStringLiteral("wipe_right");
+    }
+    if (findUtf16(payload, payloadSize, ":push}") >= 0
+        || findUtf16(payload, payloadSize, ":slide}") >= 0)
+        return QStringLiteral("push_left");
+    if (findUtf16(payload, payloadSize, ":barndoor}") >= 0
+        || findUtf16(payload, payloadSize, ":venetianblinds}") >= 0)
+        return QStringLiteral("linear_blinds");
+    if (findUtf16(payload, payloadSize, ":zoom}") >= 0)
+        return QStringLiteral("zoom_in");
+    if (findUtf16(payload, payloadSize, ":iris}") >= 0
+        || findUtf16(payload, payloadSize, ":clockwipe}") >= 0
+        || findUtf16(payload, payloadSize, ":gradientwipe}") >= 0)
+        return QStringLiteral("luma_fade");
+    if (findUtf16(payload, payloadSize, ":dip}") >= 0
+        || findUtf16(payload, payloadSize, ":fadeToColor}") >= 0)
+        return QStringLiteral("dip");
+    if (findUtf16(payload, payloadSize, ":dissolve}") >= 0
+        || findUtf16(payload, payloadSize, ":crossEffect}") >= 0)
+        return QStringLiteral("crossfade");
+    return {};
+}
+
+void detectTransitionsForTrack(Track &track, const QHash<QString, QString> &clipTransitionKinds = {})
 {
     if (track.clips.size() < 2)
         return;
@@ -278,7 +327,10 @@ void detectTransitionsForTrack(Track &track)
                 tr.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
                 tr.fromClipId = fromClip.id;
                 tr.toClipId = toClip.id;
-                tr.kindId = QStringLiteral("crossfade");
+                QString kindId = clipTransitionKinds.value(toClip.id);
+                if (kindId.isEmpty())
+                    kindId = clipTransitionKinds.value(fromClip.id);
+                tr.kindId = kindId.isEmpty() ? QStringLiteral("crossfade") : kindId;
                 tr.durationUs = durationUs;
                 tr.easingCurve = FadeCurve::Linear;
                 track.transitions.append(tr);
@@ -287,7 +339,7 @@ void detectTransitionsForTrack(Track &track)
     }
 }
 
-qsizetype findUtf16(const uint8_t *data, qsizetype size, const char *ascii, qsizetype startOffset = 0)
+qsizetype findUtf16(const uint8_t *data, qsizetype size, const char *ascii, qsizetype startOffset)
 {
     const qsizetype asciiLen = static_cast<qsizetype>(std::strlen(ascii));
     if (asciiLen <= 0 || size < asciiLen * 2 || startOffset < 0)
@@ -2437,6 +2489,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                                                              : QStringLiteral("audio"));
                     }
 
+                    QHash<QString, QString> clipTransitionKinds;
                     qsizetype evpos = tpos + 40;
                     const qsizetype evend = tpos + static_cast<qsizetype>(tsize);
                     while (evpos + 24 <= evend) {
@@ -2472,6 +2525,7 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                     QList<Effect> takeEffects;
                                     QList<Effect> eventAudioEffects;
                                     double eventAudioFxGain = 1.0;
+                                    QString eventTransitionKind;
                                     PanCropData panCropData;
                                     struct VegasParsedTake {
                                         quint64 srcInTicks = 0;
@@ -2576,6 +2630,17 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                                     cptr + fxOff, static_cast<qsizetype>(csize) - fxOff,
                                                     /*isTrackDefaultChain=*/false, &eventAudioFxGain);
                                                 eventAudioEffects.append(afx);
+                                            }
+                                        } else if ((std::memcmp(cptr, kGuidW64List, 16) == 0 && cpayloadSize >= 16
+                                                    && std::memcmp(cpayload, kListEventFadeTransition, 16) == 0)
+                                                   || std::memcmp(cptr, kChunkEventFadeTransition, 16) == 0) {
+                                            const bool isList = (std::memcmp(cptr, kGuidW64List, 16) == 0);
+                                            const qsizetype off = isList ? 40 : 24;
+                                            if (csize > static_cast<quint64>(off)) {
+                                                const QString kind = extractTransitionKindId(
+                                                    cptr + off, static_cast<qsizetype>(csize) - off);
+                                                if (!kind.isEmpty())
+                                                    eventTransitionKind = kind;
                                             }
                                         } else if (std::memcmp(cptr, kChunkEventPanCrop, 16) == 0) {
                                             panCropData = parsePanCropChunk(cpayload, cpayloadSize);
@@ -2723,6 +2788,8 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                                         }
 
                                         track.clips.append(clip);
+                                        if (!eventTransitionKind.isEmpty())
+                                            clipTransitionKinds.insert(clip.id, eventTransitionKind);
                                         if (eventId > 0) {
                                             eventIdToClipLoc.insert(eventId, qMakePair(project.tracks().size(), track.clips.size() - 1));
                                         }
@@ -2825,23 +2892,29 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                             }
                         } else if ((evsize >= 40 && std::memcmp(bytes + evpos, kGuidW64List, 16) == 0
                                     && (std::memcmp(bytes + evpos + 24, kListTrackAudioFx, 16) == 0
-                                        || std::memcmp(bytes + evpos + 24, kListEventFx, 16) == 0))
+                                        || std::memcmp(bytes + evpos + 24, kListEventFx, 16) == 0
+                                        || std::memcmp(bytes + evpos + 24, kListTrackVideoFx, 16) == 0))
                                    || std::memcmp(bytes + evpos, kListEventFx, 16) == 0
+                                   || std::memcmp(bytes + evpos, kListTrackVideoFx, 16) == 0
                                    || std::memcmp(bytes + evpos, kChunkEventEffect, 16) == 0) {
-                            const uint8_t *fxPayload = bytes + evpos + 24;
-                            const qsizetype fxPayloadSize = static_cast<qsizetype>(evsize - 24);
-                            if (trackType == TrackType::Audio) {
-                                for (const Effect &e : extractAudioEffects(fxPayload, fxPayloadSize))
-                                    track.audioEffects.append(e);
-                            } else {
-                                for (const Effect &e : extractVideoEffects(fxPayload, fxPayloadSize))
-                                    track.effects.append(e);
+                            const bool isList = (std::memcmp(bytes + evpos, kGuidW64List, 16) == 0);
+                            const qsizetype fxOff = isList ? 40 : 24;
+                            const uint8_t *fxPayload = bytes + evpos + fxOff;
+                            const qsizetype fxPayloadSize = static_cast<qsizetype>(evsize) - fxOff;
+                            if (fxPayloadSize > 0) {
+                                if (trackType == TrackType::Audio) {
+                                    for (const Effect &e : extractAudioEffects(fxPayload, fxPayloadSize))
+                                        track.audioEffects.append(e);
+                                } else {
+                                    for (const Effect &e : extractVideoEffects(fxPayload, fxPayloadSize))
+                                        track.effects.append(e);
+                                }
                             }
                         }
                         evpos += (evsize + 7) & ~7;
                     }
 
-                    detectTransitionsForTrack(track);
+                    detectTransitionsForTrack(track, clipTransitionKinds);
 
                     if (!track.clips.isEmpty()) {
                         bool allText = true;

@@ -53,6 +53,7 @@ private slots:
     void readsImageMxfTrackFlagsAndLevelsToColorGrade();
     void readsPlaybackRateAndActiveTakeSelection();
     void parsesDirectShowTrackAndEventAudioFxGraphs();
+    void parsesVideoTrackFxAndExplicitTransitionPlugins();
 };
 
 void TestInterchangeVegas::detectsVegasProject()
@@ -2169,6 +2170,163 @@ void TestInterchangeVegas::parsesDirectShowTrackAndEventAudioFxGraphs()
         QVERIFY(foundCleanAudioTrack);
         QVERIFY(foundTrackAudioFx);
         QVERIFY(foundClipAudioFx);
+    }
+}
+
+void TestInterchangeVegas::parsesVideoTrackFxAndExplicitTransitionPlugins()
+{
+    auto appendU32 = [](QByteArray &out, quint32 v) {
+        char b[4] = {char(v & 0xff), char((v >> 8) & 0xff), char((v >> 16) & 0xff), char((v >> 24) & 0xff)};
+        out.append(b, 4);
+    };
+    auto appendU64 = [](QByteArray &out, quint64 v) {
+        char b[8];
+        for (int i = 0; i < 8; ++i)
+            b[i] = char((v >> (i * 8)) & 0xff);
+        out.append(b, 8);
+    };
+    auto wrapW64Chunk = [&](const QByteArray &guid, const QByteArray &payload) {
+        QByteArray out = guid;
+        appendU64(out, static_cast<quint64>(24 + payload.size()));
+        out.append(payload);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto wrapW64List = [&](const QByteArray &typeGuid, const QByteArray &body) {
+        static const QByteArray kList = QByteArray::fromHex("6c6973742f91cf11a5d628db04c10000");
+        QByteArray out = kList;
+        appendU64(out, static_cast<quint64>(40 + body.size()));
+        out.append(typeGuid);
+        out.append(body);
+        while (out.size() % 8 != 0)
+            out.append('\0');
+        return out;
+    };
+    auto utf16 = [](const QString &s) {
+        return QByteArray(reinterpret_cast<const char *>(s.utf16()), (s.size() + 1) * 2);
+    };
+
+    const QByteArray kRiff = QByteArray::fromHex("726966662e91cf11a5d628db04c10000");
+    const QByteArray kMediaPool = QByteArray::fromHex("5b2d8fb20f23d21186af00c04f8edb8a");
+    const QByteArray kTimeline = QByteArray::fromHex("47076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kTrack = QByteArray::fromHex("48076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEventContainer = QByteArray::fromHex("49076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEvent = QByteArray::fromHex("4a076c4d1623d21186b000c04f8edb8a");
+    const QByteArray kEventTime = QByteArray::fromHex("6a208d162123d21186b000c04f8edb8a");
+    const QByteArray kEventTake = QByteArray::fromHex("6d208d162123d21186b000c04f8edb8a");
+    const QByteArray kTrackProps28 = QByteArray::fromHex("286cd4690b7fd211871700c04f8edb8a");
+    const QByteArray kE5E4 = QByteArray::fromHex("e5e4f01a7f6ed211870500c04f8edb8a");
+    const QByteArray kE6E4 = QByteArray::fromHex("e6e4f01a7f6ed211870500c04f8edb8a");
+    const QByteArray kCe3b = QByteArray::fromHex("ce3b2bfc8579d211871100c04f8edb8a");
+    const QByteArray kCf3b = QByteArray::fromHex("cf3b2bfc8579d211871100c04f8edb8a");
+
+    QByteArray mpPayload(96, '\0');
+    const quint32 mid = 1;
+    std::memcpy(mpPayload.data() + 60, &mid, 4);
+    mpPayload.append(utf16(QStringLiteral("C:\\video\\shot.mov")));
+    const QByteArray mpList = wrapW64List(
+        kMediaPool, wrapW64Chunk(QByteArray::fromHex("5d2d8fb20f23d21186af00c04f8edb8a"), mpPayload));
+
+    auto makeEvent = [&](quint64 startTicks, quint64 durTicks, const QString &trPluginUtf16) {
+        QByteArray evTime(80, '\0');
+        std::memcpy(evTime.data() + 16, &startTicks, 8);
+        std::memcpy(evTime.data() + 24, &durTicks, 8);
+        QByteArray evTake(44, '\0');
+        std::memcpy(evTake.data() + 36, &mid, 4);
+        QByteArray inner = wrapW64Chunk(kEventTime, evTime) + wrapW64Chunk(kEventTake, evTake);
+        if (!trPluginUtf16.isEmpty()) {
+            QByteArray trBody(32, '\0');
+            trBody.append(utf16(trPluginUtf16));
+            inner += wrapW64List(kCe3b, wrapW64Chunk(kCf3b, trBody));
+        }
+        return wrapW64List(kEvent, inner);
+    };
+
+    // 3 overlapping events:
+    // clip 1: [0, 3s]
+    // clip 2: [2s, 5s] with :flash} -> dip_white
+    // clip 3: [4s, 7s] with :linearwipe} Left-Right, Soft Edge -> wipe_right
+    const QByteArray eventsBody =
+        makeEvent(0, 30'000'000ULL, QString())
+        + makeEvent(20'000'000ULL, 30'000'000ULL, QStringLiteral("{Svfx:com.sonycreativesoftware:flash}"))
+        + makeEvent(40'000'000ULL, 30'000'000ULL,
+                    QStringLiteral("{Svfx:com.sonycreativesoftware:linearwipe} Left-Right, Soft Edge"));
+
+    QByteArray trackFxBody(16, '\0');
+    trackFxBody.append(utf16(QStringLiteral("{Svfx:com.sonycreativesoftware:vignette}")));
+    const QByteArray trackFxList = wrapW64List(kE5E4, wrapW64Chunk(kE6E4, trackFxBody));
+
+    QByteArray vProps(40, '\0');
+    const quint32 videoCode = 2;
+    std::memcpy(vProps.data() + 32, &videoCode, 4);
+    const QByteArray tList = wrapW64List(
+        kTrack,
+        wrapW64Chunk(kTrackProps28, vProps)
+            + wrapW64List(kEventContainer, eventsBody)
+            + trackFxList);
+
+    const QByteArray body = mpList + wrapW64List(kTimeline, tList);
+    QByteArray veg = kRiff;
+    appendU64(veg, static_cast<quint64>(40 + body.size()));
+    veg.append(QByteArray(16, '\0'));
+    veg.append(body);
+
+    QString err;
+    const auto loaded = drift::vegas::readProjectData(veg, QString(), &err);
+    QVERIFY2(loaded.has_value(), qPrintable(err));
+    QCOMPARE(loaded->tracks().size(), 1);
+    const auto &t = loaded->tracks().at(0);
+    QCOMPARE(t.effects.size(), 1);
+    QCOMPARE(t.effects.at(0).catalogId, QStringLiteral("stylize.vignette"));
+    QCOMPARE(t.transitions.size(), 2);
+    QCOMPARE(t.transitions.at(0).kindId, QStringLiteral("dip_white"));
+    QCOMPARE(t.transitions.at(1).kindId, QStringLiteral("wipe_right"));
+
+    // Extended real .veg verification if Odds folder is mounted.
+    const QString creditsVeg = findExtendedVeg(QStringLiteral("Episode 4/OLD/Credits.veg"));
+    if (!creditsVeg.isEmpty()) {
+        QString rErr;
+        const auto p = drift::vegas::readProject(creditsVeg, &rErr);
+        QVERIFY2(p.has_value(), qPrintable(rErr));
+        bool foundTrackVignette = false;
+        for (const auto &tr : p->tracks()) {
+            for (const auto &fx : tr.effects) {
+                if (fx.catalogId == QLatin1String("stylize.vignette"))
+                    foundTrackVignette = true;
+            }
+        }
+        QVERIFY(foundTrackVignette);
+    }
+
+    const QString veg11a = findExtendedVeg(QStringLiteral("Episode 4/OLD/1.1a.veg"));
+    if (!veg11a.isEmpty()) {
+        QString rErr;
+        const auto p = drift::vegas::readProject(veg11a, &rErr);
+        QVERIFY2(p.has_value(), qPrintable(rErr));
+        bool foundDipWhite = false;
+        for (const auto &tr : p->tracks()) {
+            for (const auto &tItem : tr.transitions) {
+                if (tItem.kindId == QLatin1String("dip_white"))
+                    foundDipWhite = true;
+            }
+        }
+        QVERIFY(foundDipWhite);
+    }
+
+    const QString veg51 = findExtendedVeg(QStringLiteral("Episode 4/Backup/5.1.veg"));
+    if (!veg51.isEmpty()) {
+        QString rErr;
+        const auto p = drift::vegas::readProject(veg51, &rErr);
+        QVERIFY2(p.has_value(), qPrintable(rErr));
+        bool foundWipeRight = false;
+        for (const auto &tr : p->tracks()) {
+            for (const auto &tItem : tr.transitions) {
+                if (tItem.kindId == QLatin1String("wipe_right"))
+                    foundWipeRight = true;
+            }
+        }
+        QVERIFY(foundWipeRight);
     }
 }
 

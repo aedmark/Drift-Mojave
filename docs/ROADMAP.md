@@ -157,14 +157,14 @@ Status: **Shipped in `v1.6.0`**
 
 ## Tier 9 — VEGAS Deep Fidelity & Interchange Completeness (`v1.7.0`)
 
-Status: **In Progress (`9A` implemented on `main`)**
+Status: **In Progress (`9A–9C` implemented on `main`)**
 
 1. **Tier 9A — Audio Track FX Chains (`f49892f7…`) & Event Audio FX (`ce956ab6…`)** — ✅ Implemented on `main`
    - DirectShow FX Graph parser in `VegasReader` decoding `Sony Track EQ`, `Sony Track Compressor`, `Sony Track Noise Gate`, `Reverb` / `ExpressFX Reverb`, `ExpressFX Graphic EQ`, `ExpressFX Dynamics`, `Simple Delay`, and `Sony Volume` into `Track::audioEffects` and `Clip::audioEffects` (skipping untouched default no-op track strip plugins).
-2. **Tier 9B — Video Track-Level FX (`e5e4f01a…`)** — Planned
-   - Parse track-level video OFX lists (`e5e4f01a…`) on video tracks (e.g., track-wide Vignette, Levels, Color Corrector).
-3. **Tier 9C — Explicit Transition Plugin Mapping (`flash`, `linearwipe`)** — Planned
-   - Map VEGAS transition OFX plugins (`com.sonycreativesoftware:flash`, `com.sonycreativesoftware:linearwipe`, etc.) to matching Drift transition packages instead of defaulting all overlaps to dissolve.
+2. **Tier 9B — Video Track-Level FX (`e5e4f01a…`)** — ✅ Implemented on `main`
+   - Parse track-level video OFX lists (`e5e4f01a…`) on video tracks (`Track::effects`, e.g., track-wide Vignette, Levels, Color Corrector).
+3. **Tier 9C — Explicit Transition Plugin Mapping (`flash`, `linearwipe`)** — ✅ Implemented on `main`
+   - Parse `ce3b2bfc…` / `cf3b2bfc…` fade/transition plugin chunks and map VEGAS transition OFX plugins (`flash` → `dip_white`, `linearwipe` → directional `wipe_left`/`wipe_right`/`wipe_up`/`wipe_down`, `push`/`slide` → `push_left`, `barndoor`/`venetianblinds` → `linear_blinds`, `zoom` → `zoom_in`, `iris`/`clockwipe`/`gradientwipe` → `luma_fade`, `dip` → `dip`) instead of defaulting all overlaps to dissolve.
 4. **Tier 9D — Extended OFX Video FX (`smart_zoom`, `colorcorrectorsecondary`, `colormatch`, `Stabilize`)** — Planned
    - Translate `smart_zoom` and secondary color adjustments where Drift has native equivalents, and surface `Stabilize` / `colormatch` flags.
 5. **Tier 9E — Audio Master Bus & Sub-Buses (`e42b0d22…`)** — Planned
