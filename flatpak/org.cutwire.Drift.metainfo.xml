@@ -89,6 +89,21 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.7.0" date="2026-11-23">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.7.0</url>
+      <description>
+        <p>Drift Mojave 1.7.0 delivers VEGAS Parity Tier 9 (9A–9G), deepening native .veg interchange fidelity across audio FX graphs, video track FX, transitions, framing, buses, media bins, and import transparency:</p>
+        <ul>
+          <li>DirectShow audio track &amp; event FX graph parser (Sony Track EQ, Track Compressor, Track Noise Gate, Reverb / ExpressFX Reverb, ExpressFX Graphic EQ, ExpressFX Dynamics, Simple Delay, Sony Volume), skipping untouched default track strips</li>
+          <li>Video track-level OFX chain parsing (e.g. track-wide Vignette, Levels, Color Corrector)</li>
+          <li>Explicit VEGAS transition plugin mapping (flash to dip_white, linearwipe to directional wipes, push/slide, barndoor/venetianblinds, zoom, iris/clockwipe, dip)</li>
+          <li>Extended OFX translation for Smart Zoom (LocationAndZoom) and Secondary Color Corrector</li>
+          <li>Audio Master Bus FX &amp; custom sub-bus import into Project::masterAudioEffects() and Project::audioBuses()</li>
+          <li>Recursive Media Pool bin folder tree import into Project::binFolders()</li>
+          <li>Skipped / unmapped OFX and VST3/VST plugin reporting with counts in VegasImportSummaryDialog</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.6.0" date="2026-11-22">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.6.0</url>
       <description>

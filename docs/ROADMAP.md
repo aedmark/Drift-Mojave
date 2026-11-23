@@ -157,7 +157,7 @@ Status: **Shipped in `v1.6.0`**
 
 ## Tier 9 — VEGAS Deep Fidelity & Interchange Completeness (`v1.7.0`)
 
-Status: **Implemented on `main` (`9A–9G`)**
+Status: **Shipped in `v1.7.0`**
 
 1. **Tier 9A — Audio Track FX Chains (`f49892f7…`) & Event Audio FX (`ce956ab6…`)** — ✅ Implemented on `main`
    - DirectShow FX Graph parser in `VegasReader` decoding `Sony Track EQ`, `Sony Track Compressor`, `Sony Track Noise Gate`, `Reverb` / `ExpressFX Reverb`, `ExpressFX Graphic EQ`, `ExpressFX Dynamics`, `Simple Delay`, and `Sony Volume` into `Track::audioEffects` and `Clip::audioEffects` (skipping untouched default no-op track strip plugins).
