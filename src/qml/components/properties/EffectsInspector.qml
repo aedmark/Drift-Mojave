@@ -110,7 +110,8 @@ Item {
             visible: root.selectedEffects.length === 0
             glyph: Theme.icons.wand
             title: qsTr("No effects yet")
-            hint: qsTr("Drag a preset from the Effects library onto this clip, or click a preset card.")
+            hint: Theme.touchInput ? qsTr("Tap Browse effects and pick a preset.")
+                                   : qsTr("Drag a preset from the Effects library onto this clip, or click a preset card.")
             actionText: qsTr("Browse effects")
             onActionTriggered: root.browseEffectsRequested()
         }
@@ -167,6 +168,16 @@ Item {
                     inspector: root
                 }
 
+                InlineTip {
+                    tipId: "effects.privacyTrack"
+                    shown: effectCard.effectData.catalogId === "builtin.effects.privacy_blur"
+                    text: qsTr("Blurring something that moves?")
+                    actionText: qsTr("Track it in Mask & track")
+                    onActionTriggered: ShellBridge.goDeeper({ panel: "masking",
+                                                              track: EditorState.selectedTrack,
+                                                              clip: EditorState.selectedClip })
+                }
+
                 Loader {
                     active: effectCard.effectData.catalogId === "face_props"
                     visible: active
@@ -176,6 +187,17 @@ Item {
                         effectIndex: effectCard.index
                         effectParams: effectCard.effectParams
                     }
+                }
+
+                Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    visible: effectCard.effectData.catalogId === "motion.smooth" && root.clipData.framesCoverProject === true
+                    opacity: effectCard.effectEnabled ? 1 : 0.45
+                    text: qsTr("This clip already has a frame for every project frame, so Motion Smoothing adds nothing here. It helps footage with a lower frame rate than the project, or slowed down.")
+                    color: Theme.c.effectsInspector.warning
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeXs
                 }
 
                 Column {

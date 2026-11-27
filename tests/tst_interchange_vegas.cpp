@@ -1452,10 +1452,10 @@ void TestInterchangeVegas::readsRegionsEnvelopesBezierMasksAndTrackAudioFx()
     QVERIFY(qAbs(vt.compositeEnvelope.evaluateAt(drift::secondsToUs(1.0)) - 0.5) < 1e-4);
     QCOMPARE(vt.clips.size(), 1);
     QCOMPARE(vt.clips.at(0).mask.shape, drift::MaskShape::Freeform);
-    QCOMPARE(vt.clips.at(0).mask.points.size(), 4);
+    QCOMPARE(vt.clips.at(0).mask.vertices.size(), 4);
     QVERIFY(vt.clips.at(0).mask.invert);
     QVERIFY(qAbs(vt.clips.at(0).mask.feather - 12.0) < 1e-4);
-    QVERIFY(qAbs(vt.clips.at(0).mask.points.at(0).x() - 0.1) < 1e-4);
+    QVERIFY(qAbs(vt.clips.at(0).mask.vertices.at(0).p.x() - 0.1) < 1e-4);
 
     const drift::Track &at = loaded->tracks().at(1);
     QCOMPARE(at.type, drift::TrackType::Audio);

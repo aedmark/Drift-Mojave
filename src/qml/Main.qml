@@ -308,7 +308,7 @@ ApplicationWindow {
         }
         const tools = [segmentationWindowLoader, denoiseWindowLoader, restoreWindowLoader,
                        multicamWindowLoader, speedCurveWindowLoader, fadeCurveWindowLoader,
-                       marketplaceWindowLoader, extrasWindowLoader]
+                       marketplaceWindowLoader, extrasWindowLoader, interchangeWindowLoader]
         for (var t = 0; t < tools.length; ++t) {
             if (tools[t].shown) {
                 tools[t].item.close()
@@ -415,7 +415,19 @@ ApplicationWindow {
             return
         if (layoutChooserDialogLoader.shown || recoveryDialogLoader.shown)
             return
+        if (window.applyMakeCanvas())
+            return
         layoutChooserDialogLoader.ensure().openChooser()
+    }
+
+    // Quick Setup's "What you make" answers the canvas question for new projects.
+    function applyMakeCanvas() {
+        const canvas = LayoutPresets.makeCanvas(EditorState.preferences.whatYouMake)
+        if (!canvas)
+            return false
+        EditorState.projectFile.setProjectSetup(canvas.width, canvas.height, EditorState.projectFile.projectFps())
+        EditorState.markProjectLayoutChosen()
+        return true
     }
 
     // Quiet catalog refresh for the header attention indicator.
@@ -430,6 +442,17 @@ ApplicationWindow {
     // Settings / header: reopen platform layout picker anytime.
     function openLayoutChooser() {
         layoutChooserDialogLoader.ensure().openFromSettings()
+    }
+
+    LazyLoader {
+        id: beatCutDialogLoader
+        sourceComponent: Component {
+            BeatCutDialog { }
+        }
+    }
+
+    function openBeatCut(track, clip) {
+        beatCutDialogLoader.ensure().openFor(track, clip)
     }
 
     LazyLoader {
@@ -505,6 +528,14 @@ ApplicationWindow {
         keepLoaded: true
         sourceComponent: Component {
             ExtrasWindow { }
+        }
+    }
+
+    LazyLoader {
+        id: interchangeWindowLoader
+        keepLoaded: true
+        sourceComponent: Component {
+            InterchangeWindow { }
         }
     }
 
@@ -1028,6 +1059,15 @@ ApplicationWindow {
         userPackageImporter.importFile(url)
     }
 
+    // tab: "import" | "export". A non-empty url is analysed straight away.
+    function openInterchange(tab, url) {
+        interchangeWindowLoader.ensure().open(tab || "import", url || "")
+    }
+
+    function confirmDiscardForImport(proceed) {
+        editorHeader.confirmIfDirty(proceed)
+    }
+
     function openExtras() {
         openExtrasTarget(addonAttentionTarget)
     }
@@ -1228,6 +1268,14 @@ ApplicationWindow {
             window.showStartScreen = false
             return
         }
+        // Quick Setup's "Start a project" finish. Recovery is left alone: newProject() would
+        // delete the snapshot.
+        if (!EditorState.projectFile.recoveryAvailable && EditorState.preferences.takeStartProject()) {
+            window.showStartScreen = false
+            EditorState.projectFile.newProject(true)
+            window.applyMakeCanvas()
+            return
+        }
         // Opt-in: restore unsaved recovery or the last clean project silently.
         if (EditorState.projectFile.restoreLastSessionIfEnabled())
             return
@@ -1330,7 +1378,8 @@ ApplicationWindow {
 
         function onSubtitleGenerationFinished(ok, message) {
             if (ok)
-                Toasts.success(message.length > 0 ? message : qsTr("Captions created."))
+                Toasts.post("success", message.length > 0 ? message : qsTr("Captions created."), undefined,
+                            qsTr("Review captions"), function () { ShellBridge.goDeeper({ panel: "subtitles" }) })
             else
                 Toasts.error(message.length > 0
                              ? qsTr("Couldn’t create captions: %1").arg(message)
@@ -1466,27 +1515,63 @@ ApplicationWindow {
         }
     }
 
-    // The one place a bound action is dispatched, shared by the ApplicationShortcut
-    // Repeater below and the editor FocusScope's arrow handling. A handful of ids are
-    // QML state and have no triggerAction branch at all, so a second dispatch site
-    // that called EditorState.triggerAction directly would turn them into dead keys
-    // the moment someone rebound one onto an arrow chord.
+    // Control-surface buttons dispatch exactly like a key press.
+    Connections {
+        target: EditorState.surfaces
+        function onActionRequested(id) {
+            window.dispatchAction(id)
+        }
+    }
+
+    // The one place a bound action is dispatched, shared by dispatchChord (the Shortcut items
+    // below and the editor FocusScope's arrow handling), the Mac menu bar and global search. A
+    // handful of ids are QML state and have no triggerAction branch at all, so a second dispatch
+    // site that called EditorState.triggerAction directly would turn them into dead keys the
+    // moment someone rebound one onto an arrow chord.
     //
+    // Panels get the id first: they claim global ids (delete, selectAll, clearSelection, ...)
+    // while engaged, and handle their own scoped ids.
+    function dispatchAction(id) {
+        if (id === "clearSelection" && EditorState.drag.interacting) {
+            EditorState.drag.cancel()
+            return
+        }
+        for (const handler of ShellBridge.actionHandlers) {
+            if (handler.handleAction(id))
+                return
+        }
+        dispatchGlobalAction(id)
+    }
+
+    // A pressed chord: each engaged panel is offered the action its scope binds to the chord and
+    // then the global one, in priority order; what none of them takes runs as the global action.
+    // Returns whether the chord is bound to anything, which is what lets an arrow key be consumed.
+    function dispatchChord(chord) {
+        const globalId = EditorState.keymap.actionFor("global", chord)
+        // A drag in flight owns Esc, whichever item holds focus.
+        if (globalId === "clearSelection" && EditorState.drag.interacting) {
+            EditorState.drag.cancel()
+            return true
+        }
+        let bound = globalId !== ""
+        for (const handler of ShellBridge.actionHandlers) {
+            const scopedId = handler.scope === "global" ? "" : EditorState.keymap.actionFor(handler.scope, chord)
+            if (scopedId !== "") {
+                bound = true
+                if (handler.handleAction(scopedId))
+                    return true
+            }
+            if (globalId !== "" && handler.handleAction(globalId))
+                return true
+        }
+        if (globalId !== "")
+            dispatchGlobalAction(globalId)
+        return bound
+    }
+
     // Escape (clearSelection): CapCut-style — if a timeline cut tool is active,
     // first press returns to Select; only then does Escape clear the selection.
-    function dispatchAction(id) {
-        if (ShellBridge.keyframesActionHandler && ShellBridge.keyframesActionHandler.handleAction(id))
-            return
-        if (ShellBridge.maskingActionHandler && ShellBridge.maskingActionHandler.handleAction(id))
-            return
-        if (ShellBridge.trackingActionHandler && ShellBridge.trackingActionHandler.handleAction(id))
-            return
-        if (ShellBridge.subtitleActionHandler && ShellBridge.subtitleActionHandler.handleAction(id))
-            return
-        if (ShellBridge.sourceLabActionHandler && ShellBridge.sourceLabActionHandler.handleAction(id))
-            return
-        if (ShellBridge.sourceLabRangesHandler && ShellBridge.sourceLabRangesHandler.handleAction(id))
-            return
+    function dispatchGlobalAction(id) {
         if (id === "workspace.restoreWindows") {
             window.restoreWindows()
             return
@@ -1558,6 +1643,11 @@ ApplicationWindow {
                 editorHeader.focusSearch()
             return
         }
+        if (id === "askCommand") {
+            if (editorHeader.visible)
+                editorHeader.focusAsk()
+            return
+        }
         if (id === "workspace.next" || id === "workspace.prev") {
             const list = Workspaces.workspaces
             const step = id === "workspace.next" ? 1 : -1
@@ -1572,18 +1662,148 @@ ApplicationWindow {
                 Workspaces.activeId = ws.id
             return
         }
+        if (dispatchPanelAction(id))
+            return
         EditorState.triggerAction(id)
     }
 
-    // Shortcut is not an Item, so wrap each binding in a zero-size host.
+    // The actions that open a dialog, a panel or a timeline tool. Each acts on the current
+    // selection and does nothing when it does not apply, like the matching menu item being hidden.
+    // Returns whether the id was one of them.
+    function dispatchPanelAction(id) {
+        const track = EditorState.selectedTrack
+        const clip = EditorState.selectedClip
+        const kind = EditorState.selectedClipData.kind ?? ""
+        const hasClip = track >= 0 && clip >= 0 && kind !== ""
+        switch (id) {
+        case "importMedia":
+            if (timelinePanel?.visible)
+                timelinePanel.importMediaDirectlyToTimeline()
+            return true
+        case "export":
+            if (editorHeader.visible && !EditorState.exportInProgress)
+                editorHeader.exportVideo()
+            return true
+        case "renderQueue":
+            if (editorHeader.visible && Qt.platform.os !== "android")
+                editorHeader.openRenderQueue()
+            return true
+        case "openSettings":
+            window.openSettings()
+            return true
+        case "openKeymap":
+            window.openSettings("keymap")
+            return true
+        case "togglePreviewFullscreen":
+            window.togglePreviewFullscreen()
+            return true
+        case "zoomToFit":
+            if (timelinePanel?.visible)
+                timelinePanel.fitZoom()
+            return true
+        case "trimStart":
+        case "trimEnd":
+            if (timelinePanel?.visible) {
+                const tool = id === "trimStart" ? "trimStart" : "trimEnd"
+                timelinePanel.timelineTool = timelinePanel.timelineTool === tool ? "" : tool
+            }
+            return true
+        case "renameClip":
+            if (hasClip && timelinePanel?.visible)
+                timelinePanel.requestRenameClip(track, clip)
+            return true
+        case "replaceClip":
+            if (hasClip && timelinePanel?.visible
+                    && EditorState.replaceCandidatesForClip(track, clip).length > 0)
+                timelinePanel.requestReplaceClip(track, clip)
+            return true
+        case "editBookmark":
+            if (timelinePanel?.visible)
+                timelinePanel.requestRenameBookmarkAtPlayhead()
+            return true
+        case "crop":
+            if ((kind === "video" || kind === "image") && typeof window.openCrop === "function")
+                window.openCrop(track, clip)
+            return true
+        case "colorGrade":
+            if (hasClip && kind !== "audio" && kind !== "subtitle")
+                Workspaces.activeId = "color"
+            return true
+        case "editKeyframes":
+            if (hasClip)
+                Workspaces.activeId = "keyframes"
+            return true
+        case "maskAndTrack":
+            if (kind === "video" || kind === "image")
+                Workspaces.activeId = "masking-tracking"
+            return true
+        case "clipProperties":
+            if (hasClip)
+                ShellBridge.navigate("panel:properties")
+            return true
+        case "clipSpeed":
+            if (hasClip)
+                ShellBridge.navigate("panel:properties#speed-playback")
+            return true
+        case "autoDuck":
+            if (hasClip && EditorState.audioAlign.canDuck(track, clip) && !EditorState.audioAlign.running)
+                ShellBridge.navigate("panel:audioMixer#audio-ducking")
+            return true
+        }
+        return false
+    }
+
+    // Controller buttons are chords like keys ("Pad+RB"), so the same dispatch decides whose they
+    // are. Fly mode takes them while it is on, and the shortcut capture field while it listens.
+    Connections {
+        target: Gamepad
+        function onButtonPressed(chord) {
+            if (!window.showStartScreen && !Gamepad.capturing && !EditorState.preview.flying)
+                window.dispatchChord(chord)
+        }
+    }
+
+    // Puppet recording: while it runs the sticks steer the selected clip (left moves, right turns
+    // and grows). The scene camera is flown from the 3D view instead.
+    Timer {
+        interval: 16
+        repeat: true
+        running: EditorState.preview.recording && Gamepad.connected
+        property double last: 0
+        onRunningChanged: last = Date.now()
+        onTriggered: {
+            const now = Date.now()
+            EditorState.preview.puppet((now - last) / 1000, Gamepad.leftX, Gamepad.leftY, Gamepad.rightY, Gamepad.rightX)
+            last = now
+        }
+    }
+
+    // A short rumble when a scrub passes a cut or a marker.
+    Connections {
+        target: EditorState
+        property real lastSeconds: 0
+        function onPlayheadSecondsChanged() {
+            const seconds = EditorState.playheadSeconds
+            if (!EditorState.playing && Gamepad.connected && Gamepad.hapticsEnabled
+                    && EditorState.crossesEditPoint(lastSeconds, seconds))
+                Gamepad.haptic("cut")
+            lastSeconds = seconds
+        }
+    }
+
+    // One Shortcut per distinct chord across the global and panel scopes; dispatchChord decides
+    // whose it is. Shortcut is not an Item, so wrap each in a zero-size host. Arrow chords are
+    // left to the editor FocusScope below.
     Repeater {
-        model: EditorState.actions
+        model: EditorState.keymap.chords.filter((chord) => !Theme.shortcutSequenceUsesArrowKey(chord))
         Item {
-            required property var modelData
+            id: chordHost
+            required property string modelData
+            readonly property string globalId: EditorState.keymap.actionFor("global", modelData)
             width: 0
             height: 0
             Shortcut {
-                sequence: Theme.nativeShortcutSequence(modelData.shortcut)
+                sequence: Theme.nativeShortcutSequence(chordHost.modelData)
                 context: Qt.ApplicationShortcut
                 // ApplicationShortcut fires regardless of what is on screen, so without
                 // this a key like M (toggleBookmark) still edited the document hidden
@@ -1596,23 +1816,11 @@ ApplicationWindow {
                 // triggerAction Connections below), which already gate on a pending load
                 // and unsaved changes — the same functions the start screen's own tiles
                 // call — so there is nothing editing-shaped about letting them through.
-                enabled: (modelData.id === "newProject" || modelData.id === "open"
+                enabled: (chordHost.globalId === "newProject" || chordHost.globalId === "open"
                          || !window.showStartScreen)
-                         && !Theme.shortcutSequenceUsesArrowKey(modelData.shortcut)
-                onActivated: window.dispatchAction(modelData.id)
+                onActivated: window.dispatchChord(chordHost.modelData)
             }
         }
-    }
-
-    // There is no menu bar and no help overlay, so the only route to the shortcut
-    // list was an unlabelled icon in a vertical rail that can itself be scrolled out
-    // of view on a short window. F1 is the conventional way in and opens the
-    // keyboard shortcuts page of Settings.
-    Shortcut {
-        sequence: "F1"
-        context: Qt.ApplicationShortcut
-        enabled: !window.showStartScreen
-        onActivated: window.openSettings("keymap")
     }
 
     // Arrow-key actions (frame step, 1s/10s jump, Alt-nudge, Alt cut-point)
@@ -1638,11 +1846,10 @@ ApplicationWindow {
                     return
                 }
             }
-            const id = EditorState.actionForArrowChord(event.key, event.modifiers)
-            if (id === "")
-                return
-            window.dispatchAction(id)
-            event.accepted = true
+            if (Theme.isArrowKey(event.key)
+                    && window.dispatchChord(EditorState.keymap.chordFromKey(event.key, event.modifiers,
+                                                                           event.nativeScanCode, event.text)))
+                event.accepted = true
         }
 
         EditorWorkspace {
@@ -1669,9 +1876,13 @@ ApplicationWindow {
                 // when the screen is allowed to disappear.
                 onNewProjectRequested: window.requestNewProject()
                 onOpenProjectRequested: window.requestOpenProjectDialog()
+                onImportExportRequested: window.openInterchange("import", "")
                 onOpenRecentRequested: (path) => window.requestOpenRecentProject(path)
                 onHelpRequested: window.openHelpDialog()
                 onMoreSettingsRequested: window.openSettings()
+                onShortcutsRequested: window.openSettings("keymap")
+                onUpdatesRequested: window.checkForUpdates()
+                onAboutRequested: window.openAboutDialog()
                 onDebugInfoRequested: window.openDebugInfo()
                 onAgentAccessRequested: editorHeader.openAgentAccess()
             }

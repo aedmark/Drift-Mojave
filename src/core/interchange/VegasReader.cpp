@@ -1733,7 +1733,7 @@ PanCropData parsePanCropChunk(const uint8_t *payload, qsizetype size)
                     mask.invert = (flags & 0x01) != 0;
                     if (!std::isnan(feather) && !std::isinf(feather) && feather >= 0.0)
                         mask.feather = qBound(0.0, feather, 200.0);
-                    mask.points.reserve(static_cast<qsizetype>(vertexCount));
+                    mask.vertices.reserve(static_cast<qsizetype>(vertexCount));
                     for (quint32 v = 0; v < vertexCount; ++v) {
                         const uint8_t *vp = payload + dStart + 16 + static_cast<qsizetype>(v) * 16;
                         const double vx = readDoubleLE(vp);
@@ -1743,9 +1743,11 @@ PanCropData parsePanCropChunk(const uint8_t *payload, qsizetype size)
                         // Accept either normalized [0..1] or source-pixel coordinates.
                         const double nx = (vx > 1.5 || vx < -0.5) ? (vx / sw) : vx;
                         const double ny = (vy > 1.5 || vy < -0.5) ? (vy / sh) : vy;
-                        mask.points.append(QPointF(qBound(-0.5, nx, 1.5), qBound(-0.5, ny, 1.5)));
+                        ShapeVertex sv;
+                        sv.p = QPointF(qBound(-0.5, nx, 1.5), qBound(-0.5, ny, 1.5));
+                        mask.vertices.append(sv);
                     }
-                    if (mask.points.size() >= 3) {
+                    if (mask.vertices.size() >= 3) {
                         result.mask = mask;
                         break;
                     }
@@ -1874,6 +1876,7 @@ bool isVegasProject(const QString &filePath)
 }
 
 std::optional<Project> readProject(const QString &filePath, QString *error,
+                                   drift::interchange::InterchangeReport *report,
                                    QSet<QString> visitedPaths, int depth)
 {
     const QString canon = QFileInfo(filePath).canonicalFilePath();
@@ -1888,7 +1891,7 @@ std::optional<Project> readProject(const QString &filePath, QString *error,
     }
     const QByteArray data = file.readAll();
     const QString sourceDir = QFileInfo(filePath).canonicalPath();
-    return readProjectData(data, sourceDir, error, visitedPaths, depth);
+    return readProjectData(data, sourceDir, error, report, visitedPaths, depth);
 }
 
 ProjectSummary parseProjectSummary(const QByteArray &data)
@@ -2029,6 +2032,7 @@ ProjectSummary parseProjectSummary(const QByteArray &data)
 
 std::optional<Project> readProjectData(const QByteArray &data, const QString &sourceDir,
                                        QString *error,
+                                       drift::interchange::InterchangeReport *report,
                                        QSet<QString> visitedPaths, int depth)
 {
     if (data.size() < 64 || !isVegasData(data)) {
@@ -2300,7 +2304,13 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                             QSet<QString> childVisited = visitedPaths;
                             childVisited.insert(canon);
                             QString nestedError;
-                            auto optNested = readProject(resolved, &nestedError, childVisited, depth + 1);
+                            auto optNested = readProject(resolved, &nestedError, report, childVisited, depth + 1);
+                            if (!optNested.has_value() && report) {
+                                report->add(drift::interchange::InterchangeIssue::Severity::Dropped,
+                                            QStringLiteral("nested"),
+                                            QStringLiteral("A nested VEGAS project could not be imported."),
+                                            diskName);
+                            }
                             if (optNested.has_value() && !optNested->tracks().isEmpty()) {
                                 drift::Project nestedProj = std::move(*optNested);
                                 const QString seqId = project.addSequence(nestedProj.tracks());
@@ -3454,6 +3464,15 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
                 }
             };
         parseBinTree(40, totalSize, QString());
+    }
+
+    if (report) {
+        for (const QString &plugin : collectUnmappedPluginsFromData(data)) {
+            report->add(drift::interchange::InterchangeIssue::Severity::Dropped,
+                        QStringLiteral("effect"),
+                        QStringLiteral("This VEGAS plugin is not supported and was dropped."),
+                        plugin);
+        }
     }
 
     project.ensureTrackIds();

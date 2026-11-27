@@ -16,18 +16,26 @@ target_link_libraries(tst_interchange_vegas PRIVATE Qt6::Test driftcore drifteng
 target_compile_definitions(tst_interchange_vegas PRIVATE DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 add_test(NAME InterchangeVegas COMMAND tst_interchange_vegas)
 
+qt_add_executable(tst_ffmpegabi tst_ffmpegabi.cpp)
+target_link_libraries(tst_ffmpegabi PRIVATE Qt6::Test Qt6::Multimedia FFmpeg::FFmpeg)
+if(WIN32)
+    target_link_libraries(tst_ffmpegabi PRIVATE psapi)
+endif()
+add_test(NAME FFmpegAbi COMMAND tst_ffmpegabi)
 qt_add_executable(tst_core tst_core.cpp)
 target_include_directories(tst_core PRIVATE ../src)
-target_link_libraries(tst_core PRIVATE Qt6::Test driftcore)
+target_link_libraries(tst_core PRIVATE Qt6::Test driftcore driftengine)
 target_compile_definitions(tst_core PRIVATE DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 add_test(NAME Core COMMAND tst_core)
 
 qt_add_executable(tst_keyframeview
     tst_keyframeview.cpp
     ../src/app/editor/sessions/KeyframeCurves.cpp
+    ../src/app/editor/sessions/KeyframeInteraction.cpp
     ../src/app/editor/sessions/KeyframeRows.cpp
     ../src/app/editor/sessions/KeyframeSelection.cpp
-    ../src/app/editor/sessions/KeyframeTimeView.cpp)
+    ../src/app/editor/sessions/KeyframeTimeView.cpp
+    ../src/ui/manip/DragSession.cpp)
 target_include_directories(tst_keyframeview PRIVATE ../src)
 target_link_libraries(tst_keyframeview PRIVATE Qt6::Test Qt6::Core driftcore)
 add_test(NAME KeyframeView COMMAND tst_keyframeview)
@@ -39,10 +47,95 @@ target_include_directories(tst_polylinedraft PRIVATE ../src)
 target_link_libraries(tst_polylinedraft PRIVATE Qt6::Test Qt6::Core)
 add_test(NAME PolylineDraft COMMAND tst_polylinedraft)
 
+qt_add_executable(tst_timelinewheel tst_timelinewheel.cpp)
+target_compile_definitions(tst_timelinewheel PRIVATE
+    "DRIFT_TIMELINE_WHEEL_JS=\"${CMAKE_SOURCE_DIR}/src/qml/components/timeline/TimelineWheel.js\"")
+target_link_libraries(tst_timelinewheel PRIVATE Qt6::Test Qt6::Qml)
+add_test(NAME TimelineWheel COMMAND tst_timelinewheel)
+
+# ToastInputShield.qml (#574) on its own: it imports only QtQuick, so it needs no Drift module.
+qt_add_executable(tst_toastinput tst_toastinput.cpp)
+target_compile_definitions(tst_toastinput PRIVATE
+    "DRIFT_TOAST_INPUT_SHIELD_QML=\"${CMAKE_SOURCE_DIR}/src/qml/components/shell/ToastInputShield.qml\"")
+target_link_libraries(tst_toastinput PRIVATE Qt6::Test Qt6::Gui Qt6::Qml Qt6::Quick)
+add_test(NAME ToastInput COMMAND tst_toastinput)
+set_tests_properties(ToastInput PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+qt_add_executable(tst_maskselect
+    tst_maskselect.cpp
+    ../src/app/editor/sessions/MaskSelection.cpp)
+target_include_directories(tst_maskselect PRIVATE ../src)
+target_link_libraries(tst_maskselect PRIVATE Qt6::Test Qt6::Core Qt6::Gui)
+add_test(NAME MaskSelect COMMAND tst_maskselect)
+
+qt_add_executable(tst_autozoom tst_autozoom.cpp)
+target_include_directories(tst_autozoom PRIVATE ../src)
+target_link_libraries(tst_autozoom PRIVATE Qt6::Test Qt6::Core Qt6::Gui driftcore)
+add_test(NAME AutoZoom COMMAND tst_autozoom)
+
+qt_add_executable(tst_capturewriter tst_capturewriter.cpp)
+target_include_directories(tst_capturewriter PRIVATE ../src)
+target_link_libraries(tst_capturewriter PRIVATE Qt6::Test Qt6::Core Qt6::Gui driftengine driftcore FFmpeg::FFmpeg)
+add_test(NAME CaptureWriter COMMAND tst_capturewriter)
+
+qt_add_executable(tst_capturerequest tst_capturerequest.cpp)
+target_include_directories(tst_capturerequest PRIVATE ../src)
+target_link_libraries(tst_capturerequest PRIVATE Qt6::Test Qt6::Core Qt6::Gui driftengine driftcore)
+add_test(NAME CaptureRequest COMMAND tst_capturerequest)
+
+qt_add_executable(tst_recordinglocation tst_recordinglocation.cpp)
+target_include_directories(tst_recordinglocation PRIVATE ../src)
+target_link_libraries(tst_recordinglocation PRIVATE Qt6::Test Qt6::Core driftengine driftcore)
+add_test(NAME RecordingLocation COMMAND tst_recordinglocation)
+
+qt_add_executable(tst_stemmask tst_stemmask.cpp)
+target_include_directories(tst_stemmask PRIVATE ../src)
+target_link_libraries(tst_stemmask PRIVATE Qt6::Test Qt6::Core driftengine driftcore)
+add_test(NAME StemMask COMMAND tst_stemmask)
+
+qt_add_executable(tst_stft tst_stft.cpp)
+target_include_directories(tst_stft PRIVATE ../src)
+target_link_libraries(tst_stft PRIVATE Qt6::Test Qt6::Core driftengine driftcore)
+add_test(NAME Stft COMMAND tst_stft)
+
+qt_add_executable(tst_facemask tst_facemask.cpp)
+target_include_directories(tst_facemask PRIVATE ../src)
+target_link_libraries(tst_facemask PRIVATE Qt6::Test Qt6::Core Qt6::Gui driftengine driftcore)
+add_test(NAME FaceMask COMMAND tst_facemask)
+
 qt_add_executable(tst_trackeroverlay tst_trackeroverlay.cpp)
 target_include_directories(tst_trackeroverlay PRIVATE ../src)
 target_link_libraries(tst_trackeroverlay PRIVATE Qt6::Test Qt6::Core Qt6::Gui)
 add_test(NAME TrackerOverlay COMMAND tst_trackeroverlay)
+
+qt_add_executable(tst_audioducking tst_audioducking.cpp)
+target_include_directories(tst_audioducking PRIVATE ../src)
+target_link_libraries(tst_audioducking PRIVATE Qt6::Test Qt6::Core driftengine driftcore)
+add_test(NAME AudioDucking COMMAND tst_audioducking)
+
+qt_add_executable(tst_beatsync tst_beatsync.cpp)
+target_include_directories(tst_beatsync PRIVATE ../src)
+target_link_libraries(tst_beatsync PRIVATE Qt6::Test Qt6::Core driftengine driftcore)
+add_test(NAME BeatSync COMMAND tst_beatsync)
+
+qt_add_executable(tst_input
+    tst_input.cpp
+    ../src/app/platform/Gamepad.h
+    ../src/app/platform/Gamepad.cpp
+    ../src/app/editor/keymap/Keymap.h
+    ../src/app/editor/keymap/Keymap.cpp
+    ../src/app/editor/keymap/KeymapCatalog.h
+    ../src/app/editor/keymap/KeymapCatalog.cpp
+    ../src/app/editor/keymap/KeymapPresets.h
+    ../src/app/editor/keymap/KeymapPresets.cpp)
+target_include_directories(tst_input PRIVATE ../src)
+target_link_libraries(tst_input PRIVATE Qt6::Test Qt6::Core Qt6::Gui driftcore)
+add_test(NAME Input COMMAND tst_input)
+
+qt_add_executable(tst_titletemplates tst_titletemplates.cpp)
+target_include_directories(tst_titletemplates PRIVATE ../src)
+target_link_libraries(tst_titletemplates PRIVATE Qt6::Test Qt6::Core Qt6::Gui driftcore)
+add_test(NAME TitleTemplates COMMAND tst_titletemplates)
 
 qt_add_executable(tst_curveedit
     tst_curveedit.cpp
@@ -50,6 +143,19 @@ qt_add_executable(tst_curveedit
 target_include_directories(tst_curveedit PRIVATE ../src)
 target_link_libraries(tst_curveedit PRIVATE Qt6::Test Qt6::Core driftengine)
 add_test(NAME CurveEdit COMMAND tst_curveedit)
+
+qt_add_executable(tst_manip
+    tst_manip.cpp
+    ../src/ui/manip/ManipModifiers.h
+    ../src/ui/manip/SnapService.cpp
+    ../src/ui/manip/DragSession.cpp
+    ../src/ui/manip/PathEditCore.cpp
+    ../src/ui/manip/StrokeSmoother.cpp
+    ../src/ui/manip/CurveGraphModel.cpp
+    ../src/ui/manip/ClipFrameMapper.cpp)
+target_include_directories(tst_manip PRIVATE ../src)
+target_link_libraries(tst_manip PRIVATE Qt6::Test Qt6::Core Qt6::Gui driftengine driftcore)
+add_test(NAME Manip COMMAND tst_manip)
 
 qt_add_executable(tst_colorwheel tst_colorwheel.cpp)
 target_include_directories(tst_colorwheel PRIVATE ../src)
@@ -207,6 +313,7 @@ target_compile_definitions(tst_engine PRIVATE
     DRIFT_TEST_ADDON_EFFECTS_DIR="${CMAKE_SOURCE_DIR}/../drift-addons/staging/effects-core/effects"
     DRIFT_TEST_TRENDING_EFFECTS_DIR="${CMAKE_SOURCE_DIR}/../drift-addons/staging/effects-trending/effects"
     DRIFT_TEST_TRANSITIONS_DIR="${CMAKE_SOURCE_DIR}/transitions"
+    DRIFT_TEST_ANIMATIONS_DIR="${CMAKE_SOURCE_DIR}/animations"
     DRIFT_TEST_FONTS_DIR="${CMAKE_SOURCE_DIR}/fonts"
     DRIFT_TEST_EMOJI_FONT_DIR="${CMAKE_SOURCE_DIR}/emoji-fonts"
     DRIFT_TEST_AUDIO_EFFECTS_DIR="${CMAKE_SOURCE_DIR}/audio-effects"
@@ -223,6 +330,14 @@ endif()
 add_test(NAME Engine COMMAND tst_engine)
 drift_copy_effects(tst_engine)
 drift_copy_transitions(tst_engine)
+
+qt_add_executable(tst_effectshaders tst_effectshaders.cpp)
+target_include_directories(tst_effectshaders PRIVATE ../src)
+target_link_libraries(tst_effectshaders PRIVATE Qt6::Test Qt6::Gui Qt6::OpenGL driftengine driftcore)
+target_compile_definitions(tst_effectshaders PRIVATE
+    DRIFT_TEST_EFFECTS_DIR="${CMAKE_SOURCE_DIR}/effects"
+    DRIFT_TEST_TRANSITIONS_DIR="${CMAKE_SOURCE_DIR}/transitions")
+add_test(NAME EffectShaders COMMAND tst_effectshaders)
 
 if(DRIFT_WITH_SKIA)
     qt_add_executable(tst_skia tst_skia.cpp)
@@ -254,6 +369,7 @@ qt_add_executable(tst_mcp
     ../src/playback/preview/SplitPreviewImageStore.cpp
     ../src/ui/imageproviders/multicam/MulticamImageStore.cpp
     ../src/app/editor/AppController.cpp
+    ../src/app/surfaces/EditorSurfaceTargets.cpp
     ../src/app/editor/appcontroller/AppControllerClipModel.cpp
     ../src/app/editor/appcontroller/AppControllerInternal.cpp
     ../src/app/editor/appcontroller/AppControllerTimeline.cpp
@@ -264,16 +380,26 @@ qt_add_executable(tst_mcp
     ../src/app/editor/appcontroller/AppControllerClipProps.cpp
     ../src/app/editor/appcontroller/AppControllerComposite.cpp
     ../src/app/editor/appcontroller/AppControllerVector.cpp
+    ../src/app/editor/appcontroller/AppControllerShapeEdit.cpp
     ../src/app/editor/appcontroller/AppControllerKeyframes.cpp
     ../src/app/editor/appcontroller/AppControllerEffects.cpp
     ../src/app/editor/appcontroller/AppControllerTracks.cpp
+    ../src/app/editor/appcontroller/AppControllerTitleTemplates.cpp
+    ../src/app/editor/keymap/Keymap.h
+    ../src/app/editor/keymap/Keymap.cpp
+    ../src/app/editor/keymap/KeymapCatalog.h
+    ../src/app/editor/keymap/KeymapCatalog.cpp
+    ../src/app/editor/keymap/KeymapPresets.h
+    ../src/app/editor/keymap/KeymapPresets.cpp
     ../src/app/editor/appcontroller/AppControllerProject.cpp
     ../src/app/editor/appcontroller/AppControllerTextLayers.cpp
     ../src/app/mcp/McpController.cpp
     ../src/app/mcp/AgentImageLog.cpp
     ../src/app/editor/PreferencesController.cpp
     ../src/app/GraphicsApiChoice.cpp
+    ../src/app/editor/InterchangeController.cpp
     ../src/app/editor/ProjectFileController.cpp
+    ../src/app/editor/ProjectFolderController.cpp
     ../src/app/bin/AssetPreviewController.cpp
     ../src/app/editor/sessions/SpeedCurveController.cpp
     ../src/app/editor/sessions/CurveEditorController.cpp
@@ -285,7 +411,9 @@ qt_add_executable(tst_mcp
     ../src/app/editor/sessions/KeyframeSelection.cpp
     ../src/app/editor/sessions/KeyframeTimeView.cpp
     ../src/app/editor/sessions/MaskEditSession.cpp
+    ../src/app/editor/sessions/PathEditSession.cpp
     ../src/app/editor/sessions/MaskStackModel.cpp
+    ../src/app/editor/sessions/MaskSelection.cpp
     ../src/app/editor/sessions/MaskingController.cpp
     ../src/app/editor/sessions/SubtitleController.cpp
     ../src/app/editor/sessions/TeleprompterController.cpp
@@ -297,6 +425,7 @@ qt_add_executable(tst_mcp
     ../src/app/jobs/render/BakeController.cpp
     ../src/app/jobs/render/BakeFingerprint.cpp
     ../src/app/jobs/audio/DenoiseController.cpp
+    ../src/app/jobs/capture/CaptureController.cpp
     ../src/app/jobs/audio/AudioAlignController.cpp
     ../src/app/color/ColorController.cpp
     ../src/app/color/ScopesController.cpp
@@ -306,6 +435,10 @@ qt_add_executable(tst_mcp
     ../src/app/jobs/vision/RestoreController.cpp
     ../src/app/jobs/vision/FaceTrackingController.cpp
     ../src/app/jobs/vision/StabilizeController.cpp
+    ../src/app/commandbar/CommandBarController.cpp
+    ../src/app/commandbar/CommandCatalog.cpp
+    ../src/app/commandbar/CommandPrompt.cpp
+    ../src/app/commandbar/CommandRetriever.cpp
     ../src/app/jobs/vision/TrackingController.cpp
     ../src/app/jobs/vision/TrackerListModel.cpp
     ../src/app/bin/MediaBinController.cpp
@@ -314,6 +447,9 @@ qt_add_executable(tst_mcp
     ../src/app/jobs/audio/VoiceLibrary.cpp
     ../src/ui/preview/Outliner3dModel.cpp
     ../src/ui/preview/PreviewController.cpp
+    ../src/ui/manip/SnapService.cpp
+    ../src/ui/manip/DragSession.cpp
+    ../src/ui/manip/PathEditCore.cpp
     ../src/app/online/addons/AddonCatalog.cpp
     ../src/app/online/addons/AddonManager.cpp
     ../src/app/jobs/JobRegistry.cpp
@@ -334,8 +470,10 @@ qt_add_executable(tst_mcp
     ../src/app/mcp/tools/McpDispatcher.cpp
     ../src/app/mcp/tools/McpDispatcherExtended.cpp
     ../src/ui/theme/ThemeManager.cpp
+    ../src/app/forge/PackageInstaller.cpp
     ../src/app/mcp/tools/McpEffectAuthoring.cpp
     ../src/app/mcp/tools/McpProceduralAuthoring.cpp
+    ../src/app/mcp/tools/McpProjectFolder.cpp
     ../src/app/procedural/ProceduralAuthoringService.cpp
     ../src/app/mcp/protocol/McpValidate.cpp
     ../src/app/mcp/tools/McpMarket.cpp
@@ -356,18 +494,18 @@ qt_add_executable(tst_mcp
     ../src/app/mcp/transport/McpStdioServer.cpp
 )
 target_include_directories(tst_mcp PRIVATE ../src)
-target_link_libraries(tst_mcp PRIVATE Qt6::Test Qt6::Gui Qt6::Quick Qt6::Network Qt6::Multimedia Qt6::Concurrent driftcore driftengine)
+target_link_libraries(tst_mcp PRIVATE Qt6::Test Qt6::Gui Qt6::Quick Qt6::Network Qt6::Multimedia Qt6::Concurrent driftcore driftengine driftsurfaces)
 target_compile_definitions(tst_mcp PRIVATE DRIFT_VERSION="${PROJECT_VERSION}"
     DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 qt_add_resources(tst_mcp "procedural_docs"
     PREFIX "/docs"
     BASE "${CMAKE_SOURCE_DIR}/docs"
-    FILES "${CMAKE_SOURCE_DIR}/docs/procedural.md"
+    FILES "${CMAKE_SOURCE_DIR}/docs/procedural.md" "${CMAKE_SOURCE_DIR}/docs/project-folder.md"
 )
 # lupdate parses a source it has no parser for as C++. The exclusion is compared against the
 # source path as written, so the resource is named without "..".
 set_property(TARGET tst_mcp APPEND PROPERTY QT_EXCLUDE_SOURCES_FROM_TRANSLATION
-    "${CMAKE_SOURCE_DIR}/docs/procedural.md")
+    "${CMAKE_SOURCE_DIR}/docs/procedural.md" "${CMAKE_SOURCE_DIR}/docs/project-folder.md")
 add_test(NAME Mcp COMMAND tst_mcp)
 drift_copy_effects(tst_mcp)
 drift_copy_transitions(tst_mcp)
@@ -475,6 +613,15 @@ target_include_directories(tst_tracking PRIVATE ../src)
 target_link_libraries(tst_tracking PRIVATE Qt6::Test Qt6::Core Qt6::Gui)
 add_test(NAME Tracking COMMAND tst_tracking)
 
+qt_add_executable(tst_generators tst_generators.cpp)
+target_include_directories(tst_generators PRIVATE ../src)
+target_link_libraries(tst_generators PRIVATE Qt6::Test Qt6::Gui driftengine driftcore driftprocedural)
+if(DRIFT_WITH_SKIA)
+    target_link_libraries(tst_generators PRIVATE Skia::Skia)
+    target_compile_definitions(tst_generators PRIVATE DRIFT_WITH_SKIA)
+endif()
+add_test(NAME Generators COMMAND tst_generators)
+
 qt_add_executable(tst_procedural tst_procedural.cpp)
 target_include_directories(tst_procedural PRIVATE ../src)
 target_link_libraries(tst_procedural PRIVATE Qt6::Test driftprocedural)
@@ -487,6 +634,76 @@ qt_add_executable(tst_proceduralpackages tst_proceduralpackages.cpp)
 target_include_directories(tst_proceduralpackages PRIVATE ../src)
 target_link_libraries(tst_proceduralpackages PRIVATE Qt6::Test driftengine driftcore)
 add_test(NAME ProceduralPackages COMMAND tst_proceduralpackages)
+
+qt_add_executable(tst_animationpackage tst_animationpackage.cpp)
+target_include_directories(tst_animationpackage PRIVATE ../src)
+target_link_libraries(tst_animationpackage PRIVATE Qt6::Test driftengine driftcore)
+target_compile_definitions(tst_animationpackage PRIVATE
+    DRIFT_TEST_ANIMATIONS_DIR="${CMAKE_SOURCE_DIR}/animations")
+add_test(NAME AnimationPackage COMMAND tst_animationpackage)
+
+qt_add_executable(tst_forgedraft tst_forgedraft.cpp
+    ../src/app/forge/ForgeDraft.cpp
+    ../src/app/forge/ForgePreview.cpp)
+target_include_directories(tst_forgedraft PRIVATE ../src)
+target_link_libraries(tst_forgedraft PRIVATE Qt6::Test driftengine driftcore)
+add_test(NAME ForgeDraft COMMAND tst_forgedraft)
+
+qt_add_executable(tst_forgedoc tst_forgedoc.cpp)
+target_include_directories(tst_forgedoc PRIVATE ../src)
+target_link_libraries(tst_forgedoc PRIVATE Qt6::Test driftforge)
+target_compile_definitions(tst_forgedoc PRIVATE
+    DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+add_test(NAME ForgeDoc COMMAND tst_forgedoc)
+
+qt_add_executable(tst_nodegraphmodels tst_nodegraphmodels.cpp
+    ../src/ui/nodes/NodeListModel.cpp
+    ../src/ui/nodes/EdgeListModel.cpp
+    ../src/ui/nodes/NodeGraphController.cpp)
+target_include_directories(tst_nodegraphmodels PRIVATE ../src)
+target_link_libraries(tst_nodegraphmodels PRIVATE Qt6::Test Qt6::Core Qt6::Qml)
+add_test(NAME NodeGraphModels COMMAND tst_nodegraphmodels)
+
+qt_add_executable(tst_forgecompiler tst_forgecompiler.cpp)
+target_include_directories(tst_forgecompiler PRIVATE ../src)
+target_link_libraries(tst_forgecompiler PRIVATE Qt6::Test driftforge)
+target_compile_definitions(tst_forgecompiler PRIVATE
+    DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+add_test(NAME ForgeCompiler COMMAND tst_forgecompiler)
+
+qt_add_executable(tst_forgeexport tst_forgeexport.cpp)
+target_include_directories(tst_forgeexport PRIVATE ../src)
+target_link_libraries(tst_forgeexport PRIVATE Qt6::Test driftforge)
+target_compile_definitions(tst_forgeexport PRIVATE
+    DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+add_test(NAME ForgeExport COMMAND tst_forgeexport)
+
+qt_add_executable(tst_audioforge tst_audioforge.cpp)
+target_include_directories(tst_audioforge PRIVATE ../src)
+target_link_libraries(tst_audioforge PRIVATE Qt6::Test driftforge)
+target_compile_definitions(tst_audioforge PRIVATE
+    DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+add_test(NAME AudioForge COMMAND tst_audioforge)
+
+qt_add_executable(tst_forgegraphmapping tst_forgegraphmapping.cpp
+    ../src/app/forge/ForgeGraphMapping.cpp
+    ../src/ui/nodes/NodeListModel.cpp
+    ../src/ui/nodes/EdgeListModel.cpp
+    ../src/ui/nodes/NodeGraphController.cpp)
+target_include_directories(tst_forgegraphmapping PRIVATE ../src)
+target_link_libraries(tst_forgegraphmapping PRIVATE Qt6::Test Qt6::Gui Qt6::Qml driftforge)
+add_test(NAME ForgeGraphMapping COMMAND tst_forgegraphmapping)
+
+qt_add_executable(tst_audioforgemapping tst_audioforgemapping.cpp
+    ../src/app/forge/audio/RackGraphMapping.cpp
+    ../src/ui/nodes/NodeListModel.cpp
+    ../src/ui/nodes/EdgeListModel.cpp
+    ../src/ui/nodes/NodeGraphController.cpp)
+target_include_directories(tst_audioforgemapping PRIVATE ../src)
+target_link_libraries(tst_audioforgemapping PRIVATE Qt6::Test Qt6::Gui Qt6::Qml driftforge)
+target_compile_definitions(tst_audioforgemapping PRIVATE
+    DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+add_test(NAME AudioForgeMapping COMMAND tst_audioforgemapping)
 
 qt_add_executable(tst_transform3d tst_transform3d.cpp)
 target_include_directories(tst_transform3d PRIVATE ../src)
@@ -511,4 +728,67 @@ if(UNIX AND NOT ANDROID AND NOT EMSCRIPTEN)
     target_include_directories(tst_crashhandler_posix PRIVATE ../src)
     target_link_libraries(tst_crashhandler_posix PRIVATE Qt6::Test Qt6::Core)
     add_test(NAME CrashHandlerPosix COMMAND tst_crashhandler_posix)
+endif()
+
+# MSVC caps an object file at 65,535 sections and the big test translation units reach it: every
+# QStringLiteral is its own COMDAT, and the MCP tests hold thousands. Over the cap the compiler
+# stops with "fatal error C1128: number of sections exceeded object file format limit", so no
+# further test can be added to these files without /bigobj. The flag only widens a field in the
+# object header — the linker output is unchanged — and GCC and Clang have no such limit.
+if(MSVC)
+    foreach(target tst_mcp tst_engine tst_editorstate tst_core)
+        target_compile_options(${target} PRIVATE /bigobj)
+    endforeach()
+endif()
+
+# The command bar's prompt builder and retriever are checked against fixtures generated by the Python
+# that produced the model's training data (cactus-research/scripts/make_cpp_fixtures.py). Linked
+# against driftapp for the live McpCatalog comparison.
+qt_add_executable(tst_commandbar tst_commandbar.cpp)
+target_include_directories(tst_commandbar PRIVATE ../src)
+target_link_libraries(tst_commandbar PRIVATE Qt6::Test Qt6::Gui Qt6::Quick Qt6::Multimedia Qt6::Concurrent Qt6::Network driftapp driftcore driftengine)
+target_compile_definitions(tst_commandbar PRIVATE DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data" DRIFT_VERSION="${PROJECT_VERSION}")
+add_test(NAME CommandBar COMMAND tst_commandbar)
+
+qt_add_executable(tst_controlsurfaces tst_controlsurfaces.cpp)
+target_include_directories(tst_controlsurfaces PRIVATE ../src)
+target_link_libraries(tst_controlsurfaces PRIVATE Qt6::Test Qt6::Core driftsurfaces)
+add_test(NAME ControlSurfaces COMMAND tst_controlsurfaces)
+
+qt_add_executable(tst_midisurfaces tst_midisurfaces.cpp)
+target_include_directories(tst_midisurfaces PRIVATE ../src)
+target_link_libraries(tst_midisurfaces PRIVATE Qt6::Test Qt6::Core driftsurfaces)
+add_test(NAME MidiSurfaces COMMAND tst_midisurfaces)
+
+qt_add_executable(tst_osc tst_osc.cpp)
+target_include_directories(tst_osc PRIVATE ../src)
+target_link_libraries(tst_osc PRIVATE Qt6::Test Qt6::Core Qt6::Network driftsurfaces)
+add_test(NAME Osc COMMAND tst_osc)
+
+qt_add_executable(tst_remote tst_remote.cpp)
+target_include_directories(tst_remote PRIVATE ../src)
+target_link_libraries(tst_remote PRIVATE Qt6::Test Qt6::Core Qt6::Network driftsurfaces)
+add_test(NAME Remote COMMAND tst_remote)
+
+qt_add_executable(tst_projectfolder tst_projectfolder.cpp)
+target_include_directories(tst_projectfolder PRIVATE ../src)
+target_link_libraries(tst_projectfolder PRIVATE Qt6::Test driftcore driftengine)
+target_compile_definitions(tst_projectfolder PRIVATE DRIFT_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/tests/data")
+add_test(NAME ProjectFolder COMMAND tst_projectfolder)
+
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+    # The extra sources are what driftapp's MCP and marketplace objects need once RenderTask pulls them in.
+    qt_add_executable(tst_farm
+        tst_farm.cpp
+        ../src/app/online/addons/AddonManager.cpp
+        ../src/app/mcp/protocol/McpProtocol.cpp
+        ../src/ui/theme/ThemeManager.cpp
+        ../src/app/online/marketplace/MarketSourceBrowser.cpp
+        ../src/app/online/marketplace/MarketTransport.cpp
+        ../src/app/online/market/MarketIdentity.cpp
+    )
+    target_include_directories(tst_farm PRIVATE ../src)
+    target_link_libraries(tst_farm PRIVATE Qt6::Test Qt6::Gui Qt6::Quick Qt6::Multimedia Qt6::Concurrent Qt6::Network driftapp driftcore driftengine)
+    target_compile_definitions(tst_farm PRIVATE DRIFT_VERSION="${PROJECT_VERSION}")
+    add_test(NAME Farm COMMAND tst_farm)
 endif()

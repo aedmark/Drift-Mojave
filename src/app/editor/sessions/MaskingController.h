@@ -1,6 +1,8 @@
 #pragma once
 
 #include "app/editor/sessions/MaskEditSession.h"
+#include "app/editor/sessions/MaskSelection.h"
+#include "app/editor/sessions/PathEditSession.h"
 #include "core/base/Time.h"
 
 #include <QImage>
@@ -14,6 +16,8 @@
 #include <QVariant>
 #include <QVariantList>
 #include <QVector>
+
+#include <functional>
 
 class AppController;
 class MaskStackModel;
@@ -30,6 +34,7 @@ struct BrushPreviewStroke
     double size = 0.05;
     double hardness = 0.7;
     double opacity = 1.0;
+    bool fillLoops = false;
 };
 
 // The share of the brush radius a dab keeps at `pressure`.
@@ -58,7 +63,16 @@ class MaskingController : public QObject
     Q_PROPERTY(double brushOpacity READ brushOpacity WRITE setBrushOpacity NOTIFY brushSettingsChanged)
     Q_PROPERTY(bool brushErase READ brushErase WRITE setBrushErase NOTIFY brushSettingsChanged)
     // Whether a pen's pressure scales the dab radius (0.3..1 of the brush size).
+    // Lazy-string stabiliser strength, 0..1 (0 off); applied by the overlay (StrokeSmoother).
+    Q_PROPERTY(double brushSmoothing READ brushSmoothing WRITE setBrushSmoothing NOTIFY brushSettingsChanged)
+    // Id of the preset matching the current size and hardness, empty when they match none.
+    Q_PROPERTY(QString brushPreset READ brushPreset NOTIFY brushSettingsChanged)
     Q_PROPERTY(bool brushPressureSize READ brushPressureSize WRITE setBrushPressureSize NOTIFY brushSettingsChanged)
+    // Whether a stroke that closes on itself also fills what it encloses.
+    Q_PROPERTY(bool brushFillLoops READ brushFillLoops WRITE setBrushFillLoops NOTIFY selectionSettingsChanged)
+    // Magic wand: colour tolerance (0..100) and whether only the region connected to the click is taken.
+    Q_PROPERTY(double wandTolerance READ wandTolerance WRITE setWandTolerance NOTIFY selectionSettingsChanged)
+    Q_PROPERTY(bool wandContiguous READ wandContiguous WRITE setWandContiguous NOTIFY selectionSettingsChanged)
     Q_PROPERTY(bool strokeActive READ strokeActive NOTIFY strokePreviewChanged)
     // Strokes released whose matte has not landed yet; BrushStrokeItem index 0.. draws them.
     Q_PROPERTY(int pendingStrokeCount READ pendingStrokeCount NOTIFY strokePreviewChanged)
@@ -66,6 +80,7 @@ class MaskingController : public QObject
     Q_PROPERTY(bool brushSaving READ brushSaving NOTIFY brushSavingChanged)
     // Live state of a handle drag in the mask overlay.
     Q_PROPERTY(MaskEditSession *editSession READ editSession CONSTANT)
+    Q_PROPERTY(PathEditSession *pathEdit READ pathEdit CONSTANT)
     Q_PROPERTY(MaskStackModel *stackModel READ stackModel CONSTANT)
 
 public:
@@ -80,16 +95,32 @@ public:
     void setBrushOpacity(double opacity);
     bool brushErase() const { return m_brushErase; }
     void setBrushErase(bool erase);
+    double brushSmoothing() const { return m_brushSmoothing; }
+    void setBrushSmoothing(double smoothing);
+    QString brushPreset() const;
+    // {id, name, size, hardness} for Hard, Soft and Detail.
+    Q_INVOKABLE QVariantList brushPresets() const;
+    Q_INVOKABLE void applyBrushPreset(const QString &id);
     bool brushPressureSize() const { return m_brushPressureSize; }
     void setBrushPressureSize(bool on);
+    bool brushFillLoops() const { return m_brushFillLoops; }
+    void setBrushFillLoops(bool on);
+    double wandTolerance() const { return m_wandTolerance; }
+    void setWandTolerance(double tolerance);
+    bool wandContiguous() const { return m_wandContiguous; }
+    void setWandContiguous(bool on);
     bool strokeActive() const { return m_stroke.active; }
     int pendingStrokeCount() const { return m_pendingStrokes.size(); }
     // The stroke being painted (index -1) or the index-th released one, else null.
     const BrushPreviewStroke *previewStroke(int index) const;
     bool brushSaving() const { return m_brushSavesInFlight > 0; }
     MaskEditSession *editSession() const { return m_editSession; }
+    PathEditSession *pathEdit() const { return m_pathEdit; }
     MaskStackModel *stackModel() const { return m_stackModel; }
 
+    // Largest useful feather in px for a clip: half its frame's longer side (the canvas for an
+    // adjustment, whose mask spans it).
+    Q_INVOKABLE double featherLimit(int trackIndex, int clipIndex) const;
     Q_INVOKABLE QString assetMaskRole(int assetIndex) const;
     Q_INVOKABLE void setAssetMaskRole(int assetIndex, const QString &role);
 
@@ -148,6 +179,7 @@ public:
     // Creates a Freeform mask from >= 3 normalized vertices (QVariantList of {x, y} maps) on the
     // target, exactly like addShapeMask does for kinds "clip" / "adjustment" (clip: addLinkedMask +
     // select new adjustment; adjustment: assign its mask directly). Undo text tr("Draw polygon mask").
+    // `points` are {x, y} maps (a polygon of corners) or full vertex maps, see setMaskPathKey.
     Q_INVOKABLE void addPolygonMask(int trackIndex, int clipIndex, const QVariantList &points);
 
     // Paints one stroke (normalized {x,y} points in the target clip's frame) into the target's brush
@@ -179,6 +211,23 @@ public:
     // Fill the selected brush mask entirely (coverage 1) or clear it (0); same target rules. Fill creates
     // the mask if needed; clear does nothing without one. Undo tr("Fill mask") / tr("Clear mask").
     Q_INVOKABLE void brushFill(int trackIndex, int clipIndex, bool clear);
+    // Selection tools that write into the same brush matte as the brush (paint or erase, one undo step
+    // each, or the cutout fix when the brush targets an AI cutout). Points are normalized to the clip's
+    // frame as {x, y} maps or points; `clipId` is the target clip.
+    // Fills the closed polygon of a freehand lasso.
+    Q_INVOKABLE bool lassoFill(const QString &clipId, const QVariantList &points, bool erase);
+    // Fills the closed livewire outline of the Intelligent Scissors.
+    Q_INVOKABLE bool scissorsFill(const QString &clipId, const QVariantList &points, bool erase);
+    // Decodes the clip's frame at the playhead and builds its edge costs (reused until the playhead or
+    // clip changes). False when the clip has no decodable picture.
+    Q_INVOKABLE bool scissorsPrepare(const QString &clipId);
+    // The point of the nearest strong edge around (x, y), normalized.
+    Q_INVOKABLE QPointF scissorsSnap(double x, double y) const;
+    // The lowest-cost edge-following path between two normalized points, as normalized points.
+    Q_INVOKABLE QVariantList scissorsPath(double x0, double y0, double x1, double y1) const;
+    Q_INVOKABLE void scissorsReset();
+    // Magic wand: selects the colour region around the normalized (x, y) of the frame at the playhead.
+    Q_INVOKABLE bool wandSelect(const QString &clipId, double x, double y, bool erase);
     // Test hook: waits until every queued brush save has been applied to the project.
     bool waitForBrushSaves(int timeoutMs = 5000);
     QSet<QString> &sessionBrushMattes() { return m_sessionBrushMattes; }
@@ -205,8 +254,9 @@ public:
 
     // Writes the vertex list as a key at timeline time `atSeconds` (converted to mask time =
     // secondsToUs(atSeconds) - adjustment.timelineStart). If an existing key lies within half a frame,
-    // that key is replaced instead of adding a new one. Also sets mask.points to the same list when the
-    // mask has only that one key (so the static shape and the single key agree).
+    // that key is replaced instead of adding a new one. Also sets mask.vertices to the same list when the
+    // mask has only that one key (so the static shape and the single key agree). `points` are
+    // {x, y, inX, inY, outX, outY, mode} maps; handles and mode are optional, so {x, y} is a corner.
     Q_INVOKABLE void setMaskPathKey(int trackIndex, int clipIndex, double atSeconds, const QVariantList &points);
     // Same, as a live drag: preview edit pattern, committed by EditorState.commitPreviewDrag().
     Q_INVOKABLE void previewSetMaskPathKey(int trackIndex, int clipIndex, double atSeconds,
@@ -227,6 +277,11 @@ public:
     // Mask-kind adjustment: removes the clip (one undo step tr("Delete mask")). VideoEffects
     // adjustment: sets its mask shape to None via writeClipMask.
     Q_INVOKABLE void removeMask(int trackIndex, int clipIndex);
+
+    // Puts the mask's editable values back to their defaults without deleting the adjustment, so
+    // its shape, name, media source and frame fixes survive. Clears animation too. One undo step
+    // tr("Reset mask"); the selection is left alone. No-op when there is no mask on the clip.
+    Q_INVOKABLE void resetMask(int trackIndex, int clipIndex);
 
     // The transform inspector's Shape picker. clipShape is one of drift::clipShapeIds() ("original" when
     // the clip has no shape mask). setClipShape replaces the clip's shape mask (one per clip) and
@@ -252,6 +307,7 @@ public:
 signals:
     void brushSettingsChanged();
     void brushSavingChanged();
+    void selectionSettingsChanged();
     void strokePreviewChanged();
     // One per brush save, in stroke order, whether it succeeded or not.
     void brushApplied(const QString &clipId);
@@ -280,6 +336,16 @@ private:
     QPair<int, int> selectedCutoutMask(int trackIndex, int clipIndex) const;
     // Paints `stroke` into the cutout's fix for the playhead frame and saves it as a new PNG.
     void paintCutoutPatch(const QString &maskClipId, const BrushPreviewStroke &stroke, quint64 strokeSeq);
+    // Same for any coverage: `makeCover` returns a Grayscale8 image of the given size.
+    void paintCutoutCover(const QString &maskClipId, const std::function<QImage(const QSize &)> &makeCover,
+                          bool erase, quint64 strokeSeq);
+    // Applies a coverage to the brush matte (or the cutout fix) as one undo step.
+    void applyCover(int trackIndex, int clipIndex, const std::function<QImage(const QSize &)> &makeCover, bool erase,
+                    const QString &undoText);
+    bool findBrushTarget(const QString &clipId, int *trackIndex, int *clipIndex) const;
+    bool fillOutline(const QString &clipId, const QVariantList &points, bool erase, const QString &undoText);
+    // The clip's frame at the playhead, cropped to its source window, at most 1024 px on a side.
+    QImage clipFrameAtPlayhead(int trackIndex, int clipIndex, drift::TimeUs *sourceUs = nullptr) const;
     void finishPatchSave(bool ok, const QString &path, const QString &maskClipId, drift::TimeUs mediaUs,
                          quint64 strokeSeq);
     void setBrushSavesInFlight(int count);
@@ -294,13 +360,21 @@ private:
 
     AppController *m_app = nullptr;
     MaskEditSession *m_editSession = nullptr;
+    PathEditSession *m_pathEdit = nullptr;
     MaskStackModel *m_stackModel = nullptr;
 
     double m_brushSize = 0.05;
     double m_brushHardness = 0.7;
     double m_brushOpacity = 1.0;
     bool m_brushErase = false;
+    double m_brushSmoothing = 0.0;
     bool m_brushPressureSize = true;
+    bool m_brushFillLoops = true;
+    double m_wandTolerance = 25.0;
+    bool m_wandContiguous = true;
+    drift::masking::EdgeMap m_edgeMap;
+    QString m_edgeClipId;
+    drift::TimeUs m_edgeSourceUs = -1;
     struct LiveStroke
     {
         bool active = false;

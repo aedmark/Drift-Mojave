@@ -147,7 +147,7 @@ QList<BundleItem> bundleItems(const QString &crashDir, const QString &logDir, co
     QList<BundleItem> items;
     const auto addFile = [&items](const QString &name, const QString &path) {
         if (QFileInfo::exists(path))
-            items.append({name, path, {}});
+            items.append(BundleItem{name, path, {}});
     };
     if (!crashDir.isEmpty()) {
         addFile(QStringLiteral("crash.json"), crashDir + QStringLiteral("/crash.json"));

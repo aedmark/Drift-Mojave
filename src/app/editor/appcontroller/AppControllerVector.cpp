@@ -10,6 +10,7 @@
 #include "engine/render3d/models/ModelClipRenderer.h"
 
 #include "engine/render2d/pdf/PdfClipRenderer.h"
+#include "core/geom/BezierPath.h"
 #include "core/shapes/ShapePath.h"
 #include "engine/compositor/layers/TransformLayer.h"
 // Engine-internal by its own header comment, and included here only for releaseCaches(): the GPU
@@ -294,14 +295,14 @@ QString parseVectorSlotValue(drift::VectorSlotValue::Type type, const QVariant &
 // you something to drag instead of a hole.
 void seedFreeformMask(drift::Mask &mask)
 {
-    if (mask.shape != drift::MaskShape::Freeform || !mask.points.isEmpty())
+    if (mask.shape != drift::MaskShape::Freeform || !mask.vertices.isEmpty())
         return;
     const double left = mask.x - mask.w / 2.0;
     const double right = mask.x + mask.w / 2.0;
     const double top = mask.y - mask.h / 2.0;
     const double bottom = mask.y + mask.h / 2.0;
-    mask.points = {QPointF(left, top), QPointF(right, top), QPointF(right, bottom),
-                   QPointF(left, bottom)};
+    mask.vertices = drift::cornerVertices({QPointF(left, top), QPointF(right, top), QPointF(right, bottom),
+                                           QPointF(left, bottom)});
 }
 
 } // namespace
@@ -314,6 +315,18 @@ void AppController::setShapeStyle(int trackIndex, int clipIndex, const QVariantM
         return;
     if (m_project.tracks().at(trackIndex).clips.at(clipIndex).type != drift::ClipType::Shape)
         return;
+
+    // Asking for the Path kind without a path is "make editable": a kind switch alone would blank the shape.
+    if (m.value(QStringLiteral("kind")).toString() == QLatin1String("path") && !m.contains(QStringLiteral("path"))
+        && !m.contains(QStringLiteral("contours"))
+        && m_project.tracks().at(trackIndex).clips.at(clipIndex).shapeStyle.kind != drift::ShapeKind::Path) {
+        convertShapeToPath(trackIndex, clipIndex);
+        QVariantMap rest = m;
+        rest.remove(QStringLiteral("kind"));
+        if (!rest.isEmpty())
+            setShapeStyle(trackIndex, clipIndex, rest);
+        return;
+    }
 
     // Snapshot before taking any reference into m_project: Project holds an implicitly shared
     // QList, so writing through a reference obtained before the copy would mutate the snapshot too
@@ -329,6 +342,10 @@ void AppController::setShapeStyle(int trackIndex, int clipIndex, const QVariantM
             clip.name = entry->label;
     }
     applyShapeStylePatch(s, m);
+    if (s.kind == drift::ShapeKind::Path && (m.contains(QStringLiteral("path")) || m.contains(QStringLiteral("contours")))) {
+        const drift::TimeUs relative = qBound<drift::TimeUs>(0, m_playheadUs - clip.timelineStart, clip.timelineDuration);
+        refitShapeBox(clip, QSizeF(m_project.width(), m_project.height()), relative);
+    }
 
     // Slider drags wrap their stream of updates in beginPreviewDrag/commitPreviewDrag, which
     // already holds the "before" snapshot — pushing here too would give one undo step per frame.
@@ -607,12 +624,12 @@ bool AppController::setProceduralParam(int trackIndex, int clipIndex, const QStr
     if (!isValidClipIndex(trackIndex, clipIndex))
         return false;
     drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
-    if (clip.type != drift::ClipType::Procedural)
+    if (clip.type != drift::ClipType::Procedural && clip.type != drift::ClipType::Generator)
         return false;
-    const drift::ProceduralPackage package = proceduralForId(clip.procedural.packageId);
-    const auto spec = std::find_if(package.parameters.cbegin(), package.parameters.cend(),
+    const QList<drift::EffectParamSpec> specs = proceduralSpecsFor(clip);
+    const auto spec = std::find_if(specs.cbegin(), specs.cend(),
                                    [&](const drift::EffectParamSpec &p) { return p.key == key; });
-    if (spec == package.parameters.cend() || spec->isText() || spec->isVec2() || spec->isRegion())
+    if (spec == specs.cend() || spec->isText() || spec->isVec2() || spec->isRegion())
         return false;
     const QVariant newValue = spec->isBoolean() ? QVariant(value > 0.5) : QVariant(value);
     if (clip.procedural.parameters.value(key) == newValue)
@@ -631,12 +648,12 @@ bool AppController::setProceduralVec2Param(int trackIndex, int clipIndex, const 
     if (!isValidClipIndex(trackIndex, clipIndex))
         return false;
     drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
-    if (clip.type != drift::ClipType::Procedural)
+    if (clip.type != drift::ClipType::Procedural && clip.type != drift::ClipType::Generator)
         return false;
-    const drift::ProceduralPackage package = proceduralForId(clip.procedural.packageId);
-    const auto spec = std::find_if(package.parameters.cbegin(), package.parameters.cend(),
+    const QList<drift::EffectParamSpec> specs = proceduralSpecsFor(clip);
+    const auto spec = std::find_if(specs.cbegin(), specs.cend(),
                                    [&](const drift::EffectParamSpec &p) { return p.key == key; });
-    if (spec == package.parameters.cend() || !spec->isVec2())
+    if (spec == specs.cend() || !spec->isVec2())
         return false;
 
     const drift::Project before = m_project;
@@ -653,12 +670,12 @@ bool AppController::setProceduralColorParam(int trackIndex, int clipIndex, const
     if (!isValidClipIndex(trackIndex, clipIndex))
         return false;
     drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
-    if (clip.type != drift::ClipType::Procedural)
+    if (clip.type != drift::ClipType::Procedural && clip.type != drift::ClipType::Generator)
         return false;
-    const drift::ProceduralPackage package = proceduralForId(clip.procedural.packageId);
-    const auto spec = std::find_if(package.parameters.cbegin(), package.parameters.cend(),
+    const QList<drift::EffectParamSpec> specs = proceduralSpecsFor(clip);
+    const auto spec = std::find_if(specs.cbegin(), specs.cend(),
                                    [&](const drift::EffectParamSpec &p) { return p.key == key; });
-    if (spec == package.parameters.cend() || !spec->isColor())
+    if (spec == specs.cend() || !spec->isColor())
         return false;
 
     // Same rule as effect colours: an alpha param stores #rrggbbaa, and a six-digit pick keeps the
@@ -696,7 +713,7 @@ bool AppController::setProceduralSeed(int trackIndex, int clipIndex, int seed)
     if (!isValidClipIndex(trackIndex, clipIndex))
         return false;
     drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
-    if (clip.type != drift::ClipType::Procedural)
+    if (clip.type != drift::ClipType::Procedural && clip.type != drift::ClipType::Generator)
         return false;
     if (clip.procedural.seed == seed)
         return true;
@@ -1099,10 +1116,12 @@ void AppController::writeClipMask(int trackIndex, int clipIndex, const drift::Ma
                 seeded.keyframes.remove(QString::fromLatin1(key));
         }
 
-        bool samePoints = seeded.points.size() == existing->points.size();
-        for (qsizetype i = 0; samePoints && i < seeded.points.size(); ++i) {
-            samePoints = same(seeded.points.at(i).x(), existing->points.at(i).x())
-                         && same(seeded.points.at(i).y(), existing->points.at(i).y());
+        bool samePoints = seeded.vertices.size() == existing->vertices.size();
+        for (qsizetype i = 0; samePoints && i < seeded.vertices.size(); ++i) {
+            const drift::ShapeVertex &a = seeded.vertices.at(i);
+            const drift::ShapeVertex &b = existing->vertices.at(i);
+            samePoints = same(a.p.x(), b.p.x()) && same(a.p.y(), b.p.y()) && same(a.in.x(), b.in.x())
+                         && same(a.in.y(), b.in.y()) && same(a.out.x(), b.out.x()) && same(a.out.y(), b.out.y());
         }
         if (existing->shape == seeded.shape && samePoints)
             seeded.pathKeys = existing->pathKeys;
@@ -1168,7 +1187,7 @@ QString AppController::maskShapeSvgPath(const QString &shape) const
     if (mask.shape != drift::MaskShape::Bars) {
         mask.w = 0.94;
         mask.h = 0.94;
-        mask.points.clear();
+        mask.vertices.clear();
         seedFreeformMask(mask);
     }
     QPainterPath path = drift::maskPath(mask, 100, 100);
@@ -1256,19 +1275,34 @@ void AppController::insertMaskPoint(int trackIndex, int clipIndex, int pointInde
         return;
 
     drift::Mask mask = host->mask;
-    const int index = qBound(0, pointIndex, mask.points.size());
-    // Each shape key gains the vertex at the same slot, placed on that key's own edge, so the
-    // animation keeps its shape. The count check has to run before the static insert below.
-    for (auto it = mask.pathKeys.begin(); it != mask.pathKeys.end(); ++it) {
-        QVector<QPointF> &vertices = it.value();
-        const int n = vertices.size();
-        if (n != mask.points.size() || n == 0)
-            continue;
-        const QPointF prev = vertices.at((index - 1 + n) % n);
-        const QPointF next = vertices.at(index % n);
-        vertices.insert(index, (prev + next) / 2.0);
+    const int count = mask.vertices.size();
+    if (count < 2)
+        return;
+    // pointIndex is the slot the new vertex takes, so it splits the edge from the vertex before it.
+    const int seg = (qBound(0, pointIndex, count) - 1 + count) % count;
+    const drift::ShapeVertex &a = mask.vertices.at(seg);
+    const drift::ShapeVertex &b = mask.vertices.at((seg + 1) % count);
+    double t;
+    if (a.out.isNull() && b.in.isNull()) {
+        const QPointF d = b.p - a.p;
+        const double len2 = QPointF::dotProduct(d, d);
+        t = len2 > 0.0 ? qBound(0.0, QPointF::dotProduct(QPointF(x, y) - a.p, d) / len2, 1.0) : 0.5;
+    } else {
+        t = drift::geom::nearestPoint(drift::ShapeContour{{a, b}, false}, QPointF(x, y)).t;
     }
-    mask.points.insert(index, QPointF(x, y));
+
+    // Each shape key gains the vertex at the same slot, split off that key's own edge at the same t,
+    // so the animation keeps its shape. The count check has to run before the static split below.
+    for (auto it = mask.pathKeys.begin(); it != mask.pathKeys.end(); ++it) {
+        if (it.value().size() != count)
+            continue;
+        drift::ShapeContour key{it.value(), true};
+        drift::geom::splitSegment(key, seg, t);
+        it.value() = key.vertices;
+    }
+    drift::ShapeContour outline{mask.vertices, true};
+    drift::geom::splitSegment(outline, seg, t);
+    mask.vertices = outline.vertices;
 
     const drift::Project before = m_project;
     writeClipMask(trackIndex, clipIndex, mask);
@@ -1284,13 +1318,13 @@ void AppController::removeMaskPoint(int trackIndex, int clipIndex, int pointInde
         return;
     // A polygon needs three vertices to enclose anything; removing past that would silently
     // blank the clip with no way back except deleting the mask.
-    if (host->mask.points.size() <= 3 || pointIndex < 0 || pointIndex >= host->mask.points.size())
+    if (host->mask.vertices.size() <= 3 || pointIndex < 0 || pointIndex >= host->mask.vertices.size())
         return;
 
     drift::Mask mask = host->mask;
-    mask.points.remove(pointIndex);
+    mask.vertices.remove(pointIndex);
     // The shape keys are vertex lists of their own, so they have to lose the same slot or the
-    // counts stop matching and pointsAt() falls back to holding the earlier key.
+    // counts stop matching and verticesAt() falls back to holding the earlier key.
     for (auto it = mask.pathKeys.begin(); it != mask.pathKeys.end(); ++it) {
         if (pointIndex < it.value().size())
             it.value().remove(pointIndex);
@@ -1914,4 +1948,128 @@ void AppController::clearTransitionSelection()
     m_selectedTransitionTrack = -1;
     m_selectedTransitionLeftClip = -1;
     emit selectedTransitionDataChanged();
+}
+
+QVariantMap AppController::addGeneratorClip(const QString &id, int trackIndex, double atSeconds, const QVariantMap &opts)
+{
+    const drift::GeneratorPreset *preset = drift::generatorPreset(id);
+    const drift::GeneratorKind *kind = drift::generatorKind(preset ? preset->kindId : id);
+    if (!kind)
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), tr("unknown generator \"%1\"").arg(id)}};
+
+    const QVariantMap initial = opts.value(QStringLiteral("params")).toMap();
+    for (auto it = initial.constBegin(); it != initial.constEnd(); ++it) {
+        const bool known = std::any_of(kind->parameters.cbegin(), kind->parameters.cend(), [&](const drift::EffectParamSpec &spec) {
+            return spec.key == it.key() || it.key().startsWith(spec.key + QLatin1Char('.'));
+        });
+        if (!known)
+            return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), tr("unknown param \"%1\"").arg(it.key())}};
+    }
+
+    QMap<QString, QVariant> params = drift::generatorDefaultParameters(*kind, preset ? preset->params : QMap<QString, QVariant>{});
+    for (auto it = initial.constBegin(); it != initial.constEnd(); ++it)
+        params.insert(it.key(), it.value());
+
+    double durationSec = opts.value(QStringLiteral("duration")).toDouble();
+    if (durationSec <= 0.0)
+        durationSec = preset && preset->durationSec > 0.0 ? preset->durationSec : kind->defaultDurationSec;
+    if (opts.value(QStringLiteral("duration")).toDouble() <= 0.0 && kind->id == QLatin1String("gen.countdown"))
+        durationSec = params.value(QStringLiteral("from")).toDouble() * params.value(QStringLiteral("interval")).toDouble();
+
+    const drift::Project before = m_project;
+    const drift::TimeUs duration = qMax(drift::secondsToUs(durationSec), drift::minClipDurationUs(m_project.fps()));
+    const drift::TimeUs startUs = atSeconds < 0.0 ? m_playheadUs : drift::secondsToUs(atSeconds);
+    int target = trackIndex;
+    if (target < 0 || target >= m_project.tracks().size()
+        || !m_project.tracks().at(target).allowsClipType(drift::ClipType::Generator)) {
+        target = drift::ensureFreeTrackForClipType(m_project, drift::ClipType::Generator, startUs, duration, true);
+    }
+    if (target < 0)
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), QStringLiteral("no graphic track")}};
+
+    drift::Track &track = m_project.tracks()[target];
+    const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, startUs, duration, m_snapEnabled, m_playheadUs);
+
+    drift::Clip clip;
+    clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    clip.type = drift::ClipType::Generator;
+    clip.procedural.packageId = kind->id;
+    clip.procedural.parameters = params;
+    clip.procedural.seed = opts.contains(QStringLiteral("seed")) ? opts.value(QStringLiteral("seed")).toInt()
+                                                                  : int(qHash(clip.id) & 0x7fffffff) % 100000;
+    clip.name = opts.value(QStringLiteral("name")).toString();
+    if (clip.name.isEmpty())
+        clip.name = preset ? preset->label : kind->label;
+    clip.timelineStart = start;
+    clip.timelineDuration = duration;
+    clip.srcIn = 0;
+    clip.srcOut = duration;
+    clearClipLayout(clip);
+    // The countdown's number is drawn with the clip's text style: big, bold and centred by default.
+    clip.textStyle.pixelSize = qRound(m_project.height() * 0.45);
+    clip.textStyle.fontWeight = 800;
+
+    track.clips.append(clip);
+    const int newClipIndex = track.clips.size() - 1;
+    pushProjectEdit(before, tr("Generator added"));
+    finishEdit(tr("Generator added"));
+    selectClip(target, newClipIndex);
+
+    return {{QStringLiteral("ok"), true},
+            {QStringLiteral("id"), clip.id},
+            {QStringLiteral("track"), target},
+            {QStringLiteral("index"), newClipIndex},
+            {QStringLiteral("kind"), kind->id}};
+}
+
+QVariantList AppController::generatorCatalog() const
+{
+    QVariantList out;
+    for (const drift::GeneratorKind &kind : drift::generatorKinds()) {
+        out.append(QVariantMap{{QStringLiteral("id"), kind.id},
+                               {QStringLiteral("label"), kind.label},
+                               {QStringLiteral("category"), kind.category},
+                               {QStringLiteral("description"), kind.description},
+                               {QStringLiteral("kindId"), kind.id},
+                               {QStringLiteral("preset"), false}});
+    }
+    for (const drift::GeneratorPreset &preset : drift::generatorPresets()) {
+        const drift::GeneratorKind *kind = drift::generatorKind(preset.kindId);
+        out.append(QVariantMap{{QStringLiteral("id"), preset.id},
+                               {QStringLiteral("label"), preset.label},
+                               {QStringLiteral("category"), preset.category},
+                               {QStringLiteral("description"), kind ? kind->description : QString()},
+                               {QStringLiteral("kindId"), preset.kindId},
+                               {QStringLiteral("preset"), true}});
+    }
+    return out;
+}
+
+QVariantList AppController::generatorCategories() const
+{
+    return {QVariantMap{{QStringLiteral("id"), QStringLiteral("background")}, {QStringLiteral("label"), tr("Backgrounds")}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("pattern")}, {QStringLiteral("label"), tr("Test patterns")}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("leader")}, {QStringLiteral("label"), tr("Leaders")}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("particles")}, {QStringLiteral("label"), tr("Particles")}}};
+}
+
+bool AppController::setProceduralTextParam(int trackIndex, int clipIndex, const QString &key, const QString &value)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return false;
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    if (clip.type != drift::ClipType::Generator)
+        return false;
+    const QList<drift::EffectParamSpec> specs = proceduralSpecsFor(clip);
+    const auto spec = std::find_if(specs.cbegin(), specs.cend(), [&](const drift::EffectParamSpec &p) { return p.key == key; });
+    if (spec == specs.cend() || !spec->isFilePath())
+        return false;
+    if (clip.procedural.parameters.value(key).toString() == value)
+        return true;
+
+    const drift::Project before = m_project;
+    clip.procedural.parameters.insert(key, value);
+    pushProjectEdit(before, tr("Edit generator"));
+    finishEdit(tr("Generator updated"));
+    return true;
 }

@@ -26,9 +26,6 @@ Item {
 
     property string projectName: EditorState.projectFile.projectName
 
-    // Disabled: external project imports (Premiere Pro, DaVinci Resolve/FCPXML, Kdenlive/Shotcut,
-    // .mogrt, EDL, OTIO) need more fixing before shipping. Uncomment these entries, the open*()
-    // functions below and the RecentProjectsPopup connections when the readers are stable.
     readonly property var projectFilter: [
         qsTr("Drift project (*.drift)"),
         qsTr("Sony / MAGIX VEGAS Pro (*.veg)"),
@@ -54,6 +51,10 @@ Item {
         searchField.focusField()
     }
 
+    function focusAsk() {
+        searchField.focusAsk()
+    }
+
     // Clears the field and hands the keyboard back to the editor, so shortcuts work again.
     function endSearch() {
         searchField.dismiss()
@@ -62,7 +63,7 @@ Item {
 
     function closeTopDialog() {
         const dialogs = [unsavedDialog, exportDialogLoader.item, exportProgressDialogLoader.item,
-                         projectPropertiesDialogLoader.item, agentAccessDialog, videoSizeDialogLoader.item, bakesDialogLoader.item,
+                         projectPropertiesDialogLoader.item, projectHealthDialogLoader.item, agentAccessDialog, videoSizeDialogLoader.item, bakesDialogLoader.item, renderQueueDialogLoader.item,
                          languageChooserDialogLoader.item, packageProgressDialog]
         for (var i = 0; i < dialogs.length; ++i) {
             const d = dialogs[i]
@@ -188,79 +189,35 @@ Item {
         })
     }
 
-    // Disabled: external project imports (Premiere Pro, DaVinci Resolve/FCPXML, Kdenlive/Shotcut,
-    // .mogrt, EDL, OTIO). Uncomment alongside the loadProject() routing in AppController once the
-    // readers are stable.
-    //
-    // function openPremiereProject() {
-    //     root.confirmIfDirty(function () {
-    //         var url = FileDialogs.openFile(qsTr("Import Premiere Pro Project"),
-    //                                        [qsTr("Premiere Pro project (*.prproj *.xml)"),
-    //                                         qsTr("Premiere Pro project (*.prproj)"),
-    //                                         qsTr("Final Cut Pro XML (*.xml)")],
-    //                                        ["application/xml", "text/xml"])
-    //         if (url != "")
-    //             EditorState.projectFile.loadPremiereProject(url)
-    //     })
-    // }
-    //
-    // function openMogrt() {
-    //     var url = FileDialogs.openFile(qsTr("Import Motion Graphics Template"),
-    //                                    [qsTr("Motion Graphics Template (*.mogrt)"),
-    //                                     qsTr("All Files (*)")],
-    //                                    ["application/zip", "application/octet-stream"])
-    //     if (url != "")
-    //         EditorState.projectFile.importMogrt(url)
-    // }
-    //
-    // function openKdenliveProject() {
-    //     root.confirmIfDirty(function () {
-    //         var url = FileDialogs.openFile(qsTr("Import Kdenlive / Shotcut Project"),
-    //                                        [qsTr("Kdenlive & Shotcut project (*.kdenlive *.mlt)"),
-    //                                         qsTr("Kdenlive project (*.kdenlive)"),
-    //                                         qsTr("Shotcut project (*.mlt)")],
-    //                                        ["application/xml", "text/xml", "application/x-kdenlive"])
-    //         if (url != "")
-    //             EditorState.projectFile.loadKdenliveProject(url)
-    //     })
-    // }
-    //
-    // function openResolveProject() {
-    //     root.confirmIfDirty(function () {
-    //         var url = FileDialogs.openFile(qsTr("Import DaVinci Resolve Project / FCPXML"),
-    //                                        [qsTr("DaVinci Resolve project (*.drp *.fcpxml)"),
-    //                                         qsTr("DaVinci Resolve project archive (*.drp)"),
-    //                                         qsTr("Final Cut Pro X XML (*.fcpxml)")],
-    //                                        ["application/zip", "application/octet-stream", "application/xml", "text/xml"])
-    //         if (url != "")
-    //             EditorState.projectFile.loadResolveProject(url)
-    //     })
-    // }
-    //
-    // function openEdlTimeline() {
-    //     root.confirmIfDirty(function () {
-    //         var url = FileDialogs.openFile(qsTr("Import Edit Decision List (.edl)"),
-    //                                        [qsTr("Edit Decision List (*.edl)")],
-    //                                        ["text/plain", "application/octet-stream"])
-    //         if (url != "")
-    //             EditorState.projectFile.loadEdlTimeline(url)
-    //     })
-    // }
-    //
-    // function openOtioTimeline() {
-    //     root.confirmIfDirty(function () {
-    //         var url = FileDialogs.openFile(qsTr("Import OpenTimelineIO (.otio)"),
-    //                                        [qsTr("OpenTimelineIO sequence (*.otio)")],
-    //                                        ["application/json", "text/plain", "application/octet-stream"])
-    //         if (url != "")
-    //             EditorState.projectFile.loadOtioTimeline(url)
-    //     })
-    // }
+    // A project as a folder of JSON files that editors and agents can change on disk.
+    function openProjectFolder() {
+        if (ShellBridge.main.rejectIfProjectOpenPending())
+            return
+        root.confirmIfDirty(function () {
+            var url = FileDialogs.openDirectory(qsTr("Open Project Folder"))
+            if (url != "")
+                EditorState.projectFile.loadProject(url)
+        })
+    }
+
+    function saveProjectAsFolder() {
+        var url = FileDialogs.openDirectory(qsTr("Choose where to create the project folder"))
+        if (url != "")
+            EditorState.projectFile.folder.saveAsFolder(url, EditorState.projectFile.projectName)
+    }
+
+    function exportDriftBundle() {
+        var url = FileDialogs.saveFile(qsTr("Export .drift Bundle"), root.projectFilter,
+                                       EditorState.projectFile.projectName, "drift", "",
+                                       root.projectMimeTypes)
+        if (url != "")
+            EditorState.projectFile.folder.exportBundle(url)
+    }
 
     // Save As with every source file copied in, so the result opens on a machine that has none of
     // the media. Always asks for a path: it is a different artefact from the working save.
     function packageProject() {
-        var url = FileDialogs.saveFile(qsTr("Save Shareable Copy"), root.projectFilter,
+        var url = FileDialogs.saveFile(qsTr("Save with media"), root.projectFilter,
                                        EditorState.projectFile.projectName, "drift", "",
                                        root.projectMimeTypes)
         if (url != "")
@@ -275,6 +232,10 @@ Item {
 
     function exportVideo() {
         exportDialogLoader.ensure().openDialog()
+    }
+
+    function openRenderQueue() {
+        renderQueueDialogLoader.ensure().openDialog()
     }
 
     // True once the user has dismissed the progress dialog while an export is
@@ -361,6 +322,11 @@ Item {
     }
 
     LazyLoader {
+        id: templateRenderDialogLoader
+        sourceComponent: Component { TemplateRenderDialog { } }
+    }
+
+    LazyLoader {
         id: projectPropertiesDialogLoader
         sourceComponent: Component { ProjectPropertiesDialog { } }
     }
@@ -386,6 +352,16 @@ Item {
     LazyLoader {
         id: videoSizeDialogLoader
         sourceComponent: Component { VideoSizeDialog { } }
+    }
+
+    LazyLoader {
+        id: projectHealthDialogLoader
+        sourceComponent: Component { ProjectHealthDialog { } }
+    }
+
+    LazyLoader {
+        id: renderQueueDialogLoader
+        sourceComponent: Component { RenderQueueDialog { } }
     }
 
     LazyLoader {
@@ -442,12 +418,20 @@ Item {
                 onSaveAsRequested: root.saveProjectAs()
                 onSaveSnapshotRequested: EditorState.projectFile.saveProjectSnapshot()
                 onManageSnapshotsRequested: projectSnapshotsDialogLoader.ensure().openDialog()
+                onExportRequested: root.exportVideo()
+                onRenderQueueRequested: root.openRenderQueue()
                 onPackageRequested: root.packageProject()
                 onSaveJsonRequested: root.saveProjectJson()
                 onOpenJsonRequested: root.openProjectJson()
                 onExportInterchangeRequested: root.exportTimelineInterchange()
                 onImportNestedRequested: root.importNestedProject()
+                onOpenFolderRequested: root.openProjectFolder()
+                onSaveFolderRequested: root.saveProjectAsFolder()
+                onExportBundleRequested: root.exportDriftBundle()
+                onRenderTemplateRequested: templateRenderDialogLoader.ensure().openDialog()
+                onImportExportRequested: ShellBridge.main?.openInterchange("import", "")
                 onPropertiesRequested: projectPropertiesDialogLoader.ensure().openDialog()
+                onHealthRequested: projectHealthDialogLoader.ensure().openDialog()
             }
 
             IconButton {
@@ -468,6 +452,10 @@ Item {
                 onBakesRequested: bakesDialogLoader.ensure().openDialog()
                 onLayoutRequested: videoSizeDialogLoader.ensure().openDialog()
             }
+
+            EditorHeaderSeparator {}
+
+            EditorHeaderWorkspaceButton { }
         }
 
         // Absorbs leftover space so the groups stay apart but can compress.
@@ -504,6 +492,8 @@ Item {
             EditorHeaderDownloadsButton { }
 
             EditorHeaderSettingsButton { }
+
+            EditorHeaderHelpButton { }
 
             EditorHeaderSeparator {}
 

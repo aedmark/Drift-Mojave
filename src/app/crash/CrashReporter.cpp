@@ -238,7 +238,7 @@ SystemInfo CrashReporter::gatherSystemInfo() const
     info.locale = QLocale().name().replace(QLatin1Char('_'), QLatin1Char('-'));
     info.graphicsApi = drift::graphics::storedApi();
     for (const drift::gpu::Adapter &adapter : drift::gpu::enumerateAdapters())
-        info.gpus.append({adapter.vendor, adapter.name, {}});
+        info.gpus.append(drift::crash::GpuInfo{adapter.vendor, adapter.name, {}});
     for (const drift::addon::InstalledAddon &addon : drift::addon::installedAddons())
         info.addons.append({addon.id, addon.version});
     return info;

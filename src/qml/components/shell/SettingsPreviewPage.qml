@@ -179,203 +179,47 @@ SettingsPage {
         }
     }
 
+    SettingsGroupHeader {
+        text: qsTr("3D view")
+        query: page.query
+    }
+
+    SettingsRow {
+        title: qsTr("Fly look")
+        searchId: "preview-fly-look"
+        description: qsTr("How the mouse turns the view in fly mode. Mouse look locks the pointer; steering turns toward the pointer and suits touchpads.")
+        keywords: "fly mode mouse look pointer lock capture steer touchpad first person camera"
+        query: page.query
+
+        ThemedComboBox {
+            readonly property var ids: ["mouse", "steer"]
+            width: Theme.c.settingsRow.controlWidth
+            model: [qsTr("Mouse look (locked pointer)"), qsTr("Steer toward pointer")]
+            currentIndex: Math.max(0, ids.indexOf(EditorState.preview.flyLook))
+            onActivated: EditorState.preview.flyLook = ids[currentIndex]
+        }
+    }
+
+    SettingsRow {
+        title: qsTr("Recording smoothing")
+        searchId: "preview-record-smoothing"
+        description: qsTr("How much a recorded camera flight or clip motion is thinned into keyframes. Higher gives fewer, smoother keys.")
+        keywords: "record camera puppet keyframes simplify reduce tolerance virtual camera"
+        query: page.query
+
+        ThemedSlider {
+            width: Theme.c.settingsRow.controlWidth
+            label: qsTr("Smoothing")
+            from: 0
+            to: 1
+            value: EditorState.preview.recordSmoothing
+            valueFormatter: (v) => Math.round(v * 100) + "%"
+            onMoved: EditorState.preview.recordSmoothing = value
+        }
+    }
+
     PreviewOptionsDecodeDialog {
         id: decodeGpuDialog
         onRestoreSelection: decodeCombo.currentIndex = Math.max(0, decodeCombo.values.indexOf(EditorState.playback.decodeMode))
-    }
-
-    SettingsRow {
-        title: qsTr("Faster preview (experimental)")
-        searchId: "preview-faster-vaapi"
-        description: qsTr("Can make playback smoother by keeping video on the graphics card. Turn it off if the picture looks wrong. Takes effect after restart.")
-        keywords: "zero copy vaapi gpu hardware"
-        available: EditorState.preferences.vaapiZeroCopySupported
-        query: page.query
-
-        ThemedSwitch {
-            checked: EditorState.preferences.vaapiZeroCopy
-            onToggled: EditorState.preferences.vaapiZeroCopy = checked
-        }
-    }
-
-    SettingsRow {
-        title: qsTr("Faster preview (experimental)")
-        searchId: "preview-faster-mediacodec"
-        description: qsTr("Can make playback smoother by keeping video on the graphics card. Turn it off if the picture looks wrong. Takes effect after restart.")
-        keywords: "zero copy mediacodec gpu hardware"
-        available: EditorState.preferences.mediaCodecZeroCopySupported
-        query: page.query
-
-        ThemedSwitch {
-            checked: EditorState.preferences.mediaCodecZeroCopy
-            onToggled: EditorState.preferences.mediaCodecZeroCopy = checked
-        }
-    }
-
-    SettingsRow {
-        title: qsTr("Graphics card")
-        searchId: "preview-graphics-card"
-        description: qsTr("Which graphics card Drift runs on. High performance keeps video decoded on an NVIDIA card on that card; power saving uses less battery. Takes effect after restart.")
-        keywords: "gpu integrated discrete nvidia power battery"
-        available: EditorState.preferences.gpuPreferenceSupported
-        query: page.query
-
-        ThemedComboBox {
-            width: Theme.c.settingsRow.controlWidth
-            textRole: "label"
-            valueRole: "id"
-            model: [
-                { id: "auto", label: qsTr("Windows default") },
-                { id: "integrated", label: qsTr("Power saving (integrated GPU)") },
-                { id: "discrete", label: qsTr("High performance (discrete GPU)") }
-            ]
-            currentIndex: {
-                for (var i = 0; i < model.length; ++i) {
-                    if (model[i].id === EditorState.preferences.preferredGpu)
-                        return i
-                }
-                return 0
-            }
-            onActivated: EditorState.preferences.preferredGpu = model[currentIndex].id
-        }
-    }
-
-    SettingsRow {
-        title: qsTr("Graphics card")
-        searchId: "preview-graphics-card-system-settings"
-        description: qsTr("Choose which graphics card Drift runs on in Windows Settings, under Display > Graphics. Takes effect after restart.")
-        keywords: "gpu windows display nvidia"
-        available: EditorState.preferences.gpuPreferenceInSystemSettings
-        query: page.query
-
-        ThemedButton {
-            variant: "secondary"
-            text: qsTr("Open graphics settings")
-            onClicked: Qt.openUrlExternally("ms-settings:display-advancedgraphics")
-        }
-    }
-
-    SettingsGroupHeader {
-        text: qsTr("Proxies")
-        query: page.query
-    }
-
-    SettingsRow {
-        title: qsTr("Use proxies for preview")
-        searchId: "preview-use-proxies"
-        description: qsTr("Play clips from their low-resolution proxies where one exists. Export always uses the original media.")
-        keywords: "proxy low resolution optimized"
-        query: page.query
-
-        ThemedSwitch {
-            checked: EditorState.playback.useProxies
-            onToggled: EditorState.playback.useProxies = checked
-        }
-    }
-
-    SettingsRow {
-        title: qsTr("Suggest proxies on import")
-        searchId: "preview-proxy-suggestion"
-        description: qsTr("What to do when imported footage may preview slowly.")
-        keywords: "proxy import suggest notification automatic"
-        query: page.query
-
-        ThemedComboBox {
-            width: Theme.c.settingsRow.controlWidth
-            textRole: "label"
-            valueRole: "id"
-            model: [
-                { id: "ask", label: qsTr("Ask") },
-                { id: "always", label: qsTr("Always create proxies") },
-                { id: "never", label: qsTr("Never ask") }
-            ]
-            currentIndex: {
-                for (var i = 0; i < model.length; ++i) {
-                    if (model[i].id === EditorState.preferences.proxySuggestion)
-                        return i
-                }
-                return 0
-            }
-            onActivated: {
-                if (currentIndex >= 0 && currentIndex < model.length)
-                    EditorState.preferences.proxySuggestion = model[currentIndex].id
-            }
-        }
-    }
-
-    SettingsRow {
-        title: qsTr("Proxy resolution")
-        searchId: "preview-proxy-resolution"
-        description: qsTr("Size of new proxies. Proxies made at another size are not used until you create them again.")
-        keywords: "proxy size 720p 1080p"
-        query: page.query
-
-        ThemedComboBox {
-            width: Theme.c.settingsRow.controlWidth
-            textRole: "label"
-            valueRole: "id"
-            model: [
-                { id: 360, label: qsTr("360p") },
-                { id: 540, label: qsTr("540p") },
-                { id: 720, label: qsTr("720p") },
-                { id: 1080, label: qsTr("1080p") }
-            ]
-            currentIndex: {
-                for (var i = 0; i < model.length; ++i) {
-                    if (model[i].id === EditorState.playback.proxySize)
-                        return i
-                }
-                return 2
-            }
-            onActivated: EditorState.playback.proxySize = model[currentIndex].id
-        }
-    }
-
-    SettingsRow {
-        title: qsTr("Proxy name patterns")
-        searchId: "preview-proxy-name-patterns"
-        description: qsTr("Linking a proxy teaches Drift its name pattern. Proxies next to your media that match a pattern below link automatically.")
-        keywords: "proxy naming file name regex"
-        stacked: true
-        query: page.query
-
-        Column {
-            width: parent.width
-            spacing: Theme.spacingSm
-
-            Repeater {
-                model: EditorState.preferences.proxyNamePatterns
-
-                Row {
-                    id: patternRow
-                    required property string modelData
-                    width: parent.width
-                    spacing: Theme.spacingSm
-
-                    ThemedLabel {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width - removePattern.width - parent.spacing
-                        text: patternRow.modelData
-                        font.family: Theme.monoFontFamily
-                        elide: Text.ElideMiddle
-                    }
-                    ThemedButton {
-                        id: removePattern
-                        anchors.verticalCenter: parent.verticalCenter
-                        variant: "ghost"
-                        glyph: Theme.icons.x
-                        tooltip: qsTr("Remove pattern")
-                        onClicked: EditorState.preferences.proxyNamePatterns =
-                            EditorState.preferences.proxyNamePatterns.filter(p => p !== patternRow.modelData)
-                    }
-                }
-            }
-
-            ThemedButton {
-                variant: "secondary"
-                text: qsTr("Reset to defaults")
-                onClicked: EditorState.preferences.resetProxyNamePatterns()
-            }
-        }
     }
 }

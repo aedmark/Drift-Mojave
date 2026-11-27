@@ -11,6 +11,7 @@
 #include "engine/packages/audio/AudioEffectCatalog.h"
 #include "engine/packages/effects/EffectCatalog.h"
 #include "engine/packages/procedurals/ProceduralCatalog.h"
+#include "core/project/sources/GeneratorKinds.h"
 
 #include <QOpenGLContext>
 #include <QSet>
@@ -228,6 +229,15 @@ QVariantList KeyframeController::animatableProperties(int track, int clip) const
                             package.displayName);
         }
     }
+    if (target.type == drift::ClipType::Generator) {
+        if (const drift::GeneratorKind *kind = drift::generatorKind(target.procedural.packageId)) {
+            for (const drift::EffectParamSpec &spec : kind->parameters) {
+                if (spec.isFilePath() || spec.isClip() || spec.isSampler())
+                    continue;
+                rows << specRow(QStringLiteral("proc.%1").arg(spec.key), spec, QStringLiteral("proc"), kind->label);
+            }
+        }
+    }
     if (target.type == drift::ClipType::Pdf) {
         for (const QString &key : drift::pdfKeyframeProperties()) {
             const QString prop = QStringLiteral("pdf.%1").arg(key);
@@ -277,6 +287,21 @@ QVariantList KeyframeController::animatableProperties(int track, int clip) const
 QVariantList KeyframeController::keysFor(int track, int clip, const QString &prop) const
 {
     return m_app->clipKeyframes(track, clip, prop);
+}
+
+QVariantList KeyframeController::keysAt(int track, int clip, double seconds) const
+{
+    QVariantList out;
+    for (const QString &prop : m_app->clipAnimatedProperties(track, clip)) {
+        KeyTarget target;
+        if (!resolveKey(track, clip, prop, seconds, &target))
+            continue;
+        // The caller's own time, not the key's: every op here re-resolves it to the nearest key
+        // within tolerance, and keeping one time for the whole group is what makes a group of
+        // keys that are a frame apart move and shape together.
+        out.append(KeyframeRows::makeRef(prop, seconds));
+    }
+    return out;
 }
 
 bool KeyframeController::snapEnabled() const
@@ -648,21 +673,6 @@ void KeyframeController::clearCollisions()
     setCollisions({});
 }
 
-bool KeyframeController::sameRefs(const QVariantList &a, const QVariantList &b)
-{
-    if (a.size() != b.size())
-        return false;
-    const auto id = [](const QVariant &v) {
-        const QVariantMap m = v.toMap();
-        return m.value(QStringLiteral("prop")).toString() + QLatin1Char('@')
-               + QString::number(qRound64(m.value(QStringLiteral("seconds")).toDouble() * 1e6));
-    };
-    QSet<QString> ids;
-    for (const QVariant &v : a)
-        ids.insert(id(v));
-    return std::all_of(b.cbegin(), b.cend(), [&](const QVariant &v) { return ids.contains(id(v)); });
-}
-
 bool KeyframeController::collides(const QString &prop, double seconds) const
 {
     const qint64 us = qRound64(seconds * 1e6);
@@ -694,31 +704,6 @@ QVariantMap KeyframeController::curveRange(const QString &prop, const QVariantLi
         pts.append(KeyframeCurves::pointFromMap(p.toMap()));
     const KeyframeCurves::Range range = KeyframeCurves::valueRange(prop, pts, base, hasRange, min, max);
     return {{QStringLiteral("min"), range.min}, {QStringLiteral("max"), range.max}};
-}
-
-QVariantList KeyframeController::nudgeKeys(int track, int clip, const QVariantList &keys, double dtSeconds)
-{
-    if (!m_app->isValidClipIndex(track, clip) || keys.isEmpty())
-        return {};
-    const bool continuing = m_app->previewDragActive() && m_app->m_previewDragAuto && track == m_nudgeTrack
-                            && clip == m_nudgeClip && sameRefs(keys, m_nudgeResult);
-    if (!continuing) {
-        if (m_app->previewDragActive() && m_app->m_previewDragAuto)
-            m_app->commitPreviewDrag();
-        m_nudgeBase = keys;
-        m_nudgeTotal = 0.0;
-        m_nudgeTrack = track;
-        m_nudgeClip = clip;
-    }
-    m_app->beginImplicitPreviewDrag(tr("Nudge keyframes"));
-    m_nudgeResult = previewMoveKeys(track, clip, m_nudgeBase, m_nudgeTotal + dtSeconds);
-    if (m_nudgeResult.size() == m_nudgeBase.size() && !m_nudgeResult.isEmpty()) {
-        m_nudgeTotal = m_nudgeResult.first().toMap().value(QStringLiteral("seconds")).toDouble()
-                       - m_nudgeBase.first().toMap().value(QStringLiteral("seconds")).toDouble();
-    } else {
-        m_nudgeTotal += dtSeconds;
-    }
-    return m_nudgeResult;
 }
 
 // Shared by previewStretchKeys. A factor that would merge two selected keys is refused, leaving the
@@ -786,6 +771,29 @@ double KeyframeController::snapKeyTime(double seconds, double pxPerSecond, const
     for (const QVariant &t : otherKeyTimes)
         consider(t.toDouble());
     return best;
+}
+
+double KeyframeController::gestureTime(double seconds, double pxPerSecond, const QVariantList &otherKeyTimes,
+                                       bool suspend, bool timeline) const
+{
+    const bool snap = snapEnabled() && !suspend;
+    if (snap && timeline) {
+        const double snapped = m_app->snapTime(seconds);
+        if (snapped != seconds)
+            return snapped;
+    }
+    return snapKeyTime(seconds, pxPerSecond, otherKeyTimes, snap);
+}
+
+drift::manip::DragSession *KeyframeController::dragSession() const
+{
+    return m_app->drag();
+}
+
+void KeyframeController::previewTangents(int track, int clip, const QString &prop, double seconds, double inDx,
+                                         double inDy, double outDx, double outDy, bool corner)
+{
+    m_app->previewSetKeyframeTangents(track, clip, prop, seconds, inDx, inDy, outDx, outDy, corner);
 }
 
 static QStringList propsOf(const QVariantList &keys)

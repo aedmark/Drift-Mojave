@@ -12,6 +12,7 @@
 // Engine-internal by its own header comment, and included here only for releaseCaches(): the GPU
 // caches have no other owner outside src/engine to ask. A one-line forwarder on GpuCompositor
 // would restore the boundary.
+#include "engine/encode/proxies/ProxyLocation.h"
 #include "engine/encode/proxies/ProxyNaming.h"
 #include "engine/encode/proxies/ReverseProxyCache.h"
 #include "engine/encode/proxies/ReverseRenderer.h"
@@ -281,6 +282,34 @@ void AppController::previewSetClipRotation(int trackIndex, int clipIndex, double
     emitPreviewEdit(trackIndex, clipIndex, {QStringLiteral("rotation")});
 }
 
+void AppController::previewSetClipAnchor(int trackIndex, int clipIndex, double anchorX, double anchorY,
+                                          double posX, double posY)
+{
+    if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
+        return;
+
+    drift::Track &track = m_project.tracks()[trackIndex];
+    if (clipIndex < 0 || clipIndex >= track.clips.size())
+        return;
+
+    drift::Clip &clip = track.clips[clipIndex];
+    beginImplicitPreviewDrag(tr("Move anchor"));
+    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+    bool wrote = false;
+    wrote = writeKeyframeValue(clip.anchorX, relative, anchorX, m_autoKeyEnabled, false) || wrote;
+    wrote = writeKeyframeValue(clip.anchorY, relative, anchorY, m_autoKeyEnabled, false) || wrote;
+    wrote = writeKeyframeValue(clip.positionX, relative, posX, m_autoKeyEnabled, false) || wrote;
+    wrote = writeKeyframeValue(clip.positionY, relative, posY, m_autoKeyEnabled, false) || wrote;
+    if (!wrote) {
+        emit transformBlocked(tr("Turn on Auto keyframes to change this"));
+        return;
+    }
+
+    emitPreviewEdit(trackIndex, clipIndex,
+                    {QStringLiteral("anchorX"), QStringLiteral("anchorY"), QStringLiteral("positionX"),
+                     QStringLiteral("positionY")});
+}
+
 void AppController::previewSetClipKeyframe(int trackIndex, int clipIndex, const QString &prop,
                                            double atSeconds, double value)
 {
@@ -417,7 +446,7 @@ void AppController::previewSetClipSpeed(int trackIndex, int clipIndex, double sp
         beginPreviewDrag(tr("Speed changed"));
 
     const drift::Project before = m_project;
-    clip.speed = qBound(0.25, speed, 4.0);
+    clip.speed = qBound(0.25, speed, drift::kMaxCurveSpeed);
     clip.syncSrcOutFromSpeed(sourceDurationForClip(clip));
     syncLinkedPartnersFrom(m_project, clip);
     drift::retimeLinkedSubtitles(before, m_project);
@@ -1138,6 +1167,12 @@ void AppController::applyTextStylePatch(drift::TextStyle &s, const QVariantMap &
         s.valign = drift::textVAlignFromString(m.value(QStringLiteral("valign")).toString());
     if (m.contains(QStringLiteral("wordWrap")))
         s.wordWrap = m.value(QStringLiteral("wordWrap")).toBool();
+    if (m.contains(QStringLiteral("scroll")))
+        s.scroll = drift::textScrollFromString(m.value(QStringLiteral("scroll")).toString());
+    if (m.contains(QStringLiteral("scrollEnterOffscreen")))
+        s.scrollEnterOffscreen = m.value(QStringLiteral("scrollEnterOffscreen")).toBool();
+    if (m.contains(QStringLiteral("scrollExitOffscreen")))
+        s.scrollExitOffscreen = m.value(QStringLiteral("scrollExitOffscreen")).toBool();
     if (m.contains(QStringLiteral("lineHeight")))
         s.lineHeight = qBound(0.5, m.value(QStringLiteral("lineHeight")).toDouble(), 4.0);
     if (m.contains(QStringLiteral("letterSpacing")))
@@ -1261,7 +1296,9 @@ void AppController::applyTextStylePatch(drift::TextStyle &s, const QVariantMap &
     // A hand-edited style is no longer the pack it came from, so the picker stops showing one as
     // selected. Alignment and wrapping are layout, not look, and leave the pack intact.
     static const QSet<QString> kLayoutOnlyKeys = {QStringLiteral("align"), QStringLiteral("valign"),
-                                                  QStringLiteral("wordWrap")};
+                                                  QStringLiteral("wordWrap"), QStringLiteral("scroll"),
+                                                  QStringLiteral("scrollEnterOffscreen"),
+                                                  QStringLiteral("scrollExitOffscreen")};
     for (auto it = m.constBegin(); it != m.constEnd(); ++it) {
         if (!kLayoutOnlyKeys.contains(it.key())) {
             s.packId.clear();
@@ -1288,8 +1325,13 @@ void AppController::applyTextPreset(int trackIndex, int clipIndex, const QString
         return;
 
     const drift::Project before = m_project;
+    // Scrolling is motion, not look: a credits roll keeps rolling when its font changes.
+    const drift::TextStyle old = clip.textStyle;
     clip.textStyle = *preset;
     clip.textStyle.packId = presetId;
+    clip.textStyle.scroll = old.scroll;
+    clip.textStyle.scrollEnterOffscreen = old.scrollEnterOffscreen;
+    clip.textStyle.scrollExitOffscreen = old.scrollExitOffscreen;
     pushProjectEdit(before, tr("Apply text preset"));
     finishEdit(tr("Text preset applied"));
 }
@@ -1634,7 +1676,7 @@ bool AppController::setClipSpeed(int trackIndex, int clipIndex, double speed)
         return false;
 
     const drift::Project before = m_project;
-    clip.speed = qBound(0.25, speed, 4.0);
+    clip.speed = qBound(0.25, speed, drift::kMaxCurveSpeed);
     clip.syncSrcOutFromSpeed(sourceDurationForClip(clip));
     syncLinkedPartnersFrom(m_project, clip);
     drift::retimeLinkedSubtitles(before, m_project);
@@ -1779,7 +1821,9 @@ void AppController::startReverseRender(const QString &sourcePath, drift::TimeUs 
 
     // Playback deliberately keeps running: renderReversed opens its own demuxer rather than
     // driving the shared decode pool, so the clip stays watchable (on the slow path) meanwhile.
-    (void)QtConcurrent::run([this, sourcePath, coverInUs, coverOutUs]() {
+    const drift::ProxyLocation mode = m_assetLibrary ? m_assetLibrary->proxyLocation() : drift::ProxyLocation::Beside;
+    const QString chosenFolder = m_assetLibrary ? m_assetLibrary->proxyFolder() : QString();
+    (void)QtConcurrent::run([this, sourcePath, coverInUs, coverOutUs, mode, chosenFolder]() {
         auto setProgress = [this](double fraction, const QString &status) {
             QMetaObject::invokeMethod(
                 this,
@@ -1794,12 +1838,14 @@ void AppController::startReverseRender(const QString &sourcePath, drift::TimeUs 
                 Qt::QueuedConnection);
         };
 
-        auto finish = [this, sourcePath, coverInUs, coverOutUs](bool ok, const QString &message,
-                                                                const QString &proxyPath,
-                                                                bool beside) {
+        auto finish = [this, sourcePath, coverInUs, coverOutUs, chosenFolder](
+                          bool ok, const QString &message, const QString &proxyPath,
+                          const drift::ProxyTarget &target) {
+            const bool beside = target.where != drift::ProxyTarget::Where::Cache; // a sidecar file
             QMetaObject::invokeMethod(
                 this,
-                [this, ok, message, proxyPath, beside, sourcePath, coverInUs, coverOutUs]() {
+                [this, ok, message, proxyPath, beside, target, chosenFolder, sourcePath, coverInUs,
+                 coverOutUs]() {
                     m_reverseRendering = false;
                     emit reverseRenderingChanged();
                     m_reverseProgress = ok ? 1.0 : 0.0;
@@ -1812,8 +1858,10 @@ void AppController::startReverseRender(const QString &sourcePath, drift::TimeUs 
                     } else if (ok) {
                         drift::ReverseProxyCache::instance().insert(sourcePath, coverInUs,
                                                                     coverOutUs, proxyPath);
-                        if (m_assetLibrary && drift::isLocalSourcePath(sourcePath))
+                        if (m_assetLibrary && target.besideRefused)
                             m_assetLibrary->reportProxyFallback(sourcePath);
+                        if (m_assetLibrary && target.folderUnavailable)
+                            m_assetLibrary->reportFolderUnavailable(chosenFolder);
                     }
                     setLastMessage(message, ok ? QStringLiteral("info")
                                               : QStringLiteral("error"));
@@ -1826,20 +1874,15 @@ void AppController::startReverseRender(const QString &sourcePath, drift::TimeUs 
                 Qt::QueuedConnection);
         };
 
-        // Beside the source when that folder takes a write, else the app cache.
-        QString proxyPath;
-        bool beside = false;
-        if (drift::isLocalSourcePath(sourcePath)) {
-            const QString target = drift::reversedSidecarPath(sourcePath, coverInUs, coverOutUs);
-            if (drift::canWriteBeside(target)) {
-                proxyPath = target;
-                beside = true;
-            }
-        }
-        if (!beside)
-            proxyPath = drift::newReversePath();
+        // Where the setting says (beside the source, the chosen folder, or the app cache); the
+        // cache when that place takes no write.
+        const drift::ProxyTarget target = drift::chooseProxyTarget(
+            mode, chosenFolder, sourcePath, drift::reversedSidecarPath(sourcePath, coverInUs, coverOutUs),
+            chosenFolder.isEmpty() ? QString()
+                                   : drift::folderReversedPath(chosenFolder, sourcePath, coverInUs, coverOutUs));
+        const QString proxyPath = target.path;
         if (proxyPath.isEmpty()) {
-            finish(false, tr("Could not create a reversed file"), {}, false);
+            finish(false, tr("Could not create a reversed file"), {}, target);
             return;
         }
 
@@ -1849,7 +1892,7 @@ void AppController::startReverseRender(const QString &sourcePath, drift::TimeUs 
                 setProgress(fraction, tr("Reversing video…"));
                 return m_reverseCancel.loadRelaxed() == 0;
             });
-        finish(ok, ok ? QStringLiteral("Reversed clip ready") : error, proxyPath, beside);
+        finish(ok, ok ? QStringLiteral("Reversed clip ready") : error, proxyPath, target);
     });
 }
 

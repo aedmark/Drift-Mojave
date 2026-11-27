@@ -49,6 +49,7 @@ QList<int> changedRoles(const TimelineClipsModel::Row &a, const TimelineClipsMod
     diff(a.effects != b.effects, TimelineClipsModel::EffectsRole);
     diff(a.audioEffects != b.audioEffects, TimelineClipsModel::AudioEffectsRole);
     diff(a.volumeKeys != b.volumeKeys, TimelineClipsModel::VolumeKeysRole);
+    diff(a.keyTimes != b.keyTimes, TimelineClipsModel::KeyTimesRole);
     diff(a.loop != b.loop, TimelineClipsModel::LoopRole);
     diff(a.loopPeriod != b.loopPeriod, TimelineClipsModel::LoopPeriodRole);
     diff(a.loopPhase != b.loopPhase, TimelineClipsModel::LoopPhaseRole);
@@ -69,6 +70,7 @@ QList<int> changedRoles(const TimelineClipsModel::Row &a, const TimelineClipsMod
     diff(a.invertPhase != b.invertPhase, TimelineClipsModel::InvertPhaseRole);
     diff(a.audioChannelMode != b.audioChannelMode, TimelineClipsModel::AudioChannelModeRole);
     diff(!qFuzzyCompare(a.normalizeGain + 1.0, b.normalizeGain + 1.0), TimelineClipsModel::NormalizeGainRole);
+    diff(a.generatedBy != b.generatedBy, TimelineClipsModel::GeneratedByRole);
     return roles;
 }
 
@@ -241,6 +243,7 @@ QVariant TimelineClipsModel::data(const QModelIndex &index, int role) const
     case EffectsRole: return row.effects;
     case AudioEffectsRole: return row.audioEffects;
     case VolumeKeysRole: return row.volumeKeys;
+    case KeyTimesRole: return QVariant::fromValue(row.keyTimes);
     case LoopRole: return row.loop;
     case LoopPeriodRole: return row.loopPeriod;
     case LoopPhaseRole: return row.loopPhase;
@@ -261,6 +264,7 @@ QVariant TimelineClipsModel::data(const QModelIndex &index, int role) const
     case InvertPhaseRole: return row.invertPhase;
     case AudioChannelModeRole: return row.audioChannelMode;
     case NormalizeGainRole: return row.normalizeGain;
+    case GeneratedByRole: return row.generatedBy;
     default: return {};
     }
 }
@@ -297,6 +301,7 @@ QHash<int, QByteArray> TimelineClipsModel::roleNames() const
         {EffectsRole, "effects"},
         {AudioEffectsRole, "audioEffects"},
         {VolumeKeysRole, "volumeKeys"},
+        {KeyTimesRole, "keyTimes"},
         {LoopRole, "loop"},
         {LoopPeriodRole, "loopPeriod"},
         {LoopPhaseRole, "loopPhase"},
@@ -317,6 +322,7 @@ QHash<int, QByteArray> TimelineClipsModel::roleNames() const
         {InvertPhaseRole, "invertPhase"},
         {AudioChannelModeRole, "audioChannelMode"},
         {NormalizeGainRole, "normalizeGain"},
+        {GeneratedByRole, "generatedBy"},
     };
 }
 

@@ -1,7 +1,10 @@
 #include "app/editor/PreferencesController.h"
 #include "app/GraphicsApiChoice.h"
 #include "core/base/CacheRoot.h"
+#include "engine/capture/RecordingLocation.h"
+#include "engine/encode/proxies/ProxyLocation.h"
 #include "engine/encode/proxies/ProxyNaming.h"
+#include "engine/encode/proxies/ReverseProxyCache.h"
 #include "engine/EngineTuning.h"
 
 #include "engine/gpu/device/GpuPreference.h"
@@ -12,11 +15,13 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QPointer>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QFutureWatcher>
 #include <QGuiApplication>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
@@ -238,17 +243,61 @@ void clearCacheFolder(const QString &root)
 }
 } // namespace
 
+namespace {
+const QStringList kWhatYouMake = {QString(), QStringLiteral("youtube"), QStringLiteral("shorts"),
+                                  QStringLiteral("films"), QStringLiteral("podcasts"),
+                                  QStringLiteral("tutorials")};
+const QStringList kExperienceLevels = {QStringLiteral("first"), QStringLiteral("some"), QStringLiteral("pro")};
+const QStringList kAgenticLevels = {QStringLiteral("none"), QStringLiteral("some"), QStringLiteral("lots")};
+const QStringList kAgenticWorkspaceIds = {QStringLiteral("ai"), QStringLiteral("procedural")};
+} // namespace
+
+QStringList PreferencesController::studioWorkspaceIds()
+{
+    return {QStringLiteral("3d"), QStringLiteral("procedural"), QStringLiteral("forge"),
+            QStringLiteral("audio-forge"), QStringLiteral("ai")};
+}
+
 PreferencesController::PreferencesController(QObject *parent)
     : QObject(parent)
 {
     QSettings settings;
     m_reopenLastProject = settings.value(QStringLiteral("editor/reopenLastProject"), false).toBool();
+    m_commandBarEnabled = settings.value(QStringLiteral("commandBar/enabled"), true).toBool();
+    m_showRailLabels = settings.value(QStringLiteral("ui/railLabels"), true).toBool();
+    m_showTips = settings.value(QStringLiteral("ui/showTips"), true).toBool();
+    m_whatYouMake = settings.value(QStringLiteral("personalize/whatYouMake")).toString();
+    if (!kWhatYouMake.contains(m_whatYouMake))
+        m_whatYouMake.clear();
+    m_experienceLevel = settings.value(QStringLiteral("personalize/experienceLevel"), m_experienceLevel).toString();
+    if (!kExperienceLevels.contains(m_experienceLevel))
+        m_experienceLevel = QStringLiteral("some");
+    m_agenticUse = settings.value(QStringLiteral("personalize/agenticUse"), m_agenticUse).toString();
+    if (!kAgenticLevels.contains(m_agenticUse))
+        m_agenticUse = QStringLiteral("some");
+    m_hiddenWorkspaces = settings.value(QStringLiteral("ui/hiddenWorkspaces")).toStringList();
+    m_hiddenWorkspaces.removeAll(QStringLiteral("edit"));
     m_agentNotifications = settings.value(QStringLiteral("agent/notifications"), QStringLiteral("problems")).toString();
     if (!agentNotificationLevels().contains(m_agentNotifications))
         m_agentNotifications = QStringLiteral("problems");
     m_proxySuggestion = settings.value(QStringLiteral("proxy/suggestion"), QStringLiteral("ask")).toString();
     if (!proxySuggestionModes().contains(m_proxySuggestion))
         m_proxySuggestion = QStringLiteral("ask");
+    m_proxyFolder = settings.value(QStringLiteral("proxy/folder")).toString();
+    m_proxyLocation = settings.value(QStringLiteral("proxy/location"), QStringLiteral("beside")).toString();
+    // An unknown value reads as beside; "folder" needs a folder and a platform that can have one.
+    if (!drift::proxyLocationFromString(m_proxyLocation)
+        || (m_proxyLocation == QLatin1String("folder") && (m_proxyFolder.isEmpty() || !proxyFolderSupported())))
+        m_proxyLocation = QStringLiteral("beside");
+    m_recordingFolder = settings.value(QStringLiteral("capture/folder")).toString();
+    m_recordingLocation =
+        settings.value(QStringLiteral("capture/location"), QStringLiteral("movies")).toString();
+    // An unknown value reads as the Movies folder; "folder" needs a folder to have been chosen.
+    // "project" is allowed with no project open — chooseRecordingTarget falls back and says so,
+    // which is better than silently rewriting the user's choice behind their back.
+    if (!drift::recordingLocationFromString(m_recordingLocation)
+        || (m_recordingLocation == QLatin1String("folder") && m_recordingFolder.isEmpty()))
+        m_recordingLocation = QStringLiteral("movies");
     m_undoHistoryMode = settings.value(QStringLiteral("editor/undoHistoryMode"), QStringLiteral("session")).toString();
     if (!undoHistoryModes().contains(m_undoHistoryMode))
         m_undoHistoryMode = QStringLiteral("session");
@@ -265,7 +314,7 @@ PreferencesController::PreferencesController(QObject *parent)
     m_trackLabelsWidth = qBound(64.0,
         settings.value(QStringLiteral("ui/trackLabelsWidth"), 170.0).toDouble(), 360.0);
     m_androidTrackLabelsWidth = qBound(56.0,
-        settings.value(QStringLiteral("ui/androidTrackLabelsWidth"), 80.0).toDouble(), 200.0);
+        settings.value(QStringLiteral("ui/androidTrackLabelsWidth"), 68.0).toDouble(), 200.0);
     m_timelineToolbarItems = settings.value(QStringLiteral("ui/timelineToolbarItems")).toStringList();
     m_timelineMenuItems = settings.value(QStringLiteral("ui/timelineMenuItems")).toStringList();
     m_proxyNamePatterns = settings.contains(QStringLiteral("proxy/namePatterns"))
@@ -479,6 +528,106 @@ void PreferencesController::setTimelineToolbarLayout(const QStringList &toolbarI
     emit timelineToolbarLayoutChanged();
 }
 
+void PreferencesController::setShowRailLabels(bool enabled)
+{
+    if (m_showRailLabels == enabled)
+        return;
+    m_showRailLabels = enabled;
+    QSettings().setValue(QStringLiteral("ui/railLabels"), m_showRailLabels);
+    emit showRailLabelsChanged();
+}
+
+bool PreferencesController::tipDismissed(const QString &id) const
+{
+    return QSettings().value(QStringLiteral("tips/") + id, false).toBool();
+}
+
+void PreferencesController::dismissTip(const QString &id)
+{
+    QSettings().setValue(QStringLiteral("tips/") + id, true);
+}
+
+void PreferencesController::resetDismissedTips()
+{
+    QSettings settings;
+    settings.remove(QStringLiteral("tips"));
+}
+
+void PreferencesController::setShowTips(bool enabled)
+{
+    if (m_showTips == enabled)
+        return;
+    m_showTips = enabled;
+    QSettings().setValue(QStringLiteral("ui/showTips"), m_showTips);
+    emit showTipsChanged();
+}
+
+void PreferencesController::setWhatYouMake(const QString &value)
+{
+    if (!kWhatYouMake.contains(value) || m_whatYouMake == value)
+        return;
+    m_whatYouMake = value;
+    QSettings().setValue(QStringLiteral("personalize/whatYouMake"), m_whatYouMake);
+    emit whatYouMakeChanged();
+}
+
+void PreferencesController::setHiddenWorkspaces(const QStringList &ids)
+{
+    QStringList cleaned;
+    for (const QString &id : ids) {
+        if (id != QLatin1String("edit") && !cleaned.contains(id))
+            cleaned.append(id);
+    }
+    if (cleaned == m_hiddenWorkspaces)
+        return;
+    m_hiddenWorkspaces = cleaned;
+    QSettings().setValue(QStringLiteral("ui/hiddenWorkspaces"), m_hiddenWorkspaces);
+    emit hiddenWorkspacesChanged();
+}
+
+void PreferencesController::setExperienceLevel(const QString &level)
+{
+    if (!kExperienceLevels.contains(level) || m_experienceLevel == level)
+        return;
+    m_experienceLevel = level;
+    QSettings().setValue(QStringLiteral("personalize/experienceLevel"), m_experienceLevel);
+    QStringList hidden = m_hiddenWorkspaces;
+    for (const QString &id : studioWorkspaceIds()) {
+        if (level == QLatin1String("first"))
+            hidden.append(id);
+        else if (!(m_agenticUse == QLatin1String("none") && kAgenticWorkspaceIds.contains(id)))
+            hidden.removeAll(id);
+    }
+    emit experienceLevelChanged();
+    setHiddenWorkspaces(hidden);
+}
+
+void PreferencesController::setAgenticUse(const QString &level)
+{
+    if (!kAgenticLevels.contains(level) || m_agenticUse == level)
+        return;
+    m_agenticUse = level;
+    QSettings().setValue(QStringLiteral("personalize/agenticUse"), m_agenticUse);
+    QStringList hidden = m_hiddenWorkspaces;
+    for (const QString &id : kAgenticWorkspaceIds) {
+        if (level == QLatin1String("none"))
+            hidden.append(id);
+        else if (m_experienceLevel != QLatin1String("first"))
+            hidden.removeAll(id);
+    }
+    emit agenticUseChanged();
+    setHiddenWorkspaces(hidden);
+}
+
+void PreferencesController::setCommandBarEnabled(bool enabled)
+{
+    if (m_commandBarEnabled == enabled)
+        return;
+    m_commandBarEnabled = enabled;
+    QSettings().setValue(QStringLiteral("commandBar/enabled"), m_commandBarEnabled);
+    emit commandBarEnabledChanged();
+}
+
 void PreferencesController::setReopenLastProject(bool enabled)
 {
     if (m_reopenLastProject == enabled)
@@ -515,6 +664,138 @@ void PreferencesController::setProxySuggestion(const QString &mode)
     m_proxySuggestion = mode;
     QSettings().setValue(QStringLiteral("proxy/suggestion"), m_proxySuggestion);
     emit proxySuggestionChanged();
+}
+
+bool PreferencesController::proxyFolderSupported()
+{
+#ifdef Q_OS_ANDROID
+    return false;
+#else
+    return true;
+#endif
+}
+
+void PreferencesController::setProxyLocation(const QString &location)
+{
+    const auto parsed = drift::proxyLocationFromString(location);
+    if (!parsed || location == m_proxyLocation)
+        return;
+    if (*parsed == drift::ProxyLocation::Folder && (m_proxyFolder.isEmpty() || !proxyFolderSupported()))
+        return;
+    m_proxyLocation = location;
+    QSettings().setValue(QStringLiteral("proxy/location"), m_proxyLocation);
+    emit proxyLocationChanged();
+}
+
+void PreferencesController::setRecordingLocation(const QString &location)
+{
+    const auto parsed = drift::recordingLocationFromString(location);
+    if (!parsed || location == m_recordingLocation)
+        return;
+    if (*parsed == drift::RecordingLocation::Folder && m_recordingFolder.isEmpty())
+        return;
+    m_recordingLocation = location;
+    QSettings().setValue(QStringLiteral("capture/location"), m_recordingLocation);
+    emit recordingLocationChanged();
+}
+
+QUrl PreferencesController::recordingFolderUrl() const
+{
+    return m_recordingFolder.isEmpty() ? QUrl() : QUrl::fromLocalFile(m_recordingFolder);
+}
+
+QString PreferencesController::setRecordingFolder(const QString &path)
+{
+    // The folder picker hands over a file:// URL; agents and the config hand over a path.
+    const QString raw = path.trimmed().startsWith(QLatin1String("file:"), Qt::CaseInsensitive)
+                            ? QUrl(path.trimmed()).toLocalFile()
+                            : path.trimmed();
+    const QString clean = QDir::cleanPath(raw);
+    if (raw.isEmpty() || !QDir::isAbsolutePath(clean))
+        return tr("Choose a folder by its full path.");
+    if (!QFileInfo(clean).isDir())
+        return tr("That folder doesn’t exist.");
+    // Tried by really writing: QFileInfo::isWritable lies on network shares, and finding that out
+    // when the recording stops would mean losing the take.
+    if (!drift::canWriteBeside(QDir(clean).filePath(QStringLiteral("drift-write-test"))))
+        return tr("Drift can’t write to that folder.");
+    if (clean != m_recordingFolder) {
+        m_recordingFolder = clean;
+        QSettings().setValue(QStringLiteral("capture/folder"), m_recordingFolder);
+        emit recordingFolderChanged();
+    }
+    return {};
+}
+
+QUrl PreferencesController::proxyFolderUrl() const
+{
+    return m_proxyFolder.isEmpty() ? QUrl() : QUrl::fromLocalFile(m_proxyFolder);
+}
+
+QString PreferencesController::setProxyFolder(const QString &path)
+{
+    if (!proxyFolderSupported())
+        return tr("Choosing a folder isn’t supported on this device.");
+    // The folder picker hands over a file:// URL; agents and the config hand over a path.
+    const QString raw = path.trimmed().startsWith(QLatin1String("file:"), Qt::CaseInsensitive)
+                            ? QUrl(path.trimmed()).toLocalFile()
+                            : path.trimmed();
+    const QString clean = QDir::cleanPath(raw);
+    if (raw.isEmpty() || !QDir::isAbsolutePath(clean))
+        return tr("Choose a folder by its full path.");
+    const QFileInfo info(clean);
+    if (!info.isDir())
+        return tr("That folder doesn’t exist.");
+    const QString cache = QDir::cleanPath(drift::reverseCacheDir());
+    const QString canonical = QFileInfo(clean).canonicalFilePath();
+    const QString canonicalCache = QFileInfo(cache).canonicalFilePath();
+    const auto inside = [](const QString &dir, const QString &root) {
+        return !root.isEmpty() && (dir == root || dir.startsWith(root + QLatin1Char('/')));
+    };
+    if (inside(clean, cache) || inside(canonical, canonicalCache))
+        return tr("That is Drift’s own cache. Choose another folder, or pick “In Drift’s cache”.");
+    if (!drift::canWriteBeside(QDir(clean).filePath(QStringLiteral("drift-write-test"))))
+        return tr("Drift can’t write to that folder.");
+    if (clean != m_proxyFolder) {
+        m_proxyFolder = clean;
+        QSettings().setValue(QStringLiteral("proxy/folder"), m_proxyFolder);
+        emit proxyFolderChanged();
+        m_proxyFolderBytes = -1;
+        emit proxyFolderBytesChanged();
+    }
+    return {};
+}
+
+void PreferencesController::refreshProxyFolderUsage()
+{
+    const QString folder = m_proxyFolder;
+    if (folder.isEmpty()) {
+        if (m_proxyFolderBytes != -1) {
+            m_proxyFolderBytes = -1;
+            emit proxyFolderBytesChanged();
+        }
+        return;
+    }
+    (void)QtConcurrent::run([this, guard = QPointer<PreferencesController>(this), folder] {
+        // Only Drift's own names, so the figure is Drift's share, not the user's other files.
+        qint64 bytes = 0;
+        const QFileInfoList files = QDir(folder).entryInfoList(
+            {QStringLiteral("*_????????_proxy_*.mp4"), QStringLiteral("*_????????_reversed_*-*.mp4")},
+            QDir::Files);
+        for (const QFileInfo &file : files)
+            bytes += file.size();
+        if (!guard)
+            return;
+        QMetaObject::invokeMethod(
+            guard.data(),
+            [this, folder, bytes] {
+                if (folder != m_proxyFolder || bytes == m_proxyFolderBytes)
+                    return;
+                m_proxyFolderBytes = bytes;
+                emit proxyFolderBytesChanged();
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 QStringList PreferencesController::undoHistoryModes()
@@ -722,6 +1003,19 @@ void PreferencesController::pushRecentTransition(const QString &kind)
         m_recentTransitions.removeLast();
     QSettings().setValue(QStringLiteral("timeline/recentTransitions"), m_recentTransitions);
     emit recentTransitionsChanged();
+}
+
+QStringList PreferencesController::assetSearchHistory(const QString &key) const
+{
+    const QString json = QSettings().value(QStringLiteral("assetSearchHistory/%1/json").arg(key)).toString();
+    return QJsonDocument::fromJson(json.toUtf8()).toVariant().toStringList();
+}
+
+void PreferencesController::setAssetSearchHistory(const QString &key, const QStringList &entries)
+{
+    QSettings().setValue(QStringLiteral("assetSearchHistory/%1/json").arg(key),
+                         QString::fromUtf8(QJsonDocument(QJsonArray::fromStringList(entries))
+                                               .toJson(QJsonDocument::Compact)));
 }
 
 namespace {
@@ -1218,10 +1512,21 @@ bool PreferencesController::quickSetupNeeded()
 #endif
 }
 
-void PreferencesController::completeQuickSetup()
+bool PreferencesController::takeStartProject()
+{
+    QSettings settings;
+    const bool pending = settings.value(QStringLiteral("setup/startProject"), false).toBool();
+    if (pending)
+        settings.remove(QStringLiteral("setup/startProject"));
+    return pending;
+}
+
+void PreferencesController::completeQuickSetup(bool startProject)
 {
     QSettings settings;
     settings.setValue(QStringLiteral("setup/quickSetupDone"), true);
+    if (startProject)
+        settings.setValue(QStringLiteral("setup/startProject"), true);
     settings.sync();
     if (m_needsUiLanguagePrompt) {
         markUiLanguageChosen();

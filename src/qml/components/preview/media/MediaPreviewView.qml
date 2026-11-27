@@ -48,6 +48,12 @@ Item {
     // Crop framing starts constrained to the source video ratio. Turning the lock back on uses
     // the current width and updates height immediately.
     property bool cropRatioLocked: true
+    // Straightening refits the crop box inside the turned picture. Remembered across sessions and
+    // shared with the inspector's Straighten field (LayoutMemory, app-wide).
+    property bool autoFit: LayoutMemory.layoutNumber("crop/straightenAutoFit", 1) !== 0
+    // The box from before straightening began. Straightening fits from it, so turning back to 0°
+    // restores it. Null until the slider moves; cleared by any manual change to the box.
+    property var straightenBase: null
 
     // The trim already saved non-destructively on the asset (AssetLibrary::setAssetTrim) — the
     // baseline "no edit yet" reverts to, since a plain trim never re-encodes the file and so is
@@ -107,6 +113,7 @@ Item {
             return
         EditorState.assetPreview.windowOpen = true
         EditorState.assetPreview.pause()
+        root.straightenBase = null
         root.clipId = ""
         root.page = 0
         root.renderingCopy = false
@@ -167,7 +174,22 @@ Item {
             EditorState.assetPreview.play()
     }
 
+    // Turn the picture to `angle`. With Auto-fit on, the box follows: fitted from the box as it was
+    // before straightening began. With it off the box is left alone (and the base untouched).
+    function straightenTo(angle) {
+        root.cropAngle = angle
+        if (!root.autoFit)
+            return
+        if (root.straightenBase === null)
+            root.straightenBase = { x: root.cropX, y: root.cropY, w: root.cropW, h: root.cropH }
+        const b = root.straightenBase
+        const fit = EditorState.fitSourceFrameToStraighten(b.x, b.y, b.w, b.h, angle,
+                                                           root.displayW, root.displayH)
+        root.cropX = fit.x; root.cropY = fit.y; root.cropW = fit.width; root.cropH = fit.height
+    }
+
     function resetEdits() {
+        root.straightenBase = null
         if (root.clipId.length === 0) {
             root.inSeconds = root.persistedInSeconds
             root.outSeconds = root.persistedOutSeconds
@@ -181,6 +203,7 @@ Item {
     }
 
     function lockCropRatioFromWidth() {
+        root.straightenBase = null
         // cropW/cropH are normalized against the same source, so a frame with the source's
         // original ratio has equal normalized width and height.
         const size = Math.max(0.08, Math.min(1, root.cropW))
@@ -194,6 +217,8 @@ Item {
         const clip = EditorState.clipAt(track, index)
         if (!clip || (clip.kind !== "video" && clip.kind !== "image"))
             return
+        root.straightenBase = null
+        root.autoFit = LayoutMemory.layoutNumber("crop/straightenAutoFit", 1) !== 0
         EditorState.assetPreview.pause()
         root.clipId = clip.id
         root.page = 0
@@ -231,6 +256,7 @@ Item {
         const clip = EditorState.clipAt(root.clipTrack, root.clipIndex)
         if (!clip || clip.id !== root.clipId)
             return
+        root.straightenBase = null
         const next = ((root.effectiveRotation + steps * 90) % 360 + 360) % 360
         EditorState.setClipOrientation(root.clipTrack, root.clipIndex, next)
         root.effectiveRotation = EditorState.clipAt(root.clipTrack, root.clipIndex).orientation
@@ -376,12 +402,12 @@ Item {
     }
 
     Shortcut {
-        sequence: "Space"
+        sequences: Theme.shortcutSequences("mediaPreview.playPause")
         enabled: root.shortcutsEnabled && root.page === 0
         onActivated: root.togglePlay()
     }
     Shortcut {
-        sequence: "I"
+        sequences: Theme.shortcutSequences("mediaPreview.markIn")
         enabled: root.shortcutsEnabled && root.canTrim && !root.saving && root.page === 0
         onActivated: {
             root.inSeconds = Math.max(0, root.position)
@@ -389,7 +415,7 @@ Item {
         }
     }
     Shortcut {
-        sequence: "O"
+        sequences: Theme.shortcutSequences("mediaPreview.markOut")
         enabled: root.shortcutsEnabled && root.canTrim && !root.saving && root.page === 0
         onActivated: {
             root.outSeconds = Math.max(root.inSeconds, root.position)
@@ -483,50 +509,20 @@ Item {
                 width: still.paintedWidth
                 height: still.paintedHeight
 
-                readonly property real frameX: root.cropX * width
-                readonly property real frameY: root.cropY * height
-                readonly property real frameW: root.cropW * width
-                readonly property real frameH: root.cropH * height
-                readonly property real minFrac: 0.08
-
-                function setCrop(nx, ny, nw, nh) {
-                    const min = cropHost.minFrac
-                    nw = Math.max(min, Math.min(1, nw))
-                    nh = Math.max(min, Math.min(1, nh))
-                    nx = Math.max(0, Math.min(1 - nw, nx))
-                    ny = Math.max(0, Math.min(1 - nh, ny))
-                    root.cropX = nx
-                    root.cropY = ny
-                    root.cropW = nw
-                    root.cropH = nh
-                }
-
-                // Dim outside the keep-rect.
-                MediaPreviewCropScrim {
-                    host: cropHost
-                }
-
-                MediaPreviewCropFrame {
-                    host: cropHost
-                    editor: root
-                    editing: !root.saving
-                }
-
-                Repeater {
-                    model: [
-                        { x: 0, y: 0, dx: -1, dy: -1 },
-                        { x: 0.5, y: 0, dx: 0, dy: -1 },
-                        { x: 1, y: 0, dx: 1, dy: -1 },
-                        { x: 0, y: 0.5, dx: -1, dy: 0 },
-                        { x: 1, y: 0.5, dx: 1, dy: 0 },
-                        { x: 0, y: 1, dx: -1, dy: 1 },
-                        { x: 0.5, y: 1, dx: 0, dy: 1 },
-                        { x: 1, y: 1, dx: 1, dy: 1 }
-                    ]
-                    MediaPreviewCropGrip {
-                        host: cropHost
-                        editor: root
-                        editing: !root.saving
+                CropFrame {
+                    anchors.fill: parent
+                    spaceSize: Qt.size(1, 1)
+                    contentSize: Qt.size(Math.max(1, root.displayW), Math.max(1, root.displayH))
+                    crop: Qt.rect(root.cropX, root.cropY, root.cropW, root.cropH)
+                    aspect: root.cropRatioLocked ? root.displayW / Math.max(1, root.displayH) : 0
+                    minSize: 0.08
+                    editable: !root.saving
+                    onEdited: (c) => {
+                        root.straightenBase = null
+                        root.cropX = c.x
+                        root.cropY = c.y
+                        root.cropW = c.width
+                        root.cropH = c.height
                     }
                 }
             }
@@ -552,14 +548,14 @@ Item {
                 label: qsTr("Straighten")
                 anchors.verticalCenter: parent.verticalCenter
                 width: Math.max(80, parent.width - straightenLabel.implicitWidth - straightenValue.width
-                                    - straightenReset.width - parent.spacing * 3)
+                                    - straightenReset.width - autoFitBox.width - parent.spacing * 4)
                 from: -180
                 to: 180
                 stepSize: 0.1
                 enabled: !root.saving
                 valueFormatter: v => Number(v).toFixed(1) + "°"
                 value: root.cropAngle
-                onMoved: root.cropAngle = Math.round(value * 10) / 10
+                onMoved: root.straightenTo(Math.round(value * 10) / 10)
             }
 
             ThemedLabel {
@@ -572,6 +568,22 @@ Item {
                 text: Number(root.cropAngle).toFixed(1) + "°"
             }
 
+            ThemedCheckBox {
+                id: autoFitBox
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Auto-fit")
+                tooltip: qsTr("The crop box shrinks to stay inside the straightened picture")
+                enabled: !root.saving
+                checked: root.autoFit
+                onToggled: {
+                    root.autoFit = checked
+                    LayoutMemory.setLayoutNumber("crop/straightenAutoFit", checked ? 1 : 0)
+                    // Turned on while the picture is already tilted: fit the box now.
+                    if (checked && Math.abs(root.cropAngle) > 1e-4)
+                        root.straightenTo(root.cropAngle)
+                }
+            }
+
             IconButton {
                 id: straightenReset
                 anchors.verticalCenter: parent.verticalCenter
@@ -581,7 +593,7 @@ Item {
                 iconSize: Theme.iconSizeSm
                 variant: "ghost"
                 enabled: !root.saving && root.cropAngle !== 0
-                onClicked: root.cropAngle = 0
+                onClicked: root.straightenTo(0)
             }
         }
 

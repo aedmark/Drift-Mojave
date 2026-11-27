@@ -3,17 +3,24 @@
 #include "engine/render3d/scene/EditorView3d.h"
 #include "engine/render3d/scene/SceneCamera3d.h"
 
+#include "core/base/Time.h"
+
+#include <QHash>
 #include <QImage>
 #include <QMatrix4x4>
 #include <QObject>
 #include <functional>
 #include <QPointF>
+#include <QSet>
 #include <QVariantList>
 #include <QVariantMap>
 
 class AppController;
 class Outliner3dModel;
 
+namespace drift {
+struct Clip;
+}
 namespace drift::snap {
 struct PlacedClip;
 }
@@ -51,15 +58,25 @@ class PreviewController : public QObject
     Q_PROPERTY(bool orthographic READ orthographic WRITE setOrthographic NOTIFY viewChanged)
     Q_PROPERTY(double editorFov READ editorFov WRITE setEditorFov NOTIFY viewChanged)
     // The editor viewport's floor grid (its spacing in px, 0 for automatic) and the gizmo's snap steps:
-    // moves by translateSnap px (0 for none) and turns by rotationSnap degrees. A drag snaps unless
-    // Ctrl is held.
+    // moves by translateSnap px, turns by rotationSnap degrees and scales by scaleSnap (0 for no step).
+    // A drag is free unless Ctrl is held (or the phone's Snap chip is on).
     Q_PROPERTY(bool showGrid READ showGrid WRITE setShowGrid NOTIFY viewChanged)
     Q_PROPERTY(double gridSize READ gridSize WRITE setGridSize NOTIFY viewChanged)
     Q_PROPERTY(double translateSnap READ translateSnap WRITE setTranslateSnap NOTIFY gizmoChanged)
     Q_PROPERTY(double rotationSnap READ rotationSnap WRITE setRotationSnap NOTIFY gizmoChanged)
+    Q_PROPERTY(double scaleSnap READ scaleSnap WRITE setScaleSnap NOTIFY gizmoChanged)
     // Navigation: "blender" (middle-drag orbits, Shift pans, Ctrl dollies) or "maya" (Alt with the
     // left, middle or right button orbits, pans or dollies); the wheel zooms toward the pointer in both.
     Q_PROPERTY(QString navigationScheme READ navigationScheme WRITE setNavigationScheme NOTIFY navigationChanged)
+    // Fly mode look: "mouse" (locked pointer, raw mouse deltas) or "steer" (the view turns toward
+    // the pointer's offset from the centre, for touchpads).
+    Q_PROPERTY(QString flyLook READ flyLook WRITE setFlyLook NOTIFY navigationChanged)
+    // Arms recording: the next play records the scene camera's flight (looking through it), or else
+    // the selected clip's stick-driven position, scale and rotation, as keys at the playhead.
+    Q_PROPERTY(bool recordArmed READ recordArmed WRITE setRecordArmed NOTIFY recordingChanged)
+    Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
+    // 0..1: how far a finished recording is thinned; 0 keeps every frame's key.
+    Q_PROPERTY(double recordSmoothing READ recordSmoothing WRITE setRecordSmoothing NOTIFY recordingChanged)
     // Orbit about the selection's centre when something is selected, else about the view's target.
     Q_PROPERTY(bool orbitAroundSelection READ orbitAroundSelection WRITE setOrbitAroundSelection NOTIFY navigationChanged)
     // While looking through the scene camera, orbit/pan/dolly move the camera clip rather than
@@ -71,6 +88,10 @@ class PreviewController : public QObject
     Q_PROPERTY(bool canvasCropMode READ canvasCropMode WRITE setCanvasCropMode NOTIFY canvasCropModeChanged)
     // Phone crop page: the selected clip's source frame is edited on the preview. Exclusive with canvasCropMode.
     Q_PROPERTY(bool clipCropMode READ clipCropMode WRITE setClipCropMode NOTIFY clipCropModeChanged)
+    // Pen/path editing of a custom shape: "" (off), "edit" (the selected Path shape clip's outline) or
+    // "draw" (a new path, no clip yet). Exclusive with the other modes; "edit" ends when the selection
+    // stops being a Path shape clip.
+    Q_PROPERTY(QString shapePathMode READ shapePathMode WRITE setShapePathMode NOTIFY shapePathModeChanged)
     Q_PROPERTY(QString maskViewMode READ maskViewMode WRITE setMaskViewMode NOTIFY maskViewModeChanged)
     // The masking workspace's drawing tool: "" (none), "rect", "ellipse", "polygon", "brush", "ai"
     // or "tracker". Session state, like the rest of this class.
@@ -80,7 +101,7 @@ class PreviewController : public QObject
     // itself a request to edit it, so the toggle is only needed to keep the handles up while some
     // *other* clip is selected.
     Q_PROPERTY(bool maskEditActive READ maskEditActive NOTIFY maskEditActiveChanged)
-    // The one tool that owns the preview's pointer: "crop", "clipCrop", "guideEdit", "maskDraw", "maskBrush",
+    // The one tool that owns the preview's pointer: "crop", "clipCrop", "shapePath", "guideEdit", "maskDraw", "maskBrush",
     // "maskAi", "tracker", "mask" or "transform", in that order of precedence. The masking tools
     // and the mask editor are 2D tools, so the editor viewport falls through to "transform".
     Q_PROPERTY(QString activeTool READ activeTool NOTIFY activeToolChanged)
@@ -140,8 +161,20 @@ public:
     void setTranslateSnap(double px);
     double rotationSnap() const { return m_rotationSnap; }
     void setRotationSnap(double degrees);
+    double scaleSnap() const { return m_scaleSnap; }
+    void setScaleSnap(double step);
     QString navigationScheme() const { return m_navigationScheme; }
     void setNavigationScheme(const QString &scheme);
+    bool recordArmed() const { return m_recordArmed; }
+    void setRecordArmed(bool armed);
+    bool recording() const { return m_recording; }
+    double recordSmoothing() const { return m_recordSmoothing; }
+    void setRecordSmoothing(double smoothing);
+    // One step of puppet recording while it runs: stick-style inputs in -1..1 (move right, move up,
+    // grow, turn clockwise) for `seconds`. Does nothing unless a puppet recording is running.
+    Q_INVOKABLE void puppet(double seconds, double moveX, double moveY, double grow, double turn);
+    QString flyLook() const { return m_flyLook; }
+    void setFlyLook(const QString &look);
     bool orbitAroundSelection() const { return m_orbitAroundSelection; }
     void setOrbitAroundSelection(bool on);
     bool lockCameraToView() const { return m_lockCameraToView; }
@@ -156,6 +189,8 @@ public:
     void setCanvasCropMode(bool active);
     bool clipCropMode() const { return m_clipCropMode; }
     void setClipCropMode(bool active);
+    QString shapePathMode() const { return m_shapePathMode; }
+    void setShapePathMode(const QString &mode);
     QString maskViewMode() const { return m_maskViewMode; }
     void setMaskViewMode(const QString &mode);
     bool maskEditMode() const { return m_maskEditMode; }
@@ -258,15 +293,24 @@ public:
     // The 3D gizmo for a clipsAtPlayhead box (or a live pose of the same shape), in overlay px at
     // `scale` overlay px per canvas px. `size` enlarges the handles for touch. Every call below
     // that takes `viewport` measures through that viewport's view (0 camera, 1 editor).
-    // Geometry: {valid, origin:{x,y}, handles:[{id, kind, front:[[{x,y}…]…], back:[…], head:[…]}]}.
+    // Geometry: {valid, origin:{x,y}, handles:[{id, kind, alpha, front:[[{x,y}…]…], back:[…], head:[…]}]}.
     Q_INVOKABLE QVariantMap gizmoGeometry(const QVariantMap &box, double scale, double size, int viewport = 0) const;
     Q_INVOKABLE QString gizmoPick(const QVariantMap &box, double scale, double size, double x,
                                   double y, double tolerance, int viewport = 0) const;
     // Drags `handle` from press to now (overlay px) starting at `start`, writes the result to the
-    // clip the way the other preview setters do, and returns the new pose in the box's shape.
+    // clip the way the other preview setters do, and returns the new pose in the box's shape, plus
+    // amount and amount2 (see DragResult) for a readout.
+    // `options`: snap (bool, steps by the snap settings), axis
+    // ("x", "y" or "z" to constrain), plane (bool, with axis: the plane without it), orientation
+    // ("world", "local" or "view", replacing the gizmo's for the lock), typed (a number that
+    // replaces the pointer: units, degrees or a factor).
     Q_INVOKABLE QVariantMap applyGizmoDrag(const QVariantMap &start, const QString &handle,
                                            double pressX, double pressY, double nowX, double nowY,
-                                           bool snap, double scale, int viewport = 0);
+                                           const QVariantMap &options, double scale, int viewport = 0);
+    // The guide lines of an axis or plane lock in `options` (as applyGizmoDrag): [{axis ("x"…), x1, y1, x2, y2}] in
+    // overlay px, from the origin to one handle-length along each locked axis.
+    Q_INVOKABLE QVariantList gizmoLockGuides(const QVariantMap &box, double scale, const QVariantMap &options,
+                                             int viewport = 0) const;
     // The 3D gizmo's frame for several 3D layers: a box (kind "group") at the centroid of their
     // centres in world space, unturned. Empty when none of the boxes can take part.
     Q_INVOKABLE QVariantMap groupGizmoPivot(const QVariantList &boxes, int viewport = 0) const;
@@ -275,7 +319,7 @@ public:
     // frame's new pose is returned. Scale handles all grow the group uniformly.
     Q_INVOKABLE QVariantMap applyGroupGizmoDrag(const QVariantMap &pivot, const QVariantList &startBoxes,
                                                 const QString &handle, double pressX, double pressY,
-                                                double nowX, double nowY, bool snap, double scale, int viewport = 0);
+                                                double nowX, double nowY, const QVariantMap &options, double scale, int viewport = 0);
     // For a clipsAtPlayhead box with a 3D pose: the QtQuick transform of an item laid out at
     // (x, y, w, h) * scale in overlay px, placing its content where the clip renders.
     Q_INVOKABLE QMatrix4x4 clipPoseMatrix(const QVariantMap &box, double x, double y, double w,
@@ -286,17 +330,21 @@ public:
     // parents and the camera, so the grabbed point stays under the pointer. With `snap`, the
     // projected edges and centre pull to the canvas edges, centre lines and visible guides within
     // `tolerance` canvas px. Returns {valid, x, y, guideX, guideY} with the box's new rect origin;
-    // guides are canvas px, -1 when not engaged.
+    // guides are canvas px, -1 when not engaged. `options` adds {x:[…], y:[…]} target lines (canvas
+    // px; other clips' edges and centres) and {lock:"x"|"y"} to keep the pull off the locked axis.
+    // A rotated box snaps by the bounds of its projected corners.
     Q_INVOKABLE QVariantMap snapMove(const QVariantMap &box, double pressX, double pressY,
                                      double nowX, double nowY, double tolerance, bool snap,
-                                     int viewport = 0) const;
+                                     int viewport = 0, const QVariantMap &options = {}) const;
     // A resize of the box (its rect as it stood at the grab) to `width` x `height`, with the moving
     // edges along `dxSign`/`dySign` (-1 left/top, +1 right/bottom, 0 fixed). `centrePivot` says the
     // rect grows about its centre rather than the opposite edge. Returns {width, height, guideX,
     // guideY, distX, distY}: each axis snapped on its own, with how far it was pulled (-1 if not).
+    // `options` adds {x:[…], y:[…]} target lines as for snapMove.
     Q_INVOKABLE QVariantMap snapResize(const QVariantMap &box, double width, double height,
                                        int dxSign, int dySign, bool centrePivot,
-                                       double tolerance, int viewport = 0) const;
+                                       double tolerance, int viewport = 0,
+                                       const QVariantMap &options = {}) const;
     // Moves several clips as one body from where they stood at the grab (clipsAtPlayhead boxes), all
     // in canvas px: each clip's centre goes to pivot + R(rotationDeg) * S(scaleX, scaleY) * (centre -
     // pivot) + (dx, dy), its size follows the scale and its angle the rotation. Written through the
@@ -378,6 +426,7 @@ signals:
     // MCP or another non-UI caller wants a 3D viewport on screen.
     void viewport3dRequested();
     void flyingChanged();
+    void recordingChanged();
     void viewChanged();
     void gizmoChanged();
     void navigationChanged();
@@ -385,6 +434,7 @@ signals:
     void guideEditSetIdChanged();
     void canvasCropModeChanged();
     void clipCropModeChanged();
+    void shapePathModeChanged();
     void maskEditModeChanged();
     void maskViewModeChanged();
     void maskingToolChanged();
@@ -430,7 +480,13 @@ private:
     void flyCamera(int trackIndex, int clipIndex, double turnRightDeg, double turnUpDeg, double forward,
                    double right, double up);
     void setView(const drift::EditorView3d &view);
+    void startRecording();
+    void finishRecording();
+    // Writes the held pose as keys at the playhead.
+    void sampleRecording();
+    bool recordKey(drift::Clip &clip, const QString &key, double value);
     void updateActiveTool();
+    bool selectionIsPathShape() const;
     void updateHandlesVisible();
     void refreshOutliner();
 
@@ -450,20 +506,36 @@ private:
     // (so the "turn on auto keyframes" notice shows once, not every frame).
     bool m_flyEdited = false;
     bool m_flyBlocked = false;
+    bool m_recordArmed = false;
+    bool m_recording = false;
+    bool m_recordsCamera = false;
+    double m_recordSmoothing = 0.5;
+    int m_recTrack = -1;
+    int m_recClip = -1;
+    drift::TimeUs m_recStart = 0;
+    drift::TimeUs m_recEnd = 0;
+    QSet<drift::TimeUs> m_recTimes;
+    QStringList m_recKeys;
+    drift::SceneCamera3d m_recCamera;
+    // Puppet: the held pose by key (positionX, positionY, scaleX, scaleY, rotation).
+    QHash<QString, double> m_recPose;
     QString m_navigationScheme = QStringLiteral("blender");
+    QString m_flyLook = QStringLiteral("mouse");
     bool m_orbitAroundSelection = true;
     bool m_lockCameraToView = false;
     double m_editorFov = 32.0;
     bool m_showGrid = true;
     double m_gridSize = 0.0;
-    double m_translateSnap = 0.0;
+    double m_translateSnap = 10.0;
     double m_rotationSnap = 15.0;
+    double m_scaleSnap = 0.1;
     QString m_gizmoTool = QStringLiteral("move");
     QString m_gizmoOrientation = QStringLiteral("world");
     bool m_guidesEnabled = false;
     QString m_guideEditSetId;
     bool m_canvasCropMode = false;
     bool m_clipCropMode = false;
+    QString m_shapePathMode;
     bool m_maskEditMode = false;
     QString m_maskViewMode = QStringLiteral("off");
     QString m_maskingTool;

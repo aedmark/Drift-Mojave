@@ -4,6 +4,7 @@
 #include "app/editor/AppControllerDetail.h"
 #include "app/bin/AssetLibrary.h"
 #include "core/text/animation/TextAnimationPreset.h"
+#include "core/project/sources/GeneratorKinds.h"
 
 #include "app/mcp/McpDetail.h"
 
@@ -204,6 +205,8 @@ bool parsePdfProp(const drift::Clip &clip, const QString &prop, QString *key);
 // A procedural param is addressed as "proc.<key>" ("proc.speed"); colour, vec2 and region params
 // animate per channel ("proc.tint.r", "proc.origin.x") like an effect's.
 bool parseProceduralProp(const drift::Clip &clip, const QString &prop, QString *key);
+// The parameter schema behind clip.procedural: the package's for a Procedural clip, the kind's for a Generator.
+QList<drift::EffectParamSpec> proceduralSpecsFor(const drift::Clip &clip);
 
 void clearClipPose3d(drift::Clip &clip);
 
@@ -358,6 +361,14 @@ QString newClipId();
 // fill / fillKind / fillSecondary / gradientAngle land on the front-most fill layer, stroke /
 // strokeWidth / strokeStyle on the first stroke layer, either created when missing.
 void applyShapeStylePatch(drift::ShapeStyle &s, const QVariantMap &m);
+
+// Fits a Path clip's box to the tight bounds of its contours and keys, renormalizing them and moving
+// the frame, anchor and position so no point moves on the canvas. `relative` is clip time.
+void refitShapeBox(drift::Clip &clip, const QSizeF &canvas, drift::TimeUs relative);
+
+// Contours as the {closed, vertices: [{x, y, inX, inY, outX, outY, smooth}]} maps QML edits.
+QVariantList shapeContoursToVariant(const QVector<drift::ShapeContour> &contours);
+QVector<drift::ShapeContour> shapeContoursFromVariant(const QVariantList &list);
 
 // The matte already pinned to a clip, or a default-constructed Mask when it has none. Masks live
 // on the adjustments linked to the clip, so this has to go through the project rather than reading

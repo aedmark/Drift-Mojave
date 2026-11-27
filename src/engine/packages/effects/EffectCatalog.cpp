@@ -2,16 +2,23 @@
 
 #include "engine/packages/effects/EffectPackageLoader.h"
 
-#include <QCoreApplication>
-#include <QHash>
 #include <QMutex>
 #include <QMutexLocker>
+#include <deque>
+#include <memory>
+#include <QCoreApplication>
+#include <QHash>
 #include <QSet>
 
 #include <algorithm>
 #include <cmath>
 
 namespace {
+
+std::shared_ptr<EffectPresetEntry> g_draft;
+std::deque<std::shared_ptr<EffectPresetEntry>> g_retiredDrafts;
+QMutex g_draftMutex;
+constexpr size_t kDraftRetireDepth = 8;
 
 QString substituteTemplate(QString templ, const QMap<QString, QVariant> &params)
 {
@@ -64,6 +71,12 @@ QString translatedCategoryLabel(const QString &slug)
         return QCoreApplication::translate("EffectCatalog", "Artistic");
     if (slug == QLatin1String("depth"))
         return QCoreApplication::translate("EffectCatalog", "Depth & Lighting");
+    if (slug == QLatin1String("fix"))
+        return QCoreApplication::translate("EffectCatalog", "Fix");
+    if (slug == QLatin1String("privacy"))
+        return QCoreApplication::translate("EffectCatalog", "Privacy");
+    if (slug == QLatin1String("background"))
+        return QCoreApplication::translate("EffectCatalog", "Background");
     if (slug.isEmpty())
         return QCoreApplication::translate("EffectCatalog", "Other");
     return slug.at(0).toUpper() + slug.mid(1);
@@ -127,12 +140,33 @@ const QList<EffectPresetEntry> &effectCatalog()
     return g_mergedCatalog;
 }
 
+void setDraftEffect(std::optional<EffectPresetEntry> entry)
+{
+    std::shared_ptr<EffectPresetEntry> next;
+    if (entry) {
+        next = std::make_shared<EffectPresetEntry>(std::move(*entry));
+        next->meta.id = kDraftEffectId;
+    }
+    QMutexLocker lock(&g_draftMutex);
+    if (g_draft) {
+        g_retiredDrafts.push_back(std::move(g_draft));
+        while (g_retiredDrafts.size() > kDraftRetireDepth)
+            g_retiredDrafts.pop_front();
+    }
+    g_draft = std::move(next);
+}
+
 const EffectPresetEntry *effectDefForId(const QString &id)
 {
     QString resolved = id;
     if (resolved == QLatin1String("stylize.rgb_split"))
         resolved = QStringLiteral("rgb_split");
 
+    {
+        QMutexLocker draftLock(&g_draftMutex);
+        if (resolved == kDraftEffectId && g_draft)
+            return g_draft.get();
+    }
     QMutexLocker lock(&g_catalogMutex);
     ensureCatalogLocked();
     const auto it = g_idIndex.constFind(resolved);

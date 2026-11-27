@@ -243,6 +243,13 @@ ApplicationWindow {
     }
 
     Connections {
+        target: EditorState.surfaces
+        function onActionRequested(id) {
+            EditorState.triggerAction(id)
+        }
+    }
+
+    Connections {
         target: EditorState.bin
         function onEditFinished(ok, message) {
             if (!ok || EditorState.bin.editIsConversion || window._pendingMediaEdit < 0)
@@ -922,6 +929,14 @@ ApplicationWindow {
         })
     }
 
+    function openRemote() {
+        if (window.subPageKind === "remote")
+            return
+        window.closeSubPage()
+        window.subPage = stack.push(remotePageComponent)
+        window.subPageKind = "remote"
+    }
+
     function openMarketplace(pageOrTab, source, itemId) {
         if (window.subPageKind !== "marketplace") {
             window.closeSubPage()
@@ -1070,6 +1085,19 @@ ApplicationWindow {
                 EditorState.projectFile.loadProject(launched)
                 Qt.callLater(window.showEditor)
             })
+            return
+        }
+        // Quick Setup's "Start a project" finish: a fresh project on the canvas the user's
+        // answer implies, straight into the editor. Recovery is left alone: newProject() would
+        // delete the snapshot.
+        if (!EditorState.projectFile.recoveryAvailable && EditorState.preferences.takeStartProject()) {
+            const canvas = LayoutPresets.makeCanvas(EditorState.preferences.whatYouMake)
+            EditorState.projectFile.newProject(true)
+            if (canvas) {
+                EditorState.projectFile.setProjectSetup(canvas.width, canvas.height, EditorState.projectFile.projectFps())
+                EditorState.markProjectLayoutChosen()
+            }
+            Qt.callLater(window.showEditor)
             return
         }
         // "Reopen last project" restores the autosave or the last clean .drift silently and
@@ -1349,6 +1377,19 @@ ApplicationWindow {
         function onOpenRequested(page, tab, source, itemId) {
             window.openMarketplace(tab.length > 0 ? tab : page, source, itemId)
         }
+    }
+
+    Component {
+        id: remotePageComponent
+        AndroidRemotePage {
+            onBackRequested: window.closeSubPage()
+            Component.onDestruction: if (window.subPage === this) { window.subPage = null; window.subPageKind = "" }
+        }
+    }
+
+    Connections {
+        target: SurfaceHub
+        function onRemoteRequested() { window.openRemote() }
     }
 
     Component {

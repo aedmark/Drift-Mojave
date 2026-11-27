@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/interchange/InterchangeReport.h"
 #include "core/project/Project.h"
 
 #include <optional>
@@ -44,12 +45,15 @@ bool isVegasData(const QByteArray &data);
 
 // Reads a Sony/MAGIX VEGAS Pro project (.veg) from disk and converts it to a drift::Project.
 // Recursively imports nested .veg timelines as Drift composite sequences.
+// report, when given, receives everything that had no Drift equivalent.
 std::optional<Project> readProject(const QString &filePath, QString *error = nullptr,
+                                   drift::interchange::InterchangeReport *report = nullptr,
                                    QSet<QString> visitedPaths = {}, int depth = 0);
 
 // Reads raw binary VEGAS project data and converts it to a drift::Project.
 std::optional<Project> readProjectData(const QByteArray &data, const QString &sourceDir = QString(),
                                        QString *error = nullptr,
+                                       drift::interchange::InterchangeReport *report = nullptr,
                                        QSet<QString> visitedPaths = {}, int depth = 0);
 
 // Scans a .veg file or raw Wave64 payload for proprietary/third-party OFX and VST3 plugins

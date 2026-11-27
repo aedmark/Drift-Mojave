@@ -309,7 +309,7 @@ Rectangle {
 
                     IconButton {
                         id: addBusHeaderBtn
-                        anchors.right: headerCloseBtn.left
+                        anchors.right: mixerLinkBtn.visible ? mixerLinkBtn.left : headerCloseBtn.left
                         anchors.rightMargin: Theme.spacingXs
                         anchors.verticalCenter: parent.verticalCenter
                         buttonSize: 24
@@ -318,6 +318,19 @@ Rectangle {
                         variant: "text"
                         tooltip: qsTr("Add audio sub-bus")
                         onClicked: EditorState.addAudioBus()
+                    }
+
+                    IconButton {
+                        id: mixerLinkBtn
+                        visible: !ShellBridge.phoneShell
+                        anchors.right: headerCloseBtn.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        buttonSize: 24
+                        iconSize: Theme.iconSizeMd
+                        glyph: Theme.icons.externalLink
+                        variant: "text"
+                        tooltip: qsTr("Open in Audio workspace")
+                        onClicked: ShellBridge.goDeeper({ panel: "audioMixer" })
                     }
 
                     IconButton {
@@ -612,6 +625,7 @@ Rectangle {
                                     readonly property var modelData: content.audioTracksList[index] || ({})
 
                                     readonly property int trackIndex: modelData.trackIndex
+                                    learnId: index < 8 ? "mixer.volume." + (index + 1) : ""
                                     property real peakHoldTimeL: 0
                                     property real peakHoldTimeR: 0
 
@@ -804,7 +818,7 @@ Rectangle {
                             z: -1
                             anchors.fill: parent
                             color: Theme.c.audioMixerStrip.masterBackground
-                            opacity: 0.5
+                            opacity: Theme.c.audioMixerStrip.masterBackgroundOpacity
                         }
                     }
                 }

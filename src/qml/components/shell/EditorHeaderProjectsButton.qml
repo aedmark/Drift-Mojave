@@ -12,12 +12,20 @@ Rectangle {
     signal saveAsRequested()
     signal saveSnapshotRequested()
     signal manageSnapshotsRequested()
+    signal exportRequested()
+    signal renderQueueRequested()
     signal packageRequested()
     signal saveJsonRequested()
     signal openJsonRequested()
     signal exportInterchangeRequested()
     signal importNestedRequested()
+    signal openFolderRequested()
+    signal saveFolderRequested()
+    signal exportBundleRequested()
+    signal renderTemplateRequested()
+    signal importExportRequested()
     signal propertiesRequested()
+    signal healthRequested()
 
     readonly property bool open: recentPopupLoader.shown
     readonly property bool saved: !EditorState.projectFile.hasUnsavedChanges
@@ -108,19 +116,20 @@ Rectangle {
                 onSaveAsRequested: projectsButton.saveAsRequested()
                 onSaveSnapshotRequested: projectsButton.saveSnapshotRequested()
                 onManageSnapshotsRequested: projectsButton.manageSnapshotsRequested()
+                onExportRequested: projectsButton.exportRequested()
+                onRenderQueueRequested: projectsButton.renderQueueRequested()
                 onPackageRequested: projectsButton.packageRequested()
                 onSaveJsonRequested: projectsButton.saveJsonRequested()
                 onOpenJsonRequested: projectsButton.openJsonRequested()
                 onExportInterchangeRequested: projectsButton.exportInterchangeRequested()
                 onImportNestedRequested: projectsButton.importNestedRequested()
-                // Disabled: external project imports. Uncomment with the open*() functions above.
-                // onImportPremiereRequested: root.openPremiereProject()
-                // onImportMogrtRequested: root.openMogrt()
-                // onImportKdenliveRequested: root.openKdenliveProject()
-                // onImportResolveRequested: root.openResolveProject()
-                // onImportEdlRequested: root.openEdlTimeline()
-                // onImportOtioRequested: root.openOtioTimeline()
+                onOpenFolderRequested: projectsButton.openFolderRequested()
+                onSaveFolderRequested: projectsButton.saveFolderRequested()
+                onExportBundleRequested: projectsButton.exportBundleRequested()
+                onRenderTemplateRequested: projectsButton.renderTemplateRequested()
+                onImportExportRequested: projectsButton.importExportRequested()
                 onPropertiesRequested: projectsButton.propertiesRequested()
+                onHealthRequested: projectsButton.healthRequested()
             }
         }
     }

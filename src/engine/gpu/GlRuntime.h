@@ -70,6 +70,7 @@ struct GlTarget
     int width = 0;
     int height = 0;
     bool hasDepth = false;
+    bool floatColor = false; // RGBA16F colour attachment
     // Colour is already multiplied by alpha (a Skia layer straight off the GPU); every other
     // layer target is straight alpha.
     bool premultiplied = false;
@@ -336,7 +337,12 @@ public:
     // Framebuffers are recycled by size (and depth attachment): allocating a fresh FBO per
     // effect per frame churns GPU memory during steady-state playback. wantDepth is only set
     // for the model3d overlay — every other caller keeps the default.
-    GlTarget acquireTarget(int width, int height, bool wantDepth = false);
+    GlTarget acquireTarget(int width, int height, bool wantDepth = false, bool floatColor = false);
+
+    // Whether this context can render to half-float textures. Probed once; GL thread only.
+    bool supportsFloatTargets();
+    // Test only: makes supportsFloatTargets() false so the RGBA8 fallback can be exercised.
+    void setFloatTargetsDisabledForTest(bool disabled) { m_floatTargetsDisabled = disabled; }
     void releaseTarget(GlTarget &&target);
 
     // glFinish then read the FBO. Apple's GL can hand toImage() a half-resolved
@@ -477,6 +483,8 @@ private:
 
     std::multimap<uint64_t, std::unique_ptr<QOpenGLFramebufferObject>> m_targetPool;
     size_t m_pooledTargets = 0;
+    int m_floatTargetsProbe = -1;
+    bool m_floatTargetsDisabled = false;
     size_t m_pooledTargetBytes = 0;
 
     GlTarget m_presentRing[kPresentStreams * kPresentRingSize];
@@ -670,6 +678,9 @@ constexpr int kClipMaskTextureUnit = 9;
 // guarantees, out of reach of the sampler params paramSamplerUnit hands out from the bottom.
 constexpr int kHistoryTextureUnit = 14;
 constexpr int kPrevOutputTextureUnit = 15;
+// The frames after the current one for "future" packages: the first on kFutureTextureUnit, the
+// second on the unit below it. Below the sampler params only when a package has fewer than three.
+constexpr int kFutureTextureUnit = 13;
 
 // The texture unit for a pass's index-th sampler param, after its `inputCount` input units and
 // skipping the depth and mask units. Mirrors paramSamplerUnit in Forge's compiler/passes.ts.
@@ -711,9 +722,23 @@ struct PipelineAux
     int frameRate = 0;
     // For "history" packages; a count of 0 reads the effect's own input.
     HistoryBinding history;
+    // For "future" packages: the frames after the current one, nearest first, and how many there are
+    // (0 binds the effect's input as the next frame).
+    std::array<GLuint, 2> future{};
+    int futureCount = 0;
+    // For "historyUnits": "source" packages the past and future frames share the `history` atlas
+    // (past slots first, then future ones); `neighbourPast` is where the future ones start and the
+    // rest describe the shown source frame. A zero `sourceFps` reads as the project's.
+    int neighbourPast = 0;
+    float sourceFps = 0.f;
+    float sourcePhase = 0.f;
+    float sourceStep = 1.f;
     // For "previousOutput" packages: the effect's result one frame ago, 0 for none (the first
     // frame, or after a seek), which binds transparent.
     GLuint prevOutput = 0;
+    // Where the clip's own frame sits in the target, as uv x0, y0, x1, y1: the whole target unless
+    // a "padding" effect has grown it.
+    std::array<float, 4> contentRect{0.f, 0.f, 1.f, 1.f};
 };
 
 // Upload an audio param's 512x2 RGBA8 analysis (AudioFrame::rgba) into the texture kept under `key`.

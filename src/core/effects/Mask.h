@@ -2,6 +2,7 @@
 
 #include "core/animation/Keyframe.h"
 #include "core/base/Time.h"
+#include "core/shapes/ShapeVertex.h"
 
 #include <QList>
 #include <QMap>
@@ -69,6 +70,11 @@ struct Mask
     // shape id, e.g. "hexagon". The compositor applies such a mask after every other one so an
     // additive mask cannot bring back the area outside the shape.
     QString cropShape;
+    // Set on a mask generated from the host clip's baked face track (see
+    // engine/face/tracking/FaceMask.h): the face slot it follows. Regenerating after a re-scan
+    // replaces the masks carrying a slot instead of adding a second set over the first, and
+    // leaves anything the user drew by hand alone. -1 on every other mask.
+    int faceSlot = -1;
 
     double x = 0.5; // center, normalized
     double y = 0.5;
@@ -79,7 +85,9 @@ struct Mask
     double roundness = 0.0; // Rectangle only: 0 sharp, 1 = corner radius of min(w, h) / 2 in frame pixels
     bool invert = false;
     bool lockAspect = false; // editing only: corner grips and the inspector keep w:h; the renderer ignores it
-    QVector<QPointF> points; // normalized, for Freeform
+    // Freeform outline, closed, normalized. in/out are offsets from p in the same space; a polygon
+    // is all corners (zero handles).
+    QVector<ShapeVertex> vertices;
 
     // Media only: an image or video whose pixels are the coverage map.
     QString mediaPath;
@@ -115,11 +123,12 @@ struct Mask
     // that start mirrors the host clip's, so the two coincide.
     QMap<QString, KeyframeTrack<double>> keyframes;
 
-    // Polygon shape over time. The whole vertex list is one key, because a polygon is edited as
+    // Freeform shape over time. The whole vertex list is one key, because a path is edited as
     // a shape: separate tracks per coordinate would make "the same shape at time t" impossible
-    // to express. Between two keys with matching vertex counts the positions interpolate
-    // linearly; a mismatch holds the earlier key rather than inventing a correspondence.
-    QMap<TimeUs, QVector<QPointF>> pathKeys;
+    // to express. Between two keys with matching vertex counts p, in and out interpolate linearly
+    // (the tangent mode is the earlier key's); a mismatch holds the earlier key rather than
+    // inventing a correspondence.
+    QMap<TimeUs, QVector<ShapeVertex>> pathKeys;
 
     // Media only, and only for AI cutouts: brush fixes of single frames. Keyed by *media* time, the
     // index the compositor reads the matte frame at. Each value is a PNG the size of the matte whose

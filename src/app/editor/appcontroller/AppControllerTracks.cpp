@@ -1,5 +1,9 @@
 #include "app/editor/appcontroller/AppControllerInternal.h"
+#include "core/edit/BeatCut.h"
 #include "app/editor/PreferencesController.h"
+#include "app/editor/keymap/KeymapCatalog.h"
+#include "app/editor/keymap/KeymapPresets.h"
+#include "app/jobs/audio/AudioAlignController.h"
 #include "engine/decode/probe/MediaProbe.h"
 #include "app/editor/sessions/MaskingController.h"
 #include "app/mcp/McpController.h"
@@ -18,7 +22,9 @@
 #include "ui/timeline/ClipThumbnailStore.h"
 
 #include "ui/timeline/TimelineCursors.h"
+#include <QEventLoop>
 #include <QGuiApplication>
+#include <QScopedValueRollback>
 #include <QScreen>
 
 #include <QSettings>
@@ -29,180 +35,6 @@ using namespace drift::appdetail;
 using drift::mcpdetail::findClipById;
 using drift::mcpdetail::runBeatAnalysis;
 using namespace drift::appcontroller_detail;
-
-namespace {
-QHash<QString, QString> defaultShortcuts();
-
-// Lives in the "shortcuts" group alongside the bindings themselves. Absent means 0.
-const char *const kShortcutsVersionKey = "schemaVersion";
-
-// Bump whenever a release moves a default onto a chord an older release used for
-// something else. A stored binding is the user's and always wins — but one that is
-// only in QSettings because it mirrored the default it replaced is not a choice, and
-// leaving it there means the new layout never arrives. See loadShortcuts().
-constexpr int kShortcutsSchemaVersion = 1;
-
-// v0 → v1 (arrow-key jog, #203): stepBack/stepForward moved off Shift+Left/Right onto
-// the bare arrows, and jumpBack/jumpForward took the chords they vacated. Everyone who
-// had ever used "Reset shortcuts" — which writes every binding, not just changed ones —
-// carried the old pair in QSettings, which left two actions claiming Shift+Left and
-// nothing at all on Left/Right: exactly the dead arrow keys #203 was about.
-const QHash<QString, QString> &supersededShortcutDefaults(int fromVersion)
-{
-    static const QHash<QString, QString> upToV0 = {
-        {QStringLiteral("stepBack"), QStringLiteral("Shift+Left")},
-        {QStringLiteral("stepForward"), QStringLiteral("Shift+Right")},
-    };
-    static const QHash<QString, QString> empty;
-    return fromVersion < 1 ? upToV0 : empty;
-}
-
-QHash<QString, QString> defaultShortcuts()
-{
-    return {
-        {QStringLiteral("newProject"), QStringLiteral("Ctrl+N")},
-        {QStringLiteral("open"), QStringLiteral("Ctrl+O")},
-        {QStringLiteral("save"), QStringLiteral("Ctrl+S")},
-        // Not the usual Ctrl+Shift+S — separateAudio has held that since before Save As existed,
-        // and moving a binding people already have in their fingers is the worse trade.
-        {QStringLiteral("saveAs"), QStringLiteral("Ctrl+Alt+S")},
-        {QStringLiteral("playPause"), QStringLiteral("Space")},
-        {QStringLiteral("delete"), QStringLiteral("Delete")},
-        // No default: Shift+Delete is ripple delete in many editors. Listed so it can be bound.
-        {QStringLiteral("deleteWithEffects"), QString()},
-        // No default: Shift+E is toggleTrackHidden. Listed so it can be bound.
-        {QStringLiteral("toggleClipEnabled"), QString()},
-        {QStringLiteral("undo"), QStringLiteral("Ctrl+Z")},
-        {QStringLiteral("redo"), QStringLiteral("Ctrl+Shift+Z")},
-        {QStringLiteral("clearSelection"), QStringLiteral("Escape")},
-        {QStringLiteral("selectAll"), QStringLiteral("Ctrl+A")},
-        {QStringLiteral("duplicate"), QStringLiteral("Ctrl+D")},
-        // Premiere's Copy/Paste Attributes bindings, and clear of the clip clipboard on Ctrl+C/V.
-        {QStringLiteral("copyEffects"), QStringLiteral("Ctrl+Alt+C")},
-        {QStringLiteral("pasteEffects"), QStringLiteral("Ctrl+Shift+V")},
-        {QStringLiteral("pasteAttributes"), QStringLiteral("Ctrl+Alt+V")},
-        {QStringLiteral("addTransitionAtPlayhead"), QStringLiteral("Ctrl+Shift+D")},
-        {QStringLiteral("split"), QStringLiteral("S")},
-        {QStringLiteral("splitSelection"), QStringLiteral("Shift+S")},
-        {QStringLiteral("merge"), QStringLiteral("Ctrl+M")},
-        {QStringLiteral("unlink"), QStringLiteral("U")},
-        {QStringLiteral("link"), QStringLiteral("G")},
-        {QStringLiteral("group"), QStringLiteral("G")},
-        {QStringLiteral("ungroup"), QStringLiteral("U")},
-        {QStringLiteral("clearGroup"), QStringLiteral("Ctrl+U")},
-        {QStringLiteral("toggleIgnoreGrouping"), QStringLiteral("Ctrl+Shift+U")},
-        {QStringLiteral("separateAudio"), QStringLiteral("Ctrl+Shift+S")},
-        {QStringLiteral("copy"), QStringLiteral("Ctrl+C")},
-        {QStringLiteral("cut"), QStringLiteral("Ctrl+X")},
-        {QStringLiteral("paste"), QStringLiteral("Ctrl+V")},
-        {QStringLiteral("nudgeLeft"), QStringLiteral("Alt+Left")},
-        {QStringLiteral("nudgeRight"), QStringLiteral("Alt+Right")},
-        // Cut-point navigation joins the nudge pair on Alt+arrow rather than taking the bare
-        // Up/Down that Premiere uses. Arrow chords are dispatched from the editor FocusScope
-        // after the focused item, so number-field spinners and list navigation still see
-        // unmodified arrows; ApplicationShortcut would fire first and swallow them.
-        {QStringLiteral("previousEdit"), QStringLiteral("Alt+Up")},
-        {QStringLiteral("nextEdit"), QStringLiteral("Alt+Down")},
-        // Timeline jog: one frame, one second, ten seconds. These used to live on
-        // Shift+Left/Right as ApplicationShortcut, which never fired on several
-        // Wayland compositors (notably Hyprland / Omarchy) and left the keys inert.
-        {QStringLiteral("stepBack"), QStringLiteral("Left")},
-        {QStringLiteral("stepForward"), QStringLiteral("Right")},
-        {QStringLiteral("jumpBack"), QStringLiteral("Shift+Left")},
-        {QStringLiteral("jumpForward"), QStringLiteral("Shift+Right")},
-        {QStringLiteral("jumpBackFar"), QStringLiteral("Ctrl+Left")},
-        {QStringLiteral("jumpForwardFar"), QStringLiteral("Ctrl+Right")},
-        {QStringLiteral("goToStart"), QStringLiteral("Home")},
-        {QStringLiteral("goToEnd"), QStringLiteral("End")},
-        // Premiere's ripple-trim-to-playhead keys, which is exactly what these do.
-        {QStringLiteral("deleteLeft"), QStringLiteral("Q")},
-        {QStringLiteral("deleteRight"), QStringLiteral("W")},
-        // Shuttle-style speed keys for reviewing long footage. Audio keeps its pitch at every
-        // rate, so the material stays listenable while it runs fast.
-        {QStringLiteral("speedUp"), QStringLiteral("L")},
-        {QStringLiteral("speedDown"), QStringLiteral("J")},
-        {QStringLiteral("toggleGuides"), QStringLiteral("Alt+Shift+G")},
-        {QStringLiteral("toggleTrackHidden"), QStringLiteral("Shift+E")},
-        // The 3D gizmo's tools.
-        {QStringLiteral("gizmoMove"), QStringLiteral("Alt+G")},
-        {QStringLiteral("gizmoRotate"), QStringLiteral("R")},
-        {QStringLiteral("gizmoScale"), QStringLiteral("E")},
-        {QStringLiteral("gizmoOrientation"), QStringLiteral("Alt+Shift+O")},
-        {QStringLiteral("nextTake"), QStringLiteral("T")},
-        {QStringLiteral("previousTake"), QStringLiteral("Shift+T")},
-        {QStringLiteral("toggleBookmark"), QStringLiteral("M")},
-        {QStringLiteral("nextBookmark"), QStringLiteral("Shift+M")},
-        {QStringLiteral("previousBookmark"), QStringLiteral("Ctrl+Shift+M")},
-        {QStringLiteral("markIn"), QStringLiteral("I")},
-        {QStringLiteral("markOut"), QStringLiteral("O")},
-        {QStringLiteral("goToIn"), QStringLiteral("Shift+I")},
-        {QStringLiteral("goToOut"), QStringLiteral("Shift+O")},
-        {QStringLiteral("clearInOut"), QStringLiteral("Alt+X")},
-        {QStringLiteral("toggleLoop"), QStringLiteral("Ctrl+Shift+L")},
-        {QStringLiteral("toggleAutoRipple"), QStringLiteral("Ctrl+L")},
-        {QStringLiteral("toggleQuantizeToFrames"), QStringLiteral("Alt+F8")},
-        {QStringLiteral("toggleExpandedEdit"), QStringLiteral("F5")},
-        {QStringLiteral("toggleClipLocked"), QStringLiteral("Alt+Shift+L")},
-        {QStringLiteral("toggleClipMuted"), QStringLiteral("Alt+Shift+Q")},
-        {QStringLiteral("rippleDelete"), QStringLiteral("Shift+Delete")},
-        // The timeline tool modes live in QML, so Main.qml intercepts these rather
-        // than triggerAction dispatching them. They are registered all the same, so
-        // they show up in the shortcut list and can be rebound — hardcoded in
-        // TimelinePanel they were neither.
-        {QStringLiteral("selectTool"), QStringLiteral("V")},
-        {QStringLiteral("bladeTool"), QStringLiteral("B")},
-        {QStringLiteral("slipTool"), QStringLiteral("Y")},
-        {QStringLiteral("rollTool"), QStringLiteral("Shift+R")},
-        {QStringLiteral("slideTool"), QStringLiteral("Shift+Y")},
-        {QStringLiteral("cycleEditTool"), QStringLiteral("D")},
-        {QStringLiteral("toggleTrackVolumeEnvelope"), QStringLiteral("Shift+V")},
-        {QStringLiteral("toggleTrackPanEnvelope"), QStringLiteral("Shift+P")},
-        {QStringLiteral("toggleTrackCompositeEnvelope"), QStringLiteral("Alt+Shift+V")},
-        {QStringLiteral("toggleTrackMuteEnvelope"), QStringLiteral("Alt+Shift+M")},
-        {QStringLiteral("normalizeAudio"), QStringLiteral("Shift+N")},
-        {QStringLiteral("pitchUp"), QStringLiteral("Alt+Shift+=")},
-        {QStringLiteral("pitchDown"), QStringLiteral("Alt+Shift+-")},
-        // Masking workspace tools. The masking panel claims these only while the pointer is over the
-        // preview or it has focus or hover (never in 3D mode), so they stay free on the timeline.
-        {QStringLiteral("maskingPolygonTool"), QStringLiteral("P")},
-        {QStringLiteral("maskingAiTool"), QStringLiteral("A")},
-        {QStringLiteral("maskingBrushSmaller"), QStringLiteral("[")},
-        {QStringLiteral("maskingBrushLarger"), QStringLiteral("]")},
-        {QStringLiteral("maskingBrushToggleErase"), QStringLiteral("X")},
-        // Tracker runs. Ctrl+Shift+Arrow is free: Ctrl+Arrow is the far jump and Shift+Arrow the 1 s jump.
-        {QStringLiteral("trackForward"), QStringLiteral("Ctrl+T")},
-        {QStringLiteral("trackBackward"), QStringLiteral("Ctrl+Shift+T")},
-        {QStringLiteral("trackFrameForward"), QStringLiteral("Ctrl+Shift+Right")},
-        {QStringLiteral("trackFrameBackward"), QStringLiteral("Ctrl+Shift+Left")},
-        // Timeline zoom is QML state too, so these take the same route as the tool modes.
-        {QStringLiteral("zoomIn"), QStringLiteral("Ctrl+=")},
-        {QStringLiteral("zoomOut"), QStringLiteral("Ctrl+-")},
-        // The global search field lives in EditorHeader, so this is QML-only as well.
-        {QStringLiteral("search"), QStringLiteral("Ctrl+K")},
-        // QML owns the window, so triggerAction only raises the request — same shape as the
-        // file actions above.
-        {QStringLiteral("multicam"), QStringLiteral("Ctrl+Shift+C")},
-        {QStringLiteral("toggleInlineMulticam"), QStringLiteral("Alt+Shift+C")},
-        {QStringLiteral("openTrimmer"), QStringLiteral("Alt+Shift+T")},
-        {QStringLiteral("dynamicRamPreview"), QStringLiteral("Shift+B")},
-        {QStringLiteral("addRegionFromWorkArea"), QStringLiteral("Alt+Shift+R")},
-        {QStringLiteral("transformTogether"), QStringLiteral("Ctrl+G")},
-        {QStringLiteral("selectTransformLayer"), QStringLiteral("Shift+G")},
-        {QStringLiteral("workspace.next"), QStringLiteral("Ctrl+Alt+Right")},
-        {QStringLiteral("workspace.prev"), QStringLiteral("Ctrl+Alt+Left")},
-        {QStringLiteral("workspace.1"), QStringLiteral("Alt+1")},
-        {QStringLiteral("workspace.2"), QStringLiteral("Alt+2")},
-        {QStringLiteral("workspace.3"), QStringLiteral("Alt+3")},
-        {QStringLiteral("workspace.4"), QStringLiteral("Alt+4")},
-        {QStringLiteral("workspace.5"), QStringLiteral("Alt+5")},
-        {QStringLiteral("workspace.6"), QStringLiteral("Alt+6")},
-        {QStringLiteral("workspace.7"), QStringLiteral("Alt+7")},
-        {QStringLiteral("workspace.8"), QStringLiteral("Alt+8")},
-        {QStringLiteral("workspace.9"), QStringLiteral("Alt+9")},
-    };
-}
-
-} // namespace
 
 void AppController::setTrackMuted(int trackIndex, bool muted)
 {
@@ -1630,6 +1462,34 @@ QVariantList AppController::adjustmentLanes(int trackIndex) const
     return out;
 }
 
+QString AppController::localizedTrackLabel(const drift::Track &track) const
+{
+    if (!track.name.isEmpty())
+        return track.name;
+    if (track.isCameraLayer())
+        return tr("Camera");
+    if (track.isAdjustmentLane()) {
+        const drift::AdjustmentKind kind = track.clips.isEmpty() ? drift::AdjustmentKind::VideoEffects
+                                                                 : track.clips.first().adjustmentKind;
+        return kind == drift::AdjustmentKind::AudioEffects ? tr("Audio FX")
+               : kind == drift::AdjustmentKind::Mask       ? tr("Mask")
+                                                           : tr("Effects");
+    }
+    if (track.number <= 0)
+        return drift::trackDefaultLabel(track);
+    if (track.isTransformLayer())
+        return tr("Transform %1").arg(track.number);
+    switch (track.type) {
+    case drift::TrackType::Video: return tr("Video %1").arg(track.number);
+    case drift::TrackType::Audio: return tr("Audio %1").arg(track.number);
+    case drift::TrackType::Text: return tr("Text %1").arg(track.number);
+    case drift::TrackType::Subtitle: return tr("Subtitle %1").arg(track.number);
+    case drift::TrackType::Shape: return tr("Graphic %1").arg(track.number);
+    case drift::TrackType::Adjustment: return tr("Adjustment %1").arg(track.number);
+    }
+    return drift::trackDefaultLabel(track);
+}
+
 QString AppController::adjustmentLaneKind(int laneIndex) const
 {
     if (laneIndex < 0 || laneIndex >= m_project.tracks().size())
@@ -2152,6 +2012,31 @@ void AppController::addTrack(const QString &type)
     finishEdit(tr("Track added"));
 }
 
+void AppController::insertTrack(const QString &type, int index)
+{
+    const QString normalized = type.trimmed().toLower();
+    if (normalized != QLatin1String("video") && normalized != QLatin1String("audio")
+        && normalized != QLatin1String("text") && normalized != QLatin1String("subtitle")
+        && normalized != QLatin1String("shape")) {
+        return;
+    }
+
+    const drift::Project before = m_project;
+    m_project.ensureTrackIds();
+    const QList<QPair<QString, int>> selection = captureSelectionByTrackId();
+    const QString transitionTrackId = trackIdAt(m_selectedTransitionTrack);
+
+    m_project.tracks().insert(qBound(0, index, int(m_project.tracks().size())),
+                              drift::Track{.type = drift::trackTypeFromString(normalized)});
+    normalizeAdjustmentLanes(m_project);
+
+    restoreSelectionByTrackId(selection);
+    m_selectedTransitionTrack = m_project.trackIndexById(transitionTrackId);
+
+    pushProjectEdit(before, tr("Add track"));
+    finishEdit(tr("Track added"));
+}
+
 QVariantList AppController::bookmarks() const
 {
     QVariantList result;
@@ -2159,6 +2044,9 @@ QVariantList AppController::bookmarks() const
         result.append(QVariantMap{
             {QStringLiteral("seconds"), drift::usToSeconds(bookmark.timeUs)},
             {QStringLiteral("label"), bookmark.label},
+            // Empty when unset: the marker falls back to the theme colour rather than carrying
+            // a resolved one, so a theme change recolours every uncoloured flag with it.
+            {QStringLiteral("color"), bookmark.color.isValid() ? bookmark.color.name() : QString()},
         });
     }
     return result;
@@ -2282,6 +2170,25 @@ void AppController::updateBookmark(int index, double seconds, const QString &lab
     bookmark.label = resolvedLabel;
     pushProjectEdit(before, tr("Edit bookmark"));
     finishEdit(tr("Bookmark updated"));
+}
+
+void AppController::setBookmarkColor(int index, const QString &color)
+{
+    if (index < 0 || index >= m_project.bookmarks().size())
+        return;
+
+    const QColor resolved = color.isEmpty() || !QColor::isValidColorName(color) ? QColor()
+                                                                               : QColor(color);
+    // Snapshot before binding the reference: bookmarks are a plain QList, so a later copy would
+    // share the buffer the reference writes into.
+    const drift::Project before = m_project;
+    drift::Bookmark &bookmark = m_project.bookmarks()[index];
+    if (bookmark.color == resolved)
+        return;
+
+    bookmark.color = resolved;
+    pushProjectEdit(before, tr("Colour bookmark"));
+    finishEdit(tr("Bookmark colour changed"));
 }
 
 void AppController::goToBookmark(int index)
@@ -2408,6 +2315,22 @@ void AppController::goToPreviousEdit()
     setPlayheadUs(adjacentEditPoint(m_project, m_playheadUs, -1));
 }
 
+bool AppController::crossesEditPoint(double fromSeconds, double toSeconds) const
+{
+    const drift::TimeUs from = drift::secondsToUs(std::min(fromSeconds, toSeconds));
+    const drift::TimeUs to = drift::secondsToUs(std::max(fromSeconds, toSeconds));
+    if (to <= from)
+        return false;
+    const drift::TimeUs next = adjacentEditPoint(m_project, from, 1);
+    if (next > from && next <= to)
+        return true;
+    for (const auto &mark : m_project.bookmarks()) {
+        if (mark.timeUs > from && mark.timeUs <= to)
+            return true;
+    }
+    return false;
+}
+
 void AppController::toggleBookmarkAtPlayhead()
 {
     // The timeline's 150 ms snapping radius is much wider than a frame. Using it here
@@ -2440,9 +2363,10 @@ void AppController::removeBookmarkNearPlayhead()
 QString AppController::projectMediaDir(const QString &projectId)
 {
     const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (base.isEmpty())
+    const QString key = drift::projectPathKey(projectId);
+    if (base.isEmpty() || key.isEmpty())
         return {};
-    const QString dir = QDir(base).filePath(QStringLiteral("projects/%1/media").arg(projectId));
+    const QString dir = QDir(base).filePath(QStringLiteral("projects/%1/media").arg(key));
     return QDir().mkpath(dir) ? dir : QString();
 }
 
@@ -2865,306 +2789,56 @@ void AppController::setTimelineCursor(const QString &kindName, int heightPx, int
 
 QString AppController::shortcutFor(const QString &actionId) const
 {
-    return m_shortcuts.value(actionId);
+    for (const QString &chord : m_keymap->bindings(actionId)) {
+        if (!chord.startsWith(QLatin1String("Pad+")))
+            return chord;
+    }
+    return {};
 }
 
 QString AppController::setShortcut(const QString &actionId, const QString &keys)
 {
-    if (!m_shortcuts.contains(actionId))
-        return {};
-
-    // Refuse a chord that is already spoken for. Clearing (empty keys) is always
-    // allowed, and rebinding an action to what it already has is a no-op, not a
-    // conflict with itself.
-    if (!keys.isEmpty()) {
-        for (auto it = m_shortcuts.cbegin(); it != m_shortcuts.cend(); ++it) {
-            if (it.key() == actionId || it.value() != keys)
-                continue;
-            const QString holder = it.key();
-            for (const QVariant &entry : actions()) {
-                const QVariantMap map = entry.toMap();
-                if (map.value(QStringLiteral("id")).toString() == holder)
-                    return map.value(QStringLiteral("label")).toString();
-            }
-            return holder;
-        }
-    }
-
-    m_shortcuts[actionId] = keys;
-    QSettings settings;
-    settings.beginGroup(QStringLiteral("shortcuts"));
-    settings.setValue(actionId, keys);
-    settings.endGroup();
-    emit shortcutsChanged();
-    return {};
-}
-
-void AppController::loadShortcuts()
-{
-    m_shortcuts = defaultShortcuts();
-
-    QSettings settings;
-    settings.beginGroup(QStringLiteral("shortcuts"));
-    m_activeKeymapPreset = settings.value(QStringLiteral("preset"), QStringLiteral("vegas")).toString();
-    if (m_activeKeymapPreset.isEmpty())
-        m_activeKeymapPreset = QStringLiteral("vegas");
-    const int version = settings.value(QLatin1String(kShortcutsVersionKey), 0).toInt();
-    const QHash<QString, QString> &superseded = supersededShortcutDefaults(version);
-
-    QHash<QString, QString> stored;
-    for (auto it = m_shortcuts.cbegin(); it != m_shortcuts.cend(); ++it) {
-        // An empty stored value falls through to the default rather than clearing the
-        // binding — setShortcut persists "" for a cleared chord, but a cleared chord has
-        // never survived a restart and making it do so is a separate change.
-        const QString value = settings.value(it.key()).toString();
-        if (value.isEmpty())
-            continue;
-        if (superseded.value(it.key()) == value) {
-            settings.remove(it.key());
-            continue;
-        }
-        stored.insert(it.key(), value);
-    }
-    if (version != kShortcutsSchemaVersion)
-        settings.setValue(QLatin1String(kShortcutsVersionKey), kShortcutsSchemaVersion);
-    settings.endGroup();
-
-    QStringList storedIds = stored.keys();
-    storedIds.sort();
-    for (const QString &actionId : std::as_const(storedIds))
-        m_shortcuts[actionId] = stored.value(actionId);
-
-    QStringList defaultedIds;
-    for (auto it = m_shortcuts.cbegin(); it != m_shortcuts.cend(); ++it) {
-        if (!stored.contains(it.key()))
-            defaultedIds.append(it.key());
-    }
-    defaultedIds.sort();
-
-    // No chord may end up on two actions: actionForArrowChord and the Shortcut items in
-    // Main.qml both resolve a chord to a single action, so with two claimants which one
-    // answers comes down to QHash order. setShortcut refuses a duplicate, but nothing
-    // re-checked the map after a release moved a default onto a chord an older one used
-    // elsewhere. Stored ids go first so a binding the user chose always keeps its chord;
-    // the loser is cleared in memory only, so nothing of theirs is overwritten, and the
-    // sorted walk makes the same settings produce the same map on every launch.
-    QSet<QString> taken;
-    const auto claimChords = [&](const QStringList &actionIds) {
-        for (const QString &actionId : actionIds) {
-            const QString chord = m_shortcuts.value(actionId);
-            if (chord.isEmpty())
-                continue;
-            if (taken.contains(chord))
-                m_shortcuts[actionId].clear();
-            else
-                taken.insert(chord);
-        }
-    };
-    claimChords(storedIds);
-    claimChords(defaultedIds);
+    if (keys.isEmpty())
+        return m_keymap->setBindings(actionId, {});
+    if (drift::Keymap::normalizeChord(keys).isEmpty())
+        return tr("Not a valid key combination");
+    return m_keymap->setBindings(actionId, {keys});
 }
 
 void AppController::resetShortcuts()
 {
-    applyKeymapPreset(QStringLiteral("vegas"));
+    m_keymap->resetAll();
 }
 
 QVariantList AppController::keymapPresets() const
 {
-    return {
-        QVariantMap{{QStringLiteral("id"), QStringLiteral("vegas")},
-                    {QStringLiteral("name"), QStringLiteral("VEGAS Pro")},
-                    {QStringLiteral("description"), tr("Drift Mojave default (S split, Ctrl+L ripple, G/U group, F5 expanded edit)")}},
-        QVariantMap{{QStringLiteral("id"), QStringLiteral("drift")},
-                    {QStringLiteral("name"), QStringLiteral("Drift Classic")},
-                    {QStringLiteral("description"), tr("Original Drift defaults (B blade, V select, Shift+R roll)")}},
-        QVariantMap{{QStringLiteral("id"), QStringLiteral("premiere")},
-                    {QStringLiteral("name"), QStringLiteral("Premiere Pro")},
-                    {QStringLiteral("description"), tr("Adobe Premiere Pro chords (Ctrl+K cut, V/C tools, Y slip, N roll)")}},
-        QVariantMap{{QStringLiteral("id"), QStringLiteral("resolve")},
-                    {QStringLiteral("name"), QStringLiteral("DaVinci Resolve")},
-                    {QStringLiteral("description"), tr("Blackmagic Resolve Edit page chords (Ctrl+B cut, A/B tools, T slip)")}},
-        QVariantMap{{QStringLiteral("id"), QStringLiteral("finalcut")},
-                    {QStringLiteral("name"), QStringLiteral("Final Cut Pro")},
-                    {QStringLiteral("description"), tr("Apple Final Cut Pro chords (Ctrl+B blade, A/B tools, V mute clip)")}},
-        QVariantMap{{QStringLiteral("id"), QStringLiteral("capcut")},
-                    {QStringLiteral("name"), QStringLiteral("CapCut")},
-                    {QStringLiteral("description"), tr("CapCut Desktop chords (Ctrl+B split, Q/W trim to playhead)")}},
-        QVariantMap{{QStringLiteral("id"), QStringLiteral("kdenlive")},
-                    {QStringLiteral("name"), QStringLiteral("Kdenlive")},
-                    {QStringLiteral("description"), tr("KDE Kdenlive chords (Shift+R split, S select, X razor)")}},
-        QVariantMap{{QStringLiteral("id"), QStringLiteral("shotcut")},
-                    {QStringLiteral("name"), QStringLiteral("Shotcut")},
-                    {QStringLiteral("description"), tr("Shotcut NLE chords (S split, Ctrl+R ripple, I/O work area)")}},
-    };
+    return m_keymap->presets();
+}
+
+QString AppController::activeKeymapPreset() const
+{
+    return m_keymap->presetId();
 }
 
 bool AppController::applyKeymapPreset(const QString &presetId)
 {
     const QString id = presetId.trimmed().toLower();
-    QHash<QString, QString> overrides;
-
-    if (id == QLatin1String("vegas")) {
-        // Mojave's defaultShortcuts() is already VEGAS-first.
-    } else if (id == QLatin1String("drift")) {
-        overrides = {
-            {QStringLiteral("split"), QStringLiteral("B")},
-            {QStringLiteral("bladeTool"), QStringLiteral("C")},
-            {QStringLiteral("selectTool"), QStringLiteral("V")},
-        };
-    } else if (id == QLatin1String("premiere")) {
-        overrides = {
-            {QStringLiteral("split"), QStringLiteral("Ctrl+K")},
-            {QStringLiteral("selectTool"), QStringLiteral("V")},
-            {QStringLiteral("bladeTool"), QStringLiteral("C")},
-            {QStringLiteral("slipTool"), QStringLiteral("Y")},
-            {QStringLiteral("slideTool"), QStringLiteral("U")},
-            {QStringLiteral("rippleDelete"), QStringLiteral("Shift+Delete")},
-            {QStringLiteral("toggleBookmark"), QStringLiteral("M")},
-            {QStringLiteral("markIn"), QStringLiteral("I")},
-            {QStringLiteral("markOut"), QStringLiteral("O")},
-            {QStringLiteral("delete"), QStringLiteral("Backspace")},
-        };
-    } else if (id == QLatin1String("resolve")) {
-        overrides = {
-            {QStringLiteral("split"), QStringLiteral("Ctrl+B")},
-            {QStringLiteral("selectTool"), QStringLiteral("A")},
-            {QStringLiteral("bladeTool"), QStringLiteral("B")},
-            {QStringLiteral("slipTool"), QStringLiteral("T")},
-            {QStringLiteral("toggleBookmark"), QStringLiteral("M")},
-            {QStringLiteral("markIn"), QStringLiteral("I")},
-            {QStringLiteral("markOut"), QStringLiteral("O")},
-            {QStringLiteral("delete"), QStringLiteral("Backspace")},
-        };
-    } else if (id == QLatin1String("finalcut")) {
-        overrides = {
-            {QStringLiteral("split"), QStringLiteral("Ctrl+B")},
-            {QStringLiteral("selectTool"), QStringLiteral("A")},
-            {QStringLiteral("bladeTool"), QStringLiteral("B")},
-            {QStringLiteral("slipTool"), QStringLiteral("T")},
-            {QStringLiteral("toggleBookmark"), QStringLiteral("M")},
-            {QStringLiteral("toggleClipEnabled"), QStringLiteral("V")},
-            {QStringLiteral("markIn"), QStringLiteral("I")},
-            {QStringLiteral("markOut"), QStringLiteral("O")},
-        };
-    } else if (id == QLatin1String("capcut")) {
-        overrides = {
-            {QStringLiteral("split"), QStringLiteral("Ctrl+B")},
-            {QStringLiteral("selectTool"), QStringLiteral("A")},
-            {QStringLiteral("bladeTool"), QStringLiteral("B")},
-            {QStringLiteral("deleteLeft"), QStringLiteral("Q")},
-            {QStringLiteral("deleteRight"), QStringLiteral("W")},
-            {QStringLiteral("toggleClipEnabled"), QStringLiteral("V")},
-        };
-    } else if (id == QLatin1String("kdenlive")) {
-        overrides = {
-            {QStringLiteral("split"), QStringLiteral("Shift+R")},
-            {QStringLiteral("selectTool"), QStringLiteral("S")},
-            {QStringLiteral("bladeTool"), QStringLiteral("X")},
-            {QStringLiteral("group"), QStringLiteral("G")},
-            {QStringLiteral("ungroup"), QStringLiteral("Ctrl+Shift+G")},
-        };
-    } else if (id == QLatin1String("shotcut")) {
-        overrides = {
-            {QStringLiteral("split"), QStringLiteral("S")},
-            {QStringLiteral("toggleAutoRipple"), QStringLiteral("Ctrl+R")},
-            {QStringLiteral("markIn"), QStringLiteral("I")},
-            {QStringLiteral("markOut"), QStringLiteral("O")},
-        };
-    } else {
+    if (!drift::keymap::findPreset(id))
         return false;
-    }
-
-    m_shortcuts = defaultShortcuts();
-    for (auto it = overrides.cbegin(); it != overrides.cend(); ++it) {
-        if (!it.value().isEmpty()) {
-            for (auto kt = m_shortcuts.begin(); kt != m_shortcuts.end(); ++kt) {
-                if (kt.key() != it.key() && kt.value() == it.value())
-                    kt.value().clear();
-            }
-        }
-        m_shortcuts[it.key()] = it.value();
-    }
-
-    m_activeKeymapPreset = id;
-    QSettings settings;
-    settings.beginGroup(QStringLiteral("shortcuts"));
-    settings.setValue(QStringLiteral("preset"), m_activeKeymapPreset);
-    for (auto it = m_shortcuts.cbegin(); it != m_shortcuts.cend(); ++it)
-        settings.setValue(it.key(), it.value());
-    settings.setValue(QLatin1String(kShortcutsVersionKey), kShortcutsSchemaVersion);
-    settings.endGroup();
-    emit shortcutsChanged();
+    m_keymap->setPreset(id, false);
     return true;
 }
 
 QString AppController::shortcutChord(int key, int modifiers) const
 {
-    QString name;
-    switch (key) {
-    case Qt::Key_Escape:    name = QStringLiteral("Escape"); break;
-    case Qt::Key_Backspace: name = QStringLiteral("Backspace"); break;
-    case Qt::Key_Return:    name = QStringLiteral("Return"); break;
-    case Qt::Key_Enter:     name = QStringLiteral("Enter"); break;
-    case Qt::Key_Insert:    name = QStringLiteral("Insert"); break;
-    case Qt::Key_Delete:    name = QStringLiteral("Delete"); break;
-    case Qt::Key_Home:      name = QStringLiteral("Home"); break;
-    case Qt::Key_End:       name = QStringLiteral("End"); break;
-    case Qt::Key_Left:      name = QStringLiteral("Left"); break;
-    case Qt::Key_Up:        name = QStringLiteral("Up"); break;
-    case Qt::Key_Right:     name = QStringLiteral("Right"); break;
-    case Qt::Key_Down:      name = QStringLiteral("Down"); break;
-    case Qt::Key_PageUp:    name = QStringLiteral("PageUp"); break;
-    case Qt::Key_PageDown:  name = QStringLiteral("PageDown"); break;
-    case Qt::Key_Space:     name = QStringLiteral("Space"); break;
-    case Qt::Key_Tab:       name = QStringLiteral("Tab"); break;
-    case Qt::Key_Shift:
-    case Qt::Key_Control:
-    case Qt::Key_Alt:
-    case Qt::Key_Meta:
-        return {};
-    default:
-        if (key >= Qt::Key_F1 && key <= Qt::Key_F12)
-            name = QStringLiteral("F%1").arg(key - Qt::Key_F1 + 1);
-        else if (key >= Qt::Key_0 && key <= Qt::Key_9)
-            name = QChar(QLatin1Char(char(key)));
-        else if (key >= Qt::Key_A && key <= Qt::Key_Z)
-            name = QChar(QLatin1Char(char(key)));
-        break;
-    }
-    if (name.isEmpty())
-        return {};
-
-    QStringList parts;
-    const auto mods = Qt::KeyboardModifiers(modifiers);
-    if (mods & Qt::ControlModifier)
-        parts << QStringLiteral("Ctrl");
-    if (mods & Qt::AltModifier)
-        parts << QStringLiteral("Alt");
-    if (mods & Qt::ShiftModifier)
-        parts << QStringLiteral("Shift");
-    if (mods & Qt::MetaModifier)
-        parts << QStringLiteral("Meta");
-    parts << name;
-    return parts.join(QLatin1Char('+'));
+    return m_keymap->chordFromKey(key, modifiers);
 }
 
 QString AppController::actionForArrowChord(int key, int modifiers) const
 {
     if (key != Qt::Key_Left && key != Qt::Key_Right && key != Qt::Key_Up && key != Qt::Key_Down)
         return {};
-
-    const QString chord = shortcutChord(key, modifiers);
-    if (chord.isEmpty())
-        return {};
-
-    // loadShortcuts() and setShortcut() both keep the map free of duplicate chords,
-    // so the first match is the only match and QHash order cannot decide the outcome.
-    for (auto it = m_shortcuts.cbegin(); it != m_shortcuts.cend(); ++it) {
-        if (it.value() == chord)
-            return it.key();
-    }
-    return {};
+    return m_keymap->actionFor(QLatin1String(drift::keymap::kGlobalScope), shortcutChord(key, modifiers));
 }
 
 void AppController::loadAssetFavorites()
@@ -3274,6 +2948,8 @@ void AppController::triggerAction(const QString &actionId)
     else if (actionId == QStringLiteral("pasteAttributes"))
         requestPasteAttributes();
     else if (actionId == QStringLiteral("split"))
+        splitAtPlayheadForSelection();
+    else if (actionId == QStringLiteral("splitAllTracks"))
         splitAtPlayhead();
     else if (actionId == QStringLiteral("toggleClipEnabled"))
         toggleSelectedClipsEnabled();
@@ -3311,16 +2987,8 @@ void AppController::triggerAction(const QString &actionId)
         m_preview->setGuidesEnabled(!m_preview->guidesEnabled());
     else if (actionId == QStringLiteral("toggleTrackHidden"))
         setTrackHidden(m_selectedTrack, !trackHidden(m_selectedTrack));
-    else if (actionId == QStringLiteral("gizmoMove"))
-        m_preview->setGizmoTool(QStringLiteral("move"));
-    else if (actionId == QStringLiteral("gizmoRotate"))
-        m_preview->setGizmoTool(QStringLiteral("rotate"));
-    else if (actionId == QStringLiteral("gizmoScale"))
-        m_preview->setGizmoTool(QStringLiteral("scale"));
-    else if (actionId == QStringLiteral("gizmoOrientation"))
-        m_preview->setGizmoOrientation(m_preview->gizmoOrientation() == QLatin1String("world")   ? QStringLiteral("local")
-                                       : m_preview->gizmoOrientation() == QLatin1String("local") ? QStringLiteral("view")
-                                                                                                 : QStringLiteral("world"));
+    else if (actionId == QStringLiteral("addSpeedPoint"))
+        addSpeedPointAtPlayhead();
     else if (actionId == QStringLiteral("toggleBookmark"))
         toggleBookmarkAtPlayhead();
     else if (actionId == QStringLiteral("nextBookmark"))
@@ -3355,10 +3023,13 @@ void AppController::triggerAction(const QString &actionId)
         jumpSeconds(-10.0);
     else if (actionId == QStringLiteral("jumpForwardFar"))
         jumpSeconds(10.0);
-    else if (actionId == QStringLiteral("goToStart"))
+    else if (actionId == QStringLiteral("goToStart")) {
         setPlayheadUs(0);
-    else if (actionId == QStringLiteral("goToEnd"))
+        emit playheadJumped();
+    } else if (actionId == QStringLiteral("goToEnd")) {
         setPlayheadUs(m_project.durationUs());
+        emit playheadJumped();
+    }
     else if (actionId == QStringLiteral("deleteLeft"))
         splitSelectedClipLeft();
     else if (actionId == QStringLiteral("deleteRight"))
@@ -3386,6 +3057,186 @@ void AppController::triggerAction(const QString &actionId)
         nudgeSelectedClipPitch(1.0);
     else if (actionId == QStringLiteral("pitchDown"))
         nudgeSelectedClipPitch(-1.0);
+    else if (actionId == QStringLiteral("stop")) {
+        setPlaying(false);
+        m_playback.setPlaybackRate(1.0);
+    } else if (actionId == QStringLiteral("stepBack5"))
+        stepFrames(-5);
+    else if (actionId == QStringLiteral("stepForward5"))
+        stepFrames(5);
+    else if (actionId == QStringLiteral("rippleDelete"))
+        rippleDeleteSelection();
+    else if (actionId == QStringLiteral("deselectAll"))
+        clearSelection();
+    else if (actionId == QStringLiteral("selectClipAtPlayhead"))
+        selectClipUnderPlayhead();
+    else if (actionId == QStringLiteral("selectNextClip"))
+        selectAdjacentClip(true);
+    else if (actionId == QStringLiteral("selectPreviousClip"))
+        selectAdjacentClip(false);
+    else if (actionId == QStringLiteral("removeAllEffects"))
+        removeAllEffects(m_selectedTrack, m_selectedClip);
+    else if (actionId == QStringLiteral("moveToOwnTrack"))
+        moveAdjustmentToOwnTrack(m_selectedTrack, m_selectedClip);
+    else if (actionId == QStringLiteral("swapWithPrevious"))
+        swapWithNeighbour(m_selectedTrack, m_selectedClip, false);
+    else if (actionId == QStringLiteral("swapWithNext"))
+        swapWithNeighbour(m_selectedTrack, m_selectedClip, true);
+    else if (actionId == QStringLiteral("makeComposite")) {
+        if (canMakeCompositeFromSelection())
+            makeCompositeFromSelection();
+    } else if (actionId == QStringLiteral("openComposite")) {
+        if (isValidClipIndex(m_selectedTrack, m_selectedClip)
+            && m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip).type == drift::ClipType::Composite)
+            openCompositeClip(m_selectedTrack, m_selectedClip);
+    } else if (actionId == QStringLiteral("flattenComposite")) {
+        if (isValidClipIndex(m_selectedTrack, m_selectedClip) && !exportInProgress()
+            && m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip).type == drift::ClipType::Composite)
+            flattenComposite(m_selectedTrack, m_selectedClip);
+    } else if (actionId == QStringLiteral("freezeFrame"))
+        freezeFrameAtPlayhead();
+    else if (actionId == QStringLiteral("nudgeLeftFar"))
+        nudgeSelection(-1.0);
+    else if (actionId == QStringLiteral("nudgeRightFar"))
+        nudgeSelection(1.0);
+    else if (actionId == QStringLiteral("reverseClip")) {
+        if (isValidClipIndex(m_selectedTrack, m_selectedClip)) {
+            if (m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip).reverse)
+                setClipReverse(m_selectedTrack, m_selectedClip, false);
+            else
+                requestClipReverse(m_selectedTrack, m_selectedClip);
+        }
+    } else if (actionId == QStringLiteral("splitOnBeats")) {
+        if (beatsAvailable() && isValidClipIndex(m_selectedTrack, m_selectedClip)
+            && m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip).type != drift::ClipType::Subtitle)
+            splitSelectionOnBeats(m_selectedTrack, m_selectedClip, QStringLiteral("beat"));
+    } else if (actionId == QStringLiteral("removeSilence")) {
+        if (m_audioAlign->canRemoveSilence(m_selectedTrack, m_selectedClip) && !m_audioAlign->running())
+            m_audioAlign->removeSilence(m_selectedTrack, m_selectedClip);
+    } else if (actionId == QStringLiteral("syncByAudio")) {
+        if (m_audioAlign->canSyncByAudio() && !m_audioAlign->running())
+            m_audioAlign->syncByAudio();
+    } else if (actionId == QStringLiteral("markClip"))
+        markWorkAreaToClip();
+    else if (actionId == QStringLiteral("clearIn"))
+        clearWorkAreaIn();
+    else if (actionId == QStringLiteral("clearOut"))
+        clearWorkAreaOut();
+    else if (actionId == QStringLiteral("deleteBookmark"))
+        removeBookmarkNearPlayhead();
+    else if (actionId == QStringLiteral("deleteAllBookmarks"))
+        clearBookmarks();
+    else if (actionId == QStringLiteral("toggleSnapping"))
+        setSnapEnabled(!m_snapEnabled);
+    else if (actionId == QStringLiteral("toggleRipple"))
+        setRippleEnabled(!m_rippleEnabled);
+    else if (actionId == QStringLiteral("toggleOverlap"))
+        setAllowClipOverlap(!m_allowClipOverlap);
+    else if (actionId == QStringLiteral("toggleAutoSelect"))
+        m_preferences->setAutoSelectUnderPlayhead(!m_preferences->autoSelectUnderPlayhead());
+    else if (actionId == QStringLiteral("toggleMixerStrip"))
+        m_preferences->setAudioMixerVisible(!m_preferences->audioMixerVisible());
+    else if (actionId == QStringLiteral("toggleKeyframeStrip"))
+        m_preferences->setKeyframeStripVisible(!m_preferences->keyframeStripVisible());
+    else if (actionId == QStringLiteral("toggleOverview"))
+        m_preferences->setTimelineOverviewVisible(!m_preferences->timelineOverviewVisible());
+    else if (actionId == QStringLiteral("toggleTrackMuted"))
+        setTrackMuted(m_selectedTrack, !trackMuted(m_selectedTrack));
+    else if (actionId == QStringLiteral("toggleTrackSolo"))
+        setTrackSolo(m_selectedTrack, !trackSolo(m_selectedTrack));
+    else if (actionId == QStringLiteral("toggleTrackLocked"))
+        setTrackLocked(m_selectedTrack, !trackLocked(m_selectedTrack));
+    else if (actionId == QStringLiteral("addVideoTrack"))
+        addTrack(QStringLiteral("video"));
+    else if (actionId == QStringLiteral("addAudioTrack"))
+        addTrack(QStringLiteral("audio"));
+    else if (actionId == QStringLiteral("trackTaller"))
+        nudgeTrackHeightScale(m_selectedTrack, 1);
+    else if (actionId == QStringLiteral("trackShorter"))
+        nudgeTrackHeightScale(m_selectedTrack, -1);
+    else if (actionId == QStringLiteral("addAdjustmentLayer"))
+        addAdjustmentClip(-1, -1);
+    else if (actionId == QStringLiteral("addCamera"))
+        addCameraTrack();
+    else if (actionId == QStringLiteral("addText"))
+        addTextClip(QString(), -1);
+    else if (actionId == QStringLiteral("recordVoiceover")) {
+        if (isRecordingAudio())
+            stopAudioRecording();
+        else
+            startAudioRecording();
+    }
+}
+
+void AppController::markWorkAreaToClip()
+{
+    if (!isValidClipIndex(m_selectedTrack, m_selectedClip)) {
+        selectClipUnderPlayhead();
+        if (!isValidClipIndex(m_selectedTrack, m_selectedClip))
+            return;
+    }
+    const drift::Clip &clip = m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip);
+    const drift::TimeUs start = clip.timelineStart;
+    const drift::TimeUs end = clip.timelineEnd();
+    if (end <= start)
+        return;
+    const drift::Project before = m_project;
+    m_project.setWorkAreaInUs(start);
+    m_project.setWorkAreaOutUs(end);
+    pushProjectEdit(before, tr("Mark work area to clip"));
+    finishEdit(tr("Work area set to clip"));
+    emit workAreaChanged();
+}
+
+void AppController::clearWorkAreaIn()
+{
+    if (m_project.workAreaInUs() < 0)
+        return;
+    const drift::Project before = m_project;
+    m_project.setWorkAreaInUs(-1);
+    pushProjectEdit(before, tr("Clear work area in"));
+    finishEdit(tr("Work area in cleared"));
+    emit workAreaChanged();
+}
+
+void AppController::clearWorkAreaOut()
+{
+    if (m_project.workAreaOutUs() < 0)
+        return;
+    const drift::Project before = m_project;
+    m_project.setWorkAreaOutUs(-1);
+    pushProjectEdit(before, tr("Clear work area out"));
+    finishEdit(tr("Work area out cleared"));
+    emit workAreaChanged();
+}
+
+void AppController::clearBookmarks()
+{
+    if (m_project.bookmarks().isEmpty())
+        return;
+    const drift::Project before = m_project;
+    m_project.bookmarks().clear();
+    pushProjectEdit(before, tr("Remove all bookmarks"));
+    finishEdit(tr("Bookmarks removed"));
+}
+
+void AppController::rippleDeleteSelection()
+{
+    const bool ripple = m_rippleEnabled;
+    m_rippleEnabled = true;
+    deleteSelection(/*withPinnedAdjustments=*/false);
+    m_rippleEnabled = ripple;
+}
+
+void AppController::selectAdjacentClip(bool next)
+{
+    if (!isValidClipIndex(m_selectedTrack, m_selectedClip)) {
+        selectClipUnderPlayhead();
+        return;
+    }
+    const QString id = neighbourClipId(m_selectedTrack, m_selectedClip, next);
+    if (!id.isEmpty())
+        selectClipById(id);
 }
 
 void AppController::undo()
@@ -3762,22 +3613,45 @@ QVariantList AppController::subtitleWaveformPeaks(double startSeconds, double du
 }
 
 // Everything the AudioMixer reads, and nothing else — so a transform keyframe edit does not
-// invalidate a beat grid while moving, trimming, retiming or muting the music does.
+// invalidate a beat grid while moving, trimming, retiming, or muting, hiding or soloing the music
+// does.
 QByteArray AppController::audioLayoutFingerprint() const
 {
     QCryptographicHash hash(QCryptographicHash::Sha1);
+    const bool anySolo = drift::anyTrackSoloed(m_project.tracks());
     for (const drift::Track &track : m_project.tracks()) {
         if (track.type != drift::TrackType::Audio && track.type != drift::TrackType::Video)
             continue;
-        hash.addData(track.muted ? "m" : "-");
+        hash.addData(drift::trackAudible(track, anySolo) ? "a" : "-");
         hash.addData(QByteArray::number(track.audioEffects.size()));
-        for (const drift::Clip &clip : track.clips) {
+        // A plain cut leaves the mix untouched, so consecutive pieces that continue one another
+        // hash as the single clip they came from — otherwise split_on_beats drops its own grid.
+        const auto plain = [](const drift::Clip &c) {
+            return !c.reverse && !c.loops() && !c.hasSpeedCurve() && c.volume.keyframes().isEmpty();
+        };
+        for (qsizetype i = 0; i < track.clips.size(); ++i) {
+            const drift::Clip &clip = track.clips.at(i);
+            drift::TimeUs runDuration = clip.timelineDuration;
+            drift::TimeUs runSrcOut = clip.srcOut;
+            while (plain(clip) && i + 1 < track.clips.size()) {
+                const drift::Clip &next = track.clips.at(i + 1);
+                if (!plain(next) || next.assetId != clip.assetId
+                    || next.timelineStart != clip.timelineStart + runDuration
+                    || next.srcIn != runSrcOut || next.speed != clip.speed
+                    || next.suppressEmbeddedAudio != clip.suppressEmbeddedAudio
+                    || next.audioEffects.size() != clip.audioEffects.size() || next.pan != clip.pan) {
+                    break;
+                }
+                runDuration += next.timelineDuration;
+                runSrcOut = next.srcOut;
+                ++i;
+            }
             const QString row = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10")
                                     .arg(clip.assetId)
                                     .arg(clip.timelineStart)
-                                    .arg(clip.timelineDuration)
+                                    .arg(runDuration)
                                     .arg(clip.srcIn)
-                                    .arg(clip.srcOut)
+                                    .arg(runSrcOut)
                                     .arg(clip.speed)
                                     .arg(clip.reverse ? 1 : 0)
                                     .arg(clip.suppressEmbeddedAudio ? 1 : 0)
@@ -3845,6 +3719,245 @@ void AppController::analyzeBeats(double startSeconds, double durSeconds)
             },
             Qt::QueuedConnection);
     });
+}
+
+namespace {
+
+QVariantMap beatFailure(const char *code, const QString &message)
+{
+    return QVariantMap{{QStringLiteral("error"), QString::fromLatin1(code)},
+                       {QStringLiteral("message"), message}};
+}
+
+} // namespace
+
+// Mixes the clip on its own, so other music or dialogue on the timeline cannot move the tempo.
+// Blocks in a nested event loop like detect_beats does; a few seconds for a song.
+AudioBeatAnalysis AppController::analyzeClipBeats(const QString &clipId, QVariantMap *failure)
+{
+    const QPair<int, int> at = m_mcpController->locateClip(clipId);
+    if (at.first < 0 || at.second < 0 || !isValidClipIndex(at.first, at.second)) {
+        *failure = beatFailure("not_found", tr("Unknown clip"));
+        return {};
+    }
+    const drift::Clip &clip = m_project.tracks().at(at.first).clips.at(at.second);
+    if (clip.type != drift::ClipType::Audio && clip.type != drift::ClipType::Video) {
+        *failure = beatFailure("bad_args", tr("Beats come from an audio or video clip"));
+        return {};
+    }
+    const double startSeconds = drift::usToSeconds(clip.timelineStart);
+    const double durSeconds = qMin(drift::usToSeconds(clip.timelineDuration), 600.0);
+    if (durSeconds < AudioOnsets::kMinAnalysisSec) {
+        *failure = beatFailure("bad_args", tr("The clip is too short to find a tempo"));
+        return {};
+    }
+
+    drift::Project snap = m_project;
+    drift::Track only = m_project.tracks().at(at.first);
+    only.clips = {clip};
+    only.transitions.clear();
+    only.muted = false;
+    only.solo = false;
+    snap.tracks() = {only};
+
+    const drift::TimeUs startUs = clip.timelineStart;
+    const drift::TimeUs durUs = drift::secondsToUs(durSeconds);
+    auto result = std::make_shared<AudioBeatAnalysis>();
+    QEventLoop loop;
+    (void)QtConcurrent::run([snap, startUs, durUs, startSeconds, result, &loop]() {
+        *result = runBeatAnalysis(snap, startUs, durUs, startSeconds);
+        QMetaObject::invokeMethod(&loop, &QEventLoop::quit, Qt::QueuedConnection);
+    });
+    loop.exec();
+
+    if (result->beats.size() < 2)
+        *failure = beatFailure("not_found", tr("No steady beat found in that clip"));
+    return *result;
+}
+
+QVariantMap AppController::addBeatMarkersForClip(const QString &clipId, int every)
+{
+    QVariantMap failure;
+    const AudioBeatAnalysis analysis = analyzeClipBeats(clipId, &failure);
+    if (!failure.isEmpty())
+        return failure;
+
+    const int step = every <= 0 ? analysis.beatsPerBar : every;
+    const QList<double> times = drift::beatsEvery(analysis.beats, step, analysis.firstDownbeat);
+    const int added = addBookmarksAtTimes(times, 0.0, 0.0, false, tr("Beat"), tr("Add beat markers"));
+    return QVariantMap{{QStringLiteral("added"), added},
+                       {QStringLiteral("beats"), static_cast<int>(times.size())},
+                       {QStringLiteral("bpm"), analysis.bpm},
+                       {QStringLiteral("confidence"), analysis.confidence}};
+}
+
+QVariantMap AppController::autoCutToBeat(const QString &musicClipId, const QStringList &clipIds,
+                                         int beatsPerCut, bool fromPlayhead, bool syncDownbeats)
+{
+    struct Target {
+        QString id;
+        drift::TimeUs start = 0;
+        int track = 0;
+        double available = 0.0;
+    };
+    QList<Target> targets;
+    QSet<QString> seen;
+    for (const QString &raw : clipIds) {
+        const QString id = raw.trimmed();
+        if (id.isEmpty() || id == musicClipId || seen.contains(id))
+            continue;
+        seen.insert(id);
+        const QPair<int, int> at = m_mcpController->locateClip(id);
+        if (at.first < 0 || at.second < 0 || !isValidClipIndex(at.first, at.second))
+            continue;
+        const drift::Clip &clip = m_project.tracks().at(at.first).clips.at(at.second);
+        if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Image)
+            continue;
+        // A still has no footage to run out of; a video can only be trimmed, never stretched.
+        const double available = clip.type == drift::ClipType::Image
+                                     ? 3600.0
+                                     : drift::usToSeconds(clip.timelineDuration);
+        targets.append({id, clip.timelineStart, at.first, available});
+    }
+    if (targets.isEmpty())
+        return beatFailure("bad_args", tr("Select the video or image clips to cut together"));
+    std::stable_sort(targets.begin(), targets.end(), [](const Target &a, const Target &b) {
+        return a.start != b.start ? a.start < b.start : a.track < b.track;
+    });
+
+    QVariantMap failure;
+    const AudioBeatAnalysis analysis = analyzeClipBeats(musicClipId, &failure);
+    if (!failure.isEmpty())
+        return failure;
+
+    const QPair<int, int> music = m_mcpController->locateClip(musicClipId);
+    if (music.first < 0 || music.second < 0 || !isValidClipIndex(music.first, music.second))
+        return beatFailure("not_found", tr("The music clip is gone"));
+    const drift::Clip &musicClip = m_project.tracks().at(music.first).clips.at(music.second);
+    const double musicStart = drift::usToSeconds(musicClip.timelineStart);
+    const double musicEnd = drift::usToSeconds(musicClip.timelineEnd());
+
+    drift::BeatCutOptions options;
+    options.beatsPerCut = beatsPerCut;
+    options.syncToDownbeats = syncDownbeats;
+    options.startSeconds = fromPlayhead ? qMax(musicStart, playheadSeconds()) : musicStart;
+    options.endSeconds = qMin(musicEnd, musicStart + 600.0);
+    options.firstDownbeat = analysis.firstDownbeat;
+    options.beatsPerBar = analysis.beatsPerBar;
+
+    QList<double> available;
+    for (const Target &t : std::as_const(targets))
+        available.append(t.available);
+    const QList<drift::BeatCutSlot> cuts = drift::planBeatCut(analysis.beats, available, options);
+    if (cuts.isEmpty())
+        return beatFailure("bad_args", tr("No beat to cut on between the start point and the end of the music"));
+
+    int insertAt = targets.first().track;
+    for (const Target &t : std::as_const(targets))
+        insertAt = qMin(insertAt, t.track);
+
+    // Placement is exact: snapping to the playhead, another clip's edge or the beat grid would
+    // each move a cut off the beat it was planned for.
+    QScopedValueRollback<bool> noSnap(m_snapEnabled, false);
+    clearSelection();
+    m_mcpController->beginBatch();
+    m_project.ensureTrackIds();
+    QSet<QString> idsBefore;
+    for (const drift::Track &track : m_project.tracks())
+        idsBefore.insert(track.id);
+    insertTrack(QStringLiteral("video"), insertAt);
+    int newTrack = -1;
+    for (int i = 0; i < m_project.tracks().size(); ++i) {
+        if (!idsBefore.contains(m_project.tracks().at(i).id)) {
+            newTrack = i;
+            break;
+        }
+    }
+    if (newTrack < 0) {
+        m_mcpController->endBatch(tr("Auto-cut to beat"), true);
+        return beatFailure("apply_failed", tr("Could not add a track"));
+    }
+    QVariantList placed;
+    int shortClips = 0;
+    for (const drift::BeatCutSlot &slot : cuts) {
+        const QString &id = targets.at(slot.clip).id;
+        QPair<int, int> at = m_mcpController->locateClip(id);
+        if (at.first < 0)
+            continue;
+        const drift::Clip &before = m_project.tracks().at(at.first).clips.at(at.second);
+        if (qAbs(drift::usToSeconds(before.timelineDuration) - slot.duration) > 0.0005)
+            setClipDuration(at.first, at.second, slot.duration);
+        at = m_mcpController->locateClip(id);
+        if (at.first < 0)
+            continue;
+        moveClipToTrack(at.first, at.second, newTrack, slot.start);
+        at = m_mcpController->locateClip(id);
+        if (at.first < 0)
+            continue;
+        if (qAbs(drift::usToSeconds(m_project.tracks().at(at.first).clips.at(at.second).timelineStart) - slot.start) > 0.0005)
+            setClipStart(at.first, at.second, slot.start);
+        if (slot.shorterThanSlot)
+            ++shortClips;
+        placed.append(QVariantMap{{QStringLiteral("clip"), id},
+                                  {QStringLiteral("start"), slot.start},
+                                  {QStringLiteral("duration"), slot.duration}});
+    }
+    m_mcpController->endBatch(tr("Auto-cut to beat"), !placed.isEmpty());
+
+    return QVariantMap{{QStringLiteral("placed"), placed},
+                       {QStringLiteral("track"), newTrack},
+                       {QStringLiteral("bpm"), analysis.bpm},
+                       {QStringLiteral("short"), shortClips},
+                       {QStringLiteral("unused"), static_cast<int>(targets.size() - cuts.size())}};
+}
+
+int AppController::beatCutTargetCount(int trackIndex, int clipIndex) const
+{
+    int n = 0;
+    for (const QString &id : clipIdsForAction(trackIndex, clipIndex)) {
+        const QPair<int, int> at = m_mcpController->locateClip(id);
+        if (at.first < 0 || (at.first == trackIndex && at.second == clipIndex))
+            continue;
+        const drift::ClipType type = m_project.tracks().at(at.first).clips.at(at.second).type;
+        if (type == drift::ClipType::Video || type == drift::ClipType::Image)
+            ++n;
+    }
+    return n;
+}
+
+void AppController::addBeatMarkersForSelection(int trackIndex, int clipIndex, int every)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return;
+    const QVariantMap result =
+        addBeatMarkersForClip(m_project.tracks().at(trackIndex).clips.at(clipIndex).id, every);
+    if (result.contains(QStringLiteral("error"))) {
+        setLastMessage(result.value(QStringLiteral("message")).toString(), QStringLiteral("warning"));
+        return;
+    }
+    const int added = result.value(QStringLiteral("added")).toInt();
+    if (added > 0)
+        setLastMessage(tr("Added %n beat marker(s)", nullptr, added));
+    else
+        setLastMessage(tr("No new markers to add"), QStringLiteral("warning"));
+}
+
+void AppController::autoCutSelectionToBeat(int trackIndex, int clipIndex, int beatsPerCut, bool fromPlayhead,
+                                           bool syncDownbeats)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return;
+    const QString musicId = m_project.tracks().at(trackIndex).clips.at(clipIndex).id;
+    const QVariantMap result =
+        autoCutToBeat(musicId, clipIdsForAction(trackIndex, clipIndex), beatsPerCut, fromPlayhead, syncDownbeats);
+    if (result.contains(QStringLiteral("error"))) {
+        setLastMessage(result.value(QStringLiteral("message")).toString(), QStringLiteral("warning"));
+        return;
+    }
+    const int placed = result.value(QStringLiteral("placed")).toList().size();
+    const int unused = result.value(QStringLiteral("unused")).toInt();
+    setLastMessage(unused > 0 ? tr("Cut %n clip(s) to the beat; %1 did not fit the music", nullptr, placed).arg(unused)
+                              : tr("Cut %n clip(s) to the beat", nullptr, placed));
 }
 
 void AppController::applyBeatAnalysis(const AudioBeatAnalysis &analysis, double startSeconds,

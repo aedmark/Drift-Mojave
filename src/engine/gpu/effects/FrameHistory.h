@@ -126,6 +126,16 @@ public:
     // when there are none yet.
     HistoryBinding sourceBinding() const;
 
+    // How many of the `wanted` frames behind the current one the ring does not hold yet (0 when
+    // it is not recording). The frames to seed are ages recorded() + 1 .. recorded() + missing.
+    int pastMissing(int wanted) const;
+    int pastRecorded() const;
+
+    // Writes `frame` (already cropped and straightened like the current one) as the source frame
+    // `age` project frames back, and counts it as recorded. Ages must be seeded in ascending order
+    // from pastRecorded() + 1. For after a seek, a pause or an export start, where the ring is empty.
+    void seedPast(GlRuntime &rt, QOpenGLExtraFunctions *gl, int age, const GlTarget &frame);
+
     // The effect's output one frame ago, or 0 for none.
     GLuint previousOutput(int effectIndex) const;
 
@@ -136,6 +146,28 @@ private:
     FrameHistoryStore::Entry *m_entry = nullptr;
     FrameHistoryStore *m_store = nullptr;
 };
+
+// The media's frames around the current one for "historyUnits": "source" effects, laid out in one
+// atlas like the history ring so historyFrame() reads it unchanged: slots 0..past-1 are the past frames
+// oldest first (age `past` down to 1), then the future frames nearest first. Built per composite
+// and released with `rt.releaseTarget(std::move(atlas.atlas))`; nothing is remembered between frames.
+struct NeighbourAtlas
+{
+    GlTarget atlas;
+    HistoryBinding binding;
+    int past = 0;
+    int future = 0;
+    int tiles = 0;
+};
+
+// Plans and allocates the atlas for `past + future` frames of `frame` size, shrinking the tiles to fit
+// the texture limit and byte budget. False when it cannot be made.
+bool beginNeighbourAtlas(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QSize &frame, int past, int future,
+                         NeighbourAtlas &out);
+
+// Writes `frame` into slot `slot` (scaled to the tile).
+void writeNeighbour(GlRuntime &rt, QOpenGLExtraFunctions *gl, NeighbourAtlas &atlas, int slot,
+                    const GlTarget &frame);
 
 // The clip's source frame `age` project frames before the one being rendered (1 = the previous
 // frame), or an invalid one while fewer are recorded: the first frame, after a seek, or when the

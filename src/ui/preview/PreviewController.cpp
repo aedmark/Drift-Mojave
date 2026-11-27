@@ -7,6 +7,7 @@
 #include "app/mcp/McpController.h"
 
 #include "app/editor/sessions/MaskEditSession.h"
+#include "core/animation/KeyframeSimplify.h"
 #include "core/base/CameraEuler.h"
 #include "core/edit/TimelineOps.h"
 #include "engine/render3d/editor/ClipGizmo.h"
@@ -17,6 +18,7 @@
 #include "engine/packages/effects/EffectCatalog.h"
 #include "engine/render3d/models/ModelClipTransform.h"
 #include "engine/compositor/PreviewSnap.h"
+#include "ui/manip/SnapService.h"
 #include "engine/compositor/layers/TransformLayer.h"
 #include "engine/compositor/FrameCompositor.h"
 #include "playback/preview/SplitPreviewImageStore.h"
@@ -131,6 +133,23 @@ QVariantList polylineToVariant(const QPolygonF &line)
     return out;
 }
 
+drift::gizmo::DragExtras dragExtras(const QVariantMap &options, double scaleStep)
+{
+    using namespace drift::gizmo;
+    DragExtras extras;
+    extras.scaleStep = scaleStep;
+    const QString axis = options.value(QStringLiteral("axis")).toString();
+    extras.lockAxis = axis == QLatin1String("x") ? 0 : axis == QLatin1String("y") ? 1 : axis == QLatin1String("z") ? 2 : -1;
+    extras.lockPlane = options.value(QStringLiteral("plane")).toBool();
+    const QString orientation = options.value(QStringLiteral("orientation")).toString();
+    if (!orientation.isEmpty())
+        extras.orientation = orientationFromString(orientation);
+    const QVariant typed = options.value(QStringLiteral("typed"));
+    if (typed.isValid() && typed.canConvert<double>() && !typed.isNull())
+        extras.typed = typed.toDouble();
+    return extras;
+}
+
 drift::snap::Targets canvasSnapTargets(double width, double height, const QVariantMap &guides)
 {
     drift::snap::Targets targets;
@@ -141,6 +160,15 @@ drift::snap::Targets canvasSnapTargets(double width, double height, const QVaria
     for (const QVariant &v : guides.value(QStringLiteral("y")).toList())
         targets.y << v.toDouble();
     return targets;
+}
+
+// Lines other clips offer, in canvas px: their edges and centres, as the overlay measured them.
+void addExtraTargets(drift::snap::Targets &targets, const QVariantMap &options)
+{
+    for (const QVariant &v : options.value(QStringLiteral("x")).toList())
+        targets.x << v.toDouble();
+    for (const QVariant &v : options.value(QStringLiteral("y")).toList())
+        targets.y << v.toDouble();
 }
 
 // A member's anchor in world space (canvas px from the top-left, y down, +z away from the viewer),
@@ -170,6 +198,10 @@ PreviewController::PreviewController(AppController &app, QObject *parent)
     m_navigationScheme = settings.value(QStringLiteral("preview/navigationScheme"), m_navigationScheme).toString();
     if (m_navigationScheme != QLatin1String("maya"))
         m_navigationScheme = QStringLiteral("blender");
+    m_flyLook = settings.value(QStringLiteral("preview/flyLook"), m_flyLook).toString();
+    if (m_flyLook != QLatin1String("steer"))
+        m_flyLook = QStringLiteral("mouse");
+    m_recordSmoothing = std::clamp(settings.value(QStringLiteral("preview/recordSmoothing"), m_recordSmoothing).toDouble(), 0.0, 1.0);
     m_orbitAroundSelection =
         settings.value(QStringLiteral("preview/orbitAroundSelection"), m_orbitAroundSelection).toBool();
     m_editorFov = std::clamp(settings.value(QStringLiteral("preview/editorFov"), m_editorFov).toDouble(), 10.0, 120.0);
@@ -178,6 +210,7 @@ PreviewController::PreviewController(AppController &app, QObject *parent)
     m_gridSize = std::max(0.0, settings.value(QStringLiteral("preview/gridSize"), m_gridSize).toDouble());
     m_translateSnap = std::max(0.0, settings.value(QStringLiteral("preview/translateSnap"), m_translateSnap).toDouble());
     m_rotationSnap = std::max(0.0, settings.value(QStringLiteral("preview/rotationSnap"), m_rotationSnap).toDouble());
+    m_scaleSnap = std::max(0.0, settings.value(QStringLiteral("preview/scaleSnap"), m_scaleSnap).toDouble());
 
     // Selecting a mask clip turns the handles on, so anything that can change what is selected —
     // or move a mask out from under the playhead — has to re-ask.
@@ -197,10 +230,28 @@ PreviewController::PreviewController(AppController &app, QObject *parent)
 
     connect(this, &PreviewController::canvasCropModeChanged, this, &PreviewController::updateActiveTool);
     connect(this, &PreviewController::clipCropModeChanged, this, &PreviewController::updateActiveTool);
+    connect(this, &PreviewController::shapePathModeChanged, this, &PreviewController::updateActiveTool);
     connect(this, &PreviewController::guideEditSetIdChanged, this, &PreviewController::updateActiveTool);
+    // Path editing is about one clip; leaving it for anything that is not a Path shape ends the session.
+    const auto endStalePathEdit = [this] {
+        if (m_shapePathMode == QLatin1String("edit") && !selectionIsPathShape())
+            setShapePathMode(QString());
+    };
+    connect(&m_app, &AppController::selectionChanged, this, endStalePathEdit);
+    connect(&m_app, &AppController::tracksChanged, this, endStalePathEdit);
     connect(this, &PreviewController::maskEditActiveChanged, this, &PreviewController::updateActiveTool);
 
     connect(&m_app, &AppController::playingChanged, this, &PreviewController::updateHandlesVisible);
+    connect(&m_app, &AppController::playingChanged, this, [this] {
+        if (m_app.playing() && m_recordArmed && !m_recording)
+            startRecording();
+        else if (!m_app.playing() && m_recording)
+            finishRecording();
+    });
+    connect(&m_app, &AppController::playheadSecondsChanged, this, [this] {
+        if (m_recording && m_app.playing())
+            sampleRecording();
+    });
     connect(&m_app, &AppController::scrubbingChanged, this, &PreviewController::updateHandlesVisible);
     connect(&m_app, &AppController::tracksChanged, this, &PreviewController::updateHandlesVisible);
     updateHandlesVisible();
@@ -287,10 +338,13 @@ void PreviewController::updateActiveTool()
         tool = QStringLiteral("crop");
     else if (m_clipCropMode)
         tool = QStringLiteral("clipCrop");
+    else if (!m_shapePathMode.isEmpty())
+        tool = QStringLiteral("shapePath");
     else if (!m_guideEditSetId.isEmpty())
         tool = QStringLiteral("guideEdit");
     else if (!m_maskingTool.isEmpty()) {
-        if (m_maskingTool == QLatin1String("brush"))
+        if (m_maskingTool == QLatin1String("brush") || m_maskingTool == QLatin1String("lasso")
+            || m_maskingTool == QLatin1String("scissors") || m_maskingTool == QLatin1String("wand"))
             tool = QStringLiteral("maskBrush");
         else if (m_maskingTool == QLatin1String("ai"))
             tool = QStringLiteral("maskAi");
@@ -410,12 +464,31 @@ void PreviewController::setRotationSnap(double degrees)
     emit gizmoChanged();
 }
 
+void PreviewController::setScaleSnap(double step)
+{
+    step = std::max(0.0, step);
+    if (qFuzzyCompare(m_scaleSnap, step))
+        return;
+    m_scaleSnap = step;
+    QSettings().setValue(QStringLiteral("preview/scaleSnap"), step);
+    emit gizmoChanged();
+}
+
 void PreviewController::setNavigationScheme(const QString &scheme)
 {
     if (m_navigationScheme == scheme || (scheme != QLatin1String("blender") && scheme != QLatin1String("maya")))
         return;
     m_navigationScheme = scheme;
     QSettings().setValue(QStringLiteral("preview/navigationScheme"), m_navigationScheme);
+    emit navigationChanged();
+}
+
+void PreviewController::setFlyLook(const QString &look)
+{
+    if (m_flyLook == look || (look != QLatin1String("mouse") && look != QLatin1String("steer")))
+        return;
+    m_flyLook = look;
+    QSettings().setValue(QStringLiteral("preview/flyLook"), m_flyLook);
     emit navigationChanged();
 }
 
@@ -446,6 +519,7 @@ void PreviewController::setGuideEditSetId(const QString &id)
     if (!id.isEmpty()) {
         setCanvasCropMode(false);
         setMaskEditMode(false);
+        setShapePathMode(QString());
         setGuidesEnabled(true);
         m_app.setGuideSetActive(id, true);
     }
@@ -477,6 +551,7 @@ QVariantMap PreviewController::gizmoGeometry(const QVariantMap &box, double scal
         handles.append(QVariantMap{
             {QStringLiteral("id"), h.id},
             {QStringLiteral("kind"), QString::fromLatin1(kinds[int(h.kind)])},
+            {QStringLiteral("alpha"), h.alpha},
             {QStringLiteral("front"), front},
             {QStringLiteral("back"), back},
             {QStringLiteral("head"), polylineToVariant(h.head)},
@@ -504,9 +579,27 @@ QString PreviewController::gizmoPick(const QVariantMap &box, double scale, doubl
     return pick(g, QPointF(x, y), tolerance);
 }
 
+QVariantList PreviewController::gizmoLockGuides(const QVariantMap &box, double scale, const QVariantMap &options,
+                                                int viewport) const
+{
+    using namespace drift::gizmo;
+    const DragExtras extras = dragExtras(options, m_scaleSnap);
+    if (extras.lockAxis < 0)
+        return {};
+    const Orientation orientation = extras.orientation.value_or(orientationFromString(m_gizmoOrientation));
+    QVariantList out;
+    for (const LockGuide &guide : lockGuides(gizmoPoseOfBox(box), toolFromString(m_gizmoTool), orientation, scale,
+                                             extras.lockAxis, extras.lockPlane, gizmoView(viewport))) {
+        out.append(QVariantMap{{QStringLiteral("axis"), QString(QChar(u'x' + guide.axis))},
+                               {QStringLiteral("x1"), guide.line.x1()}, {QStringLiteral("y1"), guide.line.y1()},
+                               {QStringLiteral("x2"), guide.line.x2()}, {QStringLiteral("y2"), guide.line.y2()}});
+    }
+    return out;
+}
+
 QVariantMap PreviewController::applyGizmoDrag(const QVariantMap &start, const QString &handle,
                                                  double pressX, double pressY, double nowX,
-                                                 double nowY, bool snap, double scale, int viewport)
+                                                 double nowY, const QVariantMap &options, double scale, int viewport)
 {
     using namespace drift::gizmo;
     const int trackIndex = start.value(QStringLiteral("track")).toInt();
@@ -517,8 +610,10 @@ QVariantMap PreviewController::applyGizmoDrag(const QVariantMap &start, const QS
 
     const Tool tool = toolFromString(m_gizmoTool);
     const DragResult result = drag(gizmoPoseOfBox(start), tool, orientationFromString(m_gizmoOrientation),
-                                   handle, QPointF(pressX, pressY), QPointF(nowX, nowY), snap, scale,
-                                   gizmoView(viewport), m_translateSnap, m_rotationSnap);
+                                   handle, QPointF(pressX, pressY), QPointF(nowX, nowY),
+                                   options.value(QStringLiteral("snap")).toBool(), scale,
+                                   gizmoView(viewport), m_translateSnap, m_rotationSnap,
+                                   dragExtras(options, m_scaleSnap));
     const Pose pose = hasBoundsCentre(start) ? anchoredLike(result.pose, gizmoPoseFromBox(start)) : result.pose;
 
     if (start.value(QStringLiteral("kind")).toString() == QLatin1String("camera")) {
@@ -575,6 +670,8 @@ QVariantMap PreviewController::applyGizmoDrag(const QVariantMap &start, const QS
         out.insert(QStringLiteral("rotationX"), pose.pose3d.rotationX);
         out.insert(QStringLiteral("rotationY"), pose.pose3d.rotationY);
         out.insert(QStringLiteral("rotation"), pose.rotation);
+        out.insert(QStringLiteral("amount"), result.amount);
+        out.insert(QStringLiteral("amount2"), result.amount2);
         return out;
     }
 
@@ -624,6 +721,8 @@ QVariantMap PreviewController::applyGizmoDrag(const QVariantMap &start, const QS
     out.insert(QStringLiteral("rotationX"), pose.pose3d.rotationX);
     out.insert(QStringLiteral("rotationY"), pose.pose3d.rotationY);
     out.insert(QStringLiteral("z"), pose.pose3d.positionZ);
+    out.insert(QStringLiteral("amount"), result.amount);
+    out.insert(QStringLiteral("amount2"), result.amount2);
     return out;
 }
 
@@ -670,13 +769,15 @@ QVariantMap PreviewController::groupGizmoPivot(const QVariantList &boxes, int) c
 
 QVariantMap PreviewController::applyGroupGizmoDrag(const QVariantMap &pivot, const QVariantList &startBoxes,
                                                    const QString &handle, double pressX, double pressY,
-                                                   double nowX, double nowY, bool snap, double scale, int viewport)
+                                                   double nowX, double nowY, const QVariantMap &options, double scale, int viewport)
 {
     using namespace drift::gizmo;
     const Tool tool = toolFromString(m_gizmoTool);
     const Pose start = gizmoPoseFromBox(pivot);
     const DragResult result = drag(start, tool, orientationFromString(m_gizmoOrientation), handle,
-                                   QPointF(pressX, pressY), QPointF(nowX, nowY), snap, scale, gizmoView(viewport), m_translateSnap, m_rotationSnap);
+                                   QPointF(pressX, pressY), QPointF(nowX, nowY), options.value(QStringLiteral("snap")).toBool(),
+                                   scale, gizmoView(viewport), m_translateSnap, m_rotationSnap,
+                                   dragExtras(options, m_scaleSnap));
     const Pose &pose = result.pose;
 
     const QVector3D centre0 = start.pose3d.pivot(start.rect);
@@ -762,6 +863,8 @@ QVariantMap PreviewController::applyGroupGizmoDrag(const QVariantMap &pivot, con
     out.insert(QStringLiteral("width"), pose.rect.width());
     out.insert(QStringLiteral("height"), pose.rect.height());
     out.insert(QStringLiteral("z"), pose.pose3d.positionZ);
+    out.insert(QStringLiteral("amount"), result.amount);
+    out.insert(QStringLiteral("amount2"), result.amount2);
     return out;
 }
 
@@ -905,7 +1008,9 @@ void PreviewController::flyCamera(int trackIndex, int clipIndex, double turnRigh
                                   double forward, double right, double up)
 {
     drift::Clip &clip = m_app.m_project.tracks()[trackIndex].clips[clipIndex];
-    const drift::SceneCamera3d camera = drift::sceneCameraFromClip(clip, m_app.m_playheadUs, 1.0, projectSize());
+    const bool recordingThis = m_recording && m_recordsCamera;
+    const drift::SceneCamera3d camera =
+        recordingThis ? m_recCamera : drift::sceneCameraFromClip(clip, m_app.m_playheadUs, 1.0, projectSize());
     // The camera as a fly view: its eye, looking at a target straight ahead at the zoom distance.
     const double lens = std::max(1.0, camera.zoom);
     const QVector3D eye = drift::sceneCameraEye(camera);
@@ -917,8 +1022,10 @@ void PreviewController::flyCamera(int trackIndex, int clipIndex, double turnRigh
     view.target = eye + ahead * float(lens);
     const drift::EditorView3d flown =
         drift::flyEditorView(view, turnRightDeg, turnUpDeg, forward * lens, right * lens, up * lens);
-    writeSceneCamera(trackIndex, clipIndex, drift::aimAt(camera, drift::editorViewEye(flown), flown.target),
-                     AppController::tr("Fly camera"));
+    const drift::SceneCamera3d next = drift::aimAt(camera, drift::editorViewEye(flown), flown.target);
+    if (recordingThis)
+        m_recCamera = next;
+    writeSceneCamera(trackIndex, clipIndex, next, AppController::tr("Fly camera"));
 }
 
 bool PreviewController::writeSceneCamera(int trackIndex, int clipIndex, const drift::SceneCamera3d &next,
@@ -929,8 +1036,13 @@ bool PreviewController::writeSceneCamera(int trackIndex, int clipIndex, const dr
     const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_app.m_playheadUs - clip.timelineStart);
     bool wrote = false;
     QStringList keys;
+    const bool recordingThis = m_recording && m_recordsCamera;
     const auto write = [&](drift::KeyframeTrack<double> &track, double value, const QString &key) {
-        if (writeKeyframeValue(track, relative, value, m_app.m_autoKeyEnabled, false)) {
+        if (recordingThis) {
+            recordKey(clip, key, value);
+            wrote = true;
+            keys << key;
+        } else if (writeKeyframeValue(track, relative, value, m_app.m_autoKeyEnabled, false)) {
             wrote = true;
             keys << key;
         }
@@ -953,7 +1065,8 @@ bool PreviewController::writeSceneCamera(int trackIndex, int clipIndex, const dr
         m_flyBlocked = true;
         return false;
     }
-    m_flyEdited = true;
+    if (!recordingThis)
+        m_flyEdited = true;
     m_app.emitPreviewEdit(trackIndex, clipIndex, keys);
     return true;
 }
@@ -998,6 +1111,170 @@ bool PreviewController::alignCameraToView()
     m_flyBlocked = false;
     m_app.commitPreviewDrag();
     return wrote;
+}
+
+namespace {
+
+drift::KeyframeTrack<double> *recordChannel(drift::Clip &clip, const QString &key)
+{
+    static const QHash<QString, drift::KeyframeTrack<double> drift::Clip::*> channels = {
+        {QStringLiteral("positionX"), &drift::Clip::positionX}, {QStringLiteral("positionY"), &drift::Clip::positionY},
+        {QStringLiteral("z"), &drift::Clip::positionZ},         {QStringLiteral("anchorX"), &drift::Clip::anchorX},
+        {QStringLiteral("anchorY"), &drift::Clip::anchorY},     {QStringLiteral("anchorZ"), &drift::Clip::anchorZ},
+        {QStringLiteral("rotationX"), &drift::Clip::rotationX}, {QStringLiteral("rotationY"), &drift::Clip::rotationY},
+        {QStringLiteral("rotation"), &drift::Clip::rotation},   {QStringLiteral("scaleX"), &drift::Clip::scaleX},
+        {QStringLiteral("scaleY"), &drift::Clip::scaleY},
+    };
+    const auto it = channels.constFind(key);
+    return it == channels.cend() ? nullptr : &(clip.*it.value());
+}
+
+// How far a thinned curve may stray from the recorded one, in the channel's own units, at full smoothing.
+double recordTolerance(const QString &key, double smoothing)
+{
+    if (key.startsWith(QLatin1String("scale")))
+        return smoothing * 0.02;
+    if (key.startsWith(QLatin1String("rotation")))
+        return smoothing * 1.0;
+    return smoothing * 10.0;
+}
+
+} // namespace
+
+void PreviewController::setRecordArmed(bool armed)
+{
+    if (m_recordArmed == armed)
+        return;
+    m_recordArmed = armed;
+    if (!armed && m_recording)
+        finishRecording();
+    emit recordingChanged();
+}
+
+void PreviewController::setRecordSmoothing(double smoothing)
+{
+    smoothing = std::clamp(smoothing, 0.0, 1.0);
+    if (qFuzzyCompare(1.0 + m_recordSmoothing, 1.0 + smoothing))
+        return;
+    m_recordSmoothing = smoothing;
+    QSettings().setValue(QStringLiteral("preview/recordSmoothing"), smoothing);
+    emit recordingChanged();
+}
+
+bool PreviewController::recordKey(drift::Clip &clip, const QString &key, double value)
+{
+    drift::KeyframeTrack<double> *track = recordChannel(clip, key);
+    if (!track)
+        return false;
+    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_app.m_playheadUs - clip.timelineStart);
+    track->setKeyframe(relative, value);
+    m_recTimes.insert(relative);
+    m_recEnd = std::max(m_recEnd, relative);
+    if (!m_recKeys.contains(key))
+        m_recKeys << key;
+    return true;
+}
+
+void PreviewController::startRecording()
+{
+    const int selectedTrack = m_app.selectedTrack();
+    const int selectedClip = m_app.selectedClip();
+    int trackIndex = -1;
+    int clipIndex = -1;
+    bool camera = false;
+    if (m_editor.view.lookThrough) {
+        const QVariantMap state = m_app.cameraStateAtPlayhead();
+        trackIndex = state.value(QStringLiteral("track")).toInt();
+        clipIndex = state.value(QStringLiteral("clip")).toInt();
+        camera = state.value(QStringLiteral("active")).toBool() && m_app.isValidClipIndex(trackIndex, clipIndex)
+                 && drift::isCameraClip(m_app.m_project.tracks().at(trackIndex).clips.at(clipIndex));
+    }
+    if (!camera) {
+        trackIndex = selectedTrack;
+        clipIndex = selectedClip;
+        if (!m_app.isValidClipIndex(trackIndex, clipIndex)
+            || drift::isCameraClip(m_app.m_project.tracks().at(trackIndex).clips.at(clipIndex)))
+            return;
+    }
+
+    const drift::Clip &clip = m_app.m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_app.m_playheadUs - clip.timelineStart);
+    m_recordsCamera = camera;
+    m_recTrack = trackIndex;
+    m_recClip = clipIndex;
+    m_recStart = m_recEnd = relative;
+    m_recTimes.clear();
+    m_recKeys.clear();
+    m_recPose.clear();
+    if (camera) {
+        m_recCamera = drift::sceneCameraFromClip(clip, m_app.m_playheadUs, 1.0, projectSize());
+    } else {
+        const auto held = [&](const drift::KeyframeTrack<double> &track, double fallback) {
+            return track.isEmpty() ? fallback : track.evaluateAt(relative);
+        };
+        m_recPose = {{QStringLiteral("positionX"), held(clip.positionX, projectSize().width() / 2)},
+                     {QStringLiteral("positionY"), held(clip.positionY, projectSize().height() / 2)},
+                     {QStringLiteral("scaleX"), held(clip.scaleX, 1.0)},
+                     {QStringLiteral("scaleY"), held(clip.scaleY, 1.0)},
+                     {QStringLiteral("rotation"), held(clip.rotation, 0.0)}};
+    }
+    // An explicit drag, so the auto-commit timer cannot split a take into several undo steps.
+    m_app.beginPreviewDrag(camera ? AppController::tr("Record camera") : AppController::tr("Record motion"));
+    m_recording = true;
+    emit recordingChanged();
+    sampleRecording();
+}
+
+void PreviewController::sampleRecording()
+{
+    if (!m_app.isValidClipIndex(m_recTrack, m_recClip))
+        return;
+    if (m_recordsCamera) {
+        writeSceneCamera(m_recTrack, m_recClip, m_recCamera, AppController::tr("Record camera"));
+        return;
+    }
+    drift::Clip &clip = m_app.m_project.tracks()[m_recTrack].clips[m_recClip];
+    for (auto it = m_recPose.cbegin(); it != m_recPose.cend(); ++it)
+        recordKey(clip, it.key(), it.value());
+    m_app.emitPreviewEdit(m_recTrack, m_recClip, m_recKeys);
+}
+
+void PreviewController::puppet(double seconds, double moveX, double moveY, double grow, double turn)
+{
+    if (!m_recording || m_recordsCamera)
+        return;
+    const double speed = projectSize().width() * 0.4;
+    m_recPose[QStringLiteral("positionX")] += moveX * speed * seconds;
+    m_recPose[QStringLiteral("positionY")] -= moveY * speed * seconds;
+    m_recPose[QStringLiteral("rotation")] += turn * 90.0 * seconds;
+    const double factor = std::exp(grow * 0.8 * seconds);
+    m_recPose[QStringLiteral("scaleX")] *= factor;
+    m_recPose[QStringLiteral("scaleY")] *= factor;
+    sampleRecording();
+}
+
+void PreviewController::finishRecording()
+{
+    m_recording = false;
+    if (m_app.isValidClipIndex(m_recTrack, m_recClip) && !m_recTimes.isEmpty()) {
+        drift::Clip &clip = m_app.m_project.tracks()[m_recTrack].clips[m_recClip];
+        for (const QString &key : std::as_const(m_recKeys)) {
+            drift::KeyframeTrack<double> *track = recordChannel(clip, key);
+            // Punch-in: whatever was keyed inside the take is replaced by it.
+            const QList<drift::TimeUs> times = track->keyframes().keys();
+            for (drift::TimeUs time : times) {
+                if (time >= m_recStart && time <= m_recEnd && !m_recTimes.contains(time))
+                    track->removeKeyframe(time);
+            }
+            if (m_recordSmoothing > 0.0)
+                drift::simplifyKeyframes(*track, m_recStart, m_recEnd, recordTolerance(key, m_recordSmoothing), true);
+        }
+        m_app.emitPreviewEdit(m_recTrack, m_recClip, m_recKeys);
+    }
+    m_app.commitPreviewDrag();
+    m_recTimes.clear();
+    m_recKeys.clear();
+    emit recordingChanged();
 }
 
 void PreviewController::setFlying(bool flying)
@@ -1377,7 +1654,7 @@ drift::snap::PlacedClip PreviewController::placedClip(const QVariantMap &box, in
 
 QVariantMap PreviewController::snapMove(const QVariantMap &box, double pressX, double pressY,
                                            double nowX, double nowY, double tolerance,
-                                           bool snap, int viewport) const
+                                           bool snap, int viewport, const QVariantMap &options) const
 {
     const drift::snap::PlacedClip placed = placedClip(box, viewport);
     const std::optional<QPointF> delta =
@@ -1385,12 +1662,32 @@ QVariantMap PreviewController::snapMove(const QVariantMap &box, double pressX, d
     if (!delta)
         return {{QStringLiteral("valid"), false}};
     drift::snap::MoveSnap moved{*delta, -1.0, -1.0};
-    // A spun box has no edges along the screen axes to line up, so it does not snap.
-    if (snap && qAbs(box.value(QStringLiteral("rotation")).toDouble()) < 0.01) {
+    if (snap) {
         const double w = box.value(QStringLiteral("canvasWidth")).toDouble();
         const double h = box.value(QStringLiteral("canvasHeight")).toDouble();
         const QVariantMap guides = m_guidesEnabled ? m_app.guideSnapTargets(w, h) : QVariantMap{};
-        moved = drift::snap::snapMove(placed, *delta, canvasSnapTargets(w, h, guides), tolerance);
+        drift::snap::Targets targets = canvasSnapTargets(w, h, guides);
+        addExtraTargets(targets, options);
+        // A move locked to one axis must not be pulled off it by the other axis's targets.
+        const QString lock = options.value(QStringLiteral("lock")).toString();
+        if (lock == QLatin1String("x"))
+            targets.y.clear();
+        else if (lock == QLatin1String("y"))
+            targets.x.clear();
+        if (qAbs(box.value(QStringLiteral("rotation")).toDouble()) < 0.01) {
+            moved = drift::snap::snapMove(placed, *delta, targets, tolerance);
+        } else {
+            // A spun box has no edges along the screen axes, so its bounds on screen stand in: the
+            // box of its projected corners lines up by edge and centre.
+            QPolygonF quad;
+            for (const QVariant &corner : box.value(QStringLiteral("quad")).toList())
+                quad << corner.toPointF();
+            if (quad.size() == 4) {
+                const drift::manip::RectSnap r =
+                    drift::manip::snapRectMove(quad.boundingRect(), *delta, targets, tolerance, false);
+                moved = {r.delta, r.guideX, r.guideY};
+            }
+        }
     }
     return {
         {QStringLiteral("valid"), true},
@@ -1403,7 +1700,8 @@ QVariantMap PreviewController::snapMove(const QVariantMap &box, double pressX, d
 
 QVariantMap PreviewController::snapResize(const QVariantMap &box, double width, double height,
                                              int dxSign, int dySign, bool centrePivot,
-                                             double tolerance, int viewport) const
+                                             double tolerance, int viewport,
+                                             const QVariantMap &options) const
 {
     QVariantMap out{
         {QStringLiteral("width"), width},
@@ -1419,7 +1717,8 @@ QVariantMap PreviewController::snapResize(const QVariantMap &box, double width, 
     const double cw = box.value(QStringLiteral("canvasWidth")).toDouble();
     const double ch = box.value(QStringLiteral("canvasHeight")).toDouble();
     const QVariantMap guides = m_guidesEnabled ? m_app.guideSnapTargets(cw, ch) : QVariantMap{};
-    const drift::snap::Targets targets = canvasSnapTargets(cw, ch, guides);
+    drift::snap::Targets targets = canvasSnapTargets(cw, ch, guides);
+    addExtraTargets(targets, options);
     // Where the moving edge sits in the grabbed rect's own px, as anchor + scale * size: about
     // the centre it moves half as far, about the opposite edge the whole way.
     const auto axis = [&](int sign, double start, double size, bool horizontal,
@@ -1731,6 +2030,7 @@ void PreviewController::setCanvasCropMode(bool active)
     if (active) {
         setGuideEditSetId(QString());
         setMaskingTool(QString());
+        setShapePathMode(QString());
     }
     emit canvasCropModeChanged();
 }
@@ -1751,6 +2051,7 @@ void PreviewController::setClipCropMode(bool active)
         }
         setGuideEditSetId(QString());
         setMaskingTool(QString());
+        setShapePathMode(QString());
     }
     emit clipCropModeChanged();
 }
@@ -1781,11 +2082,15 @@ void PreviewController::setMaskingTool(const QString &tool)
     const QString normalized = tool == QLatin1String("rect") || tool == QLatin1String("ellipse")
                                        || tool == QLatin1String("polygon") || tool == QLatin1String("brush")
                                        || tool == QLatin1String("ai") || tool == QLatin1String("tracker")
+                                       || tool == QLatin1String("lasso") || tool == QLatin1String("scissors")
+                                       || tool == QLatin1String("wand")
                                    ? tool
                                    : QString();
     if (m_maskingTool == normalized)
         return;
     m_maskingTool = normalized;
+    if (!normalized.isEmpty())
+        setShapePathMode(QString());
     emit maskingToolChanged();
     updateActiveTool();
 }
@@ -1829,6 +2134,32 @@ void PreviewController::pushMaskView()
     m_app.m_playback.setMaskView(view);
 }
 
+bool PreviewController::selectionIsPathShape() const
+{
+    if (!m_app.isValidClipIndex(m_app.m_selectedTrack, m_app.m_selectedClip))
+        return false;
+    const drift::Clip &clip = m_app.m_project.tracks().at(m_app.m_selectedTrack).clips.at(m_app.m_selectedClip);
+    return clip.type == drift::ClipType::Shape && clip.shapeStyle.kind == drift::ShapeKind::Path;
+}
+
+void PreviewController::setShapePathMode(const QString &mode)
+{
+    const QString normalized = mode == QLatin1String("draw") || (mode == QLatin1String("edit") && selectionIsPathShape())
+                                   ? mode
+                                   : QString();
+    if (m_shapePathMode == normalized)
+        return;
+    m_shapePathMode = normalized;
+    if (!normalized.isEmpty()) {
+        setCanvasCropMode(false);
+        setClipCropMode(false);
+        setMaskEditMode(false);
+        setGuideEditSetId(QString());
+        setMaskingTool(QString());
+    }
+    emit shapePathModeChanged();
+}
+
 void PreviewController::setMaskEditMode(bool active)
 {
     if (m_maskEditMode == active)
@@ -1838,8 +2169,10 @@ void PreviewController::setMaskEditMode(bool active)
         m_canvasCropMode = false;
         emit canvasCropModeChanged();
     }
-    if (active)
+    if (active) {
         setGuideEditSetId(QString());
+        setShapePathMode(QString());
+    }
     emit maskEditModeChanged();
 }
 
@@ -2295,10 +2628,10 @@ QVariantMap PreviewController::maskEditorState() const
             {QStringLiteral("animated"), adjustment.mask.isAnimated()},
             {QStringLiteral("mask"), maskToMap(resolved, adjustment.timelineStart)},
         };
-        if (resolved.shape == drift::MaskShape::Freeform && !resolved.points.isEmpty()) {
+        if (resolved.shape == drift::MaskShape::Freeform && !resolved.vertices.isEmpty()) {
             QSizeF size;
-            const QPointF centre =
-                MaskEditSession::bounds(QList<QPointF>(resolved.points.begin(), resolved.points.end()), &size);
+            const QVector<QPointF> anchors = drift::vertexPositions(resolved.vertices);
+            const QPointF centre = MaskEditSession::bounds(QList<QPointF>(anchors.begin(), anchors.end()), &size);
             layer.insert(QStringLiteral("bounds"), QVariantMap{{QStringLiteral("x"), centre.x()},
                                                               {QStringLiteral("y"), centre.y()},
                                                               {QStringLiteral("w"), size.width()},

@@ -52,15 +52,26 @@ Column {
                 tooltip: qsTr("Install a custom audio effect or effect from a .driftfx or zip made in Drift Forge")
                 onClicked: ShellBridge.main.importUserPackage("")
             }
+
+            IconButton {
+                visible: !ShellBridge.phoneShell
+                glyph: Theme.icons.sparkles
+                variant: "ghost"
+                buttonSize: Theme.controlHeight
+                tooltip: qsTr("Create a new audio effect in Audio Forge")
+                onClicked: AudioForge.createNew()
+            }
         }
 
         Item {
+            id: chipsGap
             width: 1
-            height: Theme.spacingSm
+            height: Theme.phone ? 0 : Theme.spacingSm
         }
 
         AssetCategoryChips {
             id: categoryChips
+            flickable: presetGrid
             width: parent.width
             sections: presetGrid.visibleSections
             activeCategory: root.activeCategory
@@ -70,7 +81,7 @@ Column {
 
         Item {
             width: parent.width
-            height: Math.max(0, parent.height - search.height - Theme.spacingSm
+            height: Math.max(0, parent.height - search.height - chipsGap.height
                              - categoryChips.height)
 
             Text {

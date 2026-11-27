@@ -1,3 +1,5 @@
+#include "core/project/media/SourceFrameFit.h"
+#include "core/shapes/ShapePath.h"
 #include "app/editor/appcontroller/AppControllerInternal.h"
 #include "core/animation/VelocityEnvelope.h"
 #include "engine/packages/effects/EffectCatalog.h"
@@ -166,6 +168,14 @@ QStringList inspectorCaps(const drift::Clip &clip, drift::TrackType trackType)
     case ClipType::Procedural:
         caps << QStringLiteral("transformable") << QStringLiteral("blendable") << QStringLiteral("procedural");
         break;
+    case ClipType::Generator:
+        caps << QStringLiteral("transformable") << QStringLiteral("blendable") << QStringLiteral("animatable")
+             << QStringLiteral("generator");
+        caps << QStringLiteral("effectable");
+        // The countdown's number is drawn with the clip's text style.
+        if (clip.procedural.packageId == QLatin1String("gen.countdown"))
+            caps << QStringLiteral("textStyled");
+        break;
     case ClipType::Adjustment:
         break;
     }
@@ -201,7 +211,17 @@ QVariantMap shapeStyleToMap(const drift::ShapeStyle &s, drift::TimeUs timelineSt
         {QStringLiteral("thickness"), s.thickness},
         {QStringLiteral("tailX"), s.tailX},
         {QStringLiteral("tailSize"), s.tailSize},
+        {QStringLiteral("sweep"), s.sweep},
+        {QStringLiteral("fillRule"), s.fillRule == Qt::OddEvenFill ? QStringLiteral("evenodd") : QStringLiteral("nonzero")},
+        {QStringLiteral("contours"), shapeContoursToVariant(s.contours)},
+        {QStringLiteral("pathAnimated"), !s.pathKeys.isEmpty()},
     };
+    if (s.kind == drift::ShapeKind::Path)
+        map.insert(QStringLiteral("path"), drift::contoursToSvgPath(s.contours));
+    QVariantList pathKeyTimes;
+    for (auto it = s.pathKeys.constBegin(); it != s.pathKeys.constEnd(); ++it)
+        pathKeyTimes.append(drift::usToSeconds(timelineStart + it.key()));
+    map.insert(QStringLiteral("pathKeyTimes"), pathKeyTimes);
     QVariantMap keyframes;
     for (auto it = s.keyframes.constBegin(); it != s.keyframes.constEnd(); ++it) {
         if (!it->isEmpty())
@@ -246,16 +266,56 @@ QVariantMap vectorSourceToMap(const drift::VectorSource &v, drift::TimeUs timeli
 namespace drift::appdetail {
 
 
+QVariantMap maskVertexToMap(const drift::ShapeVertex &v)
+{
+    return {{QStringLiteral("x"), v.p.x()},       {QStringLiteral("y"), v.p.y()},
+            {QStringLiteral("inX"), v.in.x()},    {QStringLiteral("inY"), v.in.y()},
+            {QStringLiteral("outX"), v.out.x()},  {QStringLiteral("outY"), v.out.y()},
+            {QStringLiteral("mode"), drift::tangentModeToString(v.mode)}};
+}
+
+drift::ShapeVertex maskVertexFromVariant(const QVariant &value)
+{
+    drift::ShapeVertex v;
+    if (value.typeId() == QMetaType::QVariantList || value.typeId() == QMetaType::QStringList) {
+        const QVariantList pair = value.toList();
+        if (pair.size() >= 2)
+            v.p = QPointF(pair.at(0).toDouble(), pair.at(1).toDouble());
+        return v;
+    }
+    const QVariantMap map = value.toMap();
+    const auto num = [&map](const char *key) { return map.value(QLatin1String(key)).toDouble(); };
+    v.p = QPointF(num("x"), num("y"));
+    v.in = QPointF(num("inX"), num("inY"));
+    v.out = QPointF(num("outX"), num("outY"));
+    v.mode = drift::tangentModeFromString(map.value(QStringLiteral("mode")).toString());
+    return v;
+}
+
+QVariantList maskVerticesToVariant(const QVector<drift::ShapeVertex> &vertices)
+{
+    QVariantList out;
+    out.reserve(vertices.size());
+    for (const drift::ShapeVertex &v : vertices)
+        out.append(maskVertexToMap(v));
+    return out;
+}
+
+QVector<drift::ShapeVertex> maskVerticesFromVariant(const QVariantList &list)
+{
+    QVector<drift::ShapeVertex> out;
+    out.reserve(list.size());
+    for (const QVariant &value : list)
+        out.append(maskVertexFromVariant(value));
+    return out;
+}
+
 QVariantMap maskToMap(const drift::Mask &m, drift::TimeUs timelineStart)
 {
     // {x, y} objects rather than [x, y] pairs: a Repeater delegate's `modelData` does not index
     // a nested array reliably, so a freeform's vertices came through as undefined and piled up in
     // the corner. Named fields are also what every other point-ish map in this file uses.
-    QVariantList points;
-    for (const QPointF &pt : m.points) {
-        points.append(QVariantMap{{QStringLiteral("x"), pt.x()},
-                                  {QStringLiteral("y"), pt.y()}});
-    }
+    const QVariantList points = maskVerticesToVariant(m.vertices);
 
     QVariantMap maskKeyframes;
     for (auto it = m.keyframes.constBegin(); it != m.keyframes.constEnd(); ++it) {
@@ -279,6 +339,7 @@ QVariantMap maskToMap(const drift::Mask &m, drift::TimeUs timelineStart)
         {QStringLiteral("feather"), m.feather},
         {QStringLiteral("roundness"), m.roundness},
         {QStringLiteral("invert"), m.invert},
+        {QStringLiteral("lockAspect"), m.lockAspect},
         {QStringLiteral("points"), points},
         {QStringLiteral("mediaPath"), m.mediaPath},
         {QStringLiteral("mediaFgrPath"), m.mediaFgrPath},
@@ -304,7 +365,7 @@ bool clipAcceptsPreviewTransform(const drift::Clip &clip)
     return clip.type == drift::ClipType::Shape || clip.type == drift::ClipType::Image
            || clip.type == drift::ClipType::Vector || clip.type == drift::ClipType::Model3d
            || clip.type == drift::ClipType::Pdf || clip.type == drift::ClipType::Procedural
-           || clip.type == drift::ClipType::Text || clip.type == drift::ClipType::Subtitle
+           || clip.type == drift::ClipType::Generator || clip.type == drift::ClipType::Text || clip.type == drift::ClipType::Subtitle
            || clip.type == drift::ClipType::Video || clip.type == drift::ClipType::Composite
            || (clip.type == drift::ClipType::Adjustment
                && clip.adjustmentKind == drift::AdjustmentKind::Transform);
@@ -960,6 +1021,7 @@ QVariantMap AppController::clipToMap(const drift::Clip &clip, const drift::Clip 
     // Full source length backs the filmstrip's timestamp mapping (the strip is sampled across
     // the whole source, so tiles need the total to place srcIn/srcOut within it).
     const drift::MediaAsset *sourceAsset = m_project.asset(clip.assetId);
+    const drift::MediaAsset *faceAsset = m_project.asset(face.assetId);
 
     QVariantMap map{
         {QStringLiteral("id"), clip.id},
@@ -990,6 +1052,8 @@ QVariantMap AppController::clipToMap(const drift::Clip &clip, const drift::Clip 
         {QStringLiteral("hasVelocityEnvelope"), clip.hasVelocityEnvelope()},
         {QStringLiteral("velocityEnvelopeEnabled"), clip.velocityEnvelope.enabled()},
         {QStringLiteral("velocityPoints"), velocityPointsToVariant(clip.velocityEnvelope)},
+        {QStringLiteral("framesCoverProject"), !face.hasSpeedCurve() && faceAsset
+             && drift::framesAlreadyCoverProject(faceAsset->fps, face.speed, m_project.fps())},
         {QStringLiteral("reverse"), clip.reverse},
         {QStringLiteral("loop"), clip.loop},
         {QStringLiteral("enabled"), clip.enabled},
@@ -1092,6 +1156,24 @@ QVariantMap AppController::clipToMap(const drift::Clip &clip, const drift::Clip 
                                {QStringLiteral("params"), params},
                                {QStringLiteral("packageMissing"), !package.valid}});
     }
+    if (clip.type == drift::ClipType::Generator) {
+        const drift::GeneratorKind *kind = drift::generatorKind(clip.procedural.packageId);
+        QVariantList params;
+        if (kind) {
+            for (const drift::EffectParamSpec &spec : kind->parameters) {
+                params.append(paramSpecToMap(spec, clip.procedural.parameters, clip.procedural.paramKeyframes,
+                                             QStringLiteral("proc."), clip.timelineStart));
+            }
+        }
+        map.insert(QStringLiteral("generator"),
+                   QVariantMap{{QStringLiteral("kindId"), clip.procedural.packageId},
+                               {QStringLiteral("kindName"), kind ? kind->label : QString()},
+                               {QStringLiteral("description"), kind ? kind->description : QString()},
+                               {QStringLiteral("seed"), clip.procedural.seed},
+                               {QStringLiteral("params"), params}});
+    }
+    if (clip.type == drift::ClipType::Text && !clip.textScript.isEmpty())
+        map.insert(QStringLiteral("textScript"), clip.textScript);
     return map;
 }
 
@@ -1129,6 +1211,7 @@ TimelineClipsModel::Row AppController::clipRow(const drift::Clip &clip,
     row.sourceDuration = sourceAsset ? drift::usToSeconds(sourceAsset->durationUs) : 0.0;
     row.enabled = clip.enabled;
     row.locked = clip.locked;
+    row.generatedBy = clip.generatedBy;
     row.loop = clip.loops();
     if (row.loop) {
         row.loopPeriod = drift::usToSeconds(clip.loopPeriodUs());
@@ -1199,6 +1282,10 @@ TimelineClipsModel::Row AppController::clipRow(const drift::Clip &clip,
         }
     }
     row.effectsLabel = effectNames.join(QStringLiteral(" · "));
+    const QList<drift::TimeUs> keyTimes = drift::clipKeyTimes(clip);
+    row.keyTimes.reserve(keyTimes.size());
+    for (const drift::TimeUs at : keyTimes)
+        row.keyTimes.append(drift::usToSeconds(at));
     for (const auto &kv : clip.volume.keyframes().asKeyValueRange()) {
         const auto &kf = kv.second;
         const bool curved = !kf.hold
@@ -1474,6 +1561,10 @@ bool AppController::removeAsset(int assetIndex)
     // start now points at the wrong asset.
     setDraggingAssetIndex(-1);
     pushProjectEdit(before, tr("Media removed"));
+    if (m_editRefusedByLock) {
+        resyncAfterLockRefusal(tr("A locked track would be changed or deleted. Unlock it first"));
+        return false;
+    }
     // An undo step without finishEdit: the revision (and the change feed) moves here.
     m_mcpController->bumpEditRevision();
     settleUndoRefresh();
@@ -1517,6 +1608,10 @@ int AppController::removeAssets(const QStringList &assetIds)
 
     setDraggingAssetIndex(-1);
     pushProjectEdit(before, removed == 1 ? tr("Media removed") : tr("%n items removed", "", removed));
+    if (m_editRefusedByLock) {
+        resyncAfterLockRefusal(tr("A locked track would be changed or deleted. Unlock it first"));
+        return 0;
+    }
     // An undo step without finishEdit: the revision (and the change feed) moves here.
     m_mcpController->bumpEditRevision();
     settleUndoRefresh();
@@ -1598,6 +1693,10 @@ int AppController::removeAssetsAndClips(const QStringList &assetIds)
         removedAssets == 1
             ? tr("Media and referenced clips removed")
             : tr("%n media items and referenced clips removed", "", removedAssets));
+    if (m_editRefusedByLock) {
+        resyncAfterLockRefusal(tr("A locked track would be changed or deleted. Unlock it first"));
+        return 0;
+    }
 
     finishEdit(
         removedClips == 1
@@ -1676,6 +1775,17 @@ bool AppController::setClipSourceFrame(const QString &clipId, double x, double y
         }
     }
     return false;
+}
+
+QVariantMap AppController::fitSourceFrameToStraighten(double x, double y, double w, double h, double angle,
+                                                      int srcW, int srcH) const
+{
+    const QRectF base = drift::normalizedSourceFrame(x, y, w, h);
+    const QRectF fit = drift::fitCropInsideRotation(base, drift::normalizedSourceAngle(angle), srcW, srcH);
+    return {{QStringLiteral("x"), fit.x()},
+            {QStringLiteral("y"), fit.y()},
+            {QStringLiteral("width"), fit.width()},
+            {QStringLiteral("height"), fit.height()}};
 }
 
 int AppController::assetIndexForClip(const drift::Clip &clip) const
@@ -1805,130 +1915,7 @@ QVariantList AppController::selection() const
 
 QVariantList AppController::actions() const
 {
-    auto action = [this](const QString &id, const QString &label) {
-        return QVariantMap{
-            {QStringLiteral("id"), id},
-            {QStringLiteral("label"), label},
-            {QStringLiteral("shortcut"), m_shortcuts.value(id)},
-        };
-    };
-
-    return {
-        action(QStringLiteral("newProject"), tr("New project")),
-        action(QStringLiteral("open"), tr("Open project")),
-        action(QStringLiteral("save"), tr("Save project")),
-        action(QStringLiteral("saveAs"), tr("Save project as…")),
-        action(QStringLiteral("playPause"), tr("Play/Pause")),
-        action(QStringLiteral("delete"), tr("Delete selection")),
-        action(QStringLiteral("deleteWithEffects"), tr("Delete selection with its effects")),
-        action(QStringLiteral("rippleDelete"), tr("Ripple delete selection")),
-        action(QStringLiteral("toggleAutoRipple"), tr("Toggle Auto-Ripple")),
-        action(QStringLiteral("nextTake"), tr("Next Take")),
-        action(QStringLiteral("previousTake"), tr("Previous Take")),
-        action(QStringLiteral("undo"), tr("Undo")),
-        action(QStringLiteral("redo"), tr("Redo")),
-        action(QStringLiteral("copy"), tr("Copy selection")),
-        action(QStringLiteral("cut"), tr("Cut selection")),
-        action(QStringLiteral("paste"), tr("Paste at current time")),
-        action(QStringLiteral("duplicate"), tr("Duplicate selected clip")),
-        action(QStringLiteral("copyEffects"), tr("Copy effects from clip")),
-        action(QStringLiteral("pasteEffects"), tr("Paste effects onto clip")),
-        action(QStringLiteral("pasteAttributes"), tr("Paste attributes…")),
-        action(QStringLiteral("split"), tr("Split at current time")),
-        action(QStringLiteral("splitSelection"), tr("Split selected clip at current time")),
-        action(QStringLiteral("addTransitionAtPlayhead"), tr("Add transition at playhead")),
-        action(QStringLiteral("merge"), tr("Merge adjacent clips")),
-        action(QStringLiteral("transformTogether"), tr("Transform selection together")),
-        action(QStringLiteral("selectTransformLayer"), tr("Select transform layer")),
-        action(QStringLiteral("separateAudio"), tr("Separate audio")),
-        action(QStringLiteral("unlink"), tr("Unlink audio")),
-        action(QStringLiteral("link"), tr("Link clips")),
-        action(QStringLiteral("group"), tr("Group selected clips")),
-        action(QStringLiteral("ungroup"), tr("Ungroup selected clips")),
-        action(QStringLiteral("clearGroup"), tr("Clear group")),
-        action(QStringLiteral("toggleIgnoreGrouping"), tr("Toggle ignore event grouping")),
-        action(QStringLiteral("toggleClipEnabled"), tr("Enable or disable selected clips")),
-        action(QStringLiteral("toggleClipMuted"), tr("Mute or unmute selected clips")),
-        action(QStringLiteral("toggleClipLocked"), tr("Lock or unlock selected clips")),
-        action(QStringLiteral("toggleQuantizeToFrames"), tr("Toggle Quantize to Frames")),
-        action(QStringLiteral("toggleExpandedEdit"), tr("Toggle Expanded Edit Mode")),
-        action(QStringLiteral("clearSelection"), tr("Clear selection")),
-        action(QStringLiteral("selectAll"), tr("Select all clips")),
-        action(QStringLiteral("nudgeLeft"), tr("Move selection left a little")),
-        action(QStringLiteral("nudgeRight"), tr("Move selection right a little")),
-        action(QStringLiteral("previousEdit"), tr("Go to previous cut point")),
-        action(QStringLiteral("nextEdit"), tr("Go to next cut point")),
-        action(QStringLiteral("stepBack"), tr("Step back one frame")),
-        action(QStringLiteral("stepForward"), tr("Step forward one frame")),
-        action(QStringLiteral("jumpBack"), tr("Jump back 1 second")),
-        action(QStringLiteral("jumpForward"), tr("Jump forward 1 second")),
-        action(QStringLiteral("jumpBackFar"), tr("Jump back 10 seconds")),
-        action(QStringLiteral("jumpForwardFar"), tr("Jump forward 10 seconds")),
-        action(QStringLiteral("goToStart"), tr("Go to start of timeline")),
-        action(QStringLiteral("goToEnd"), tr("Go to end of timeline")),
-        action(QStringLiteral("deleteLeft"), tr("Delete left of the playhead")),
-        action(QStringLiteral("deleteRight"), tr("Delete right of the playhead")),
-        action(QStringLiteral("speedUp"), tr("Increase playback speed")),
-        action(QStringLiteral("speedDown"), tr("Decrease playback speed")),
-        action(QStringLiteral("toggleGuides"), tr("Toggle guides")),
-        action(QStringLiteral("toggleTrackHidden"), tr("Hide/show selected clip's track")),
-        action(QStringLiteral("gizmoMove"), tr("3D gizmo: move / Tracker tool")),
-        action(QStringLiteral("gizmoRotate"), tr("3D gizmo: rotate / Rectangle mask")),
-        action(QStringLiteral("gizmoScale"), tr("3D gizmo: scale / Ellipse mask")),
-        action(QStringLiteral("gizmoOrientation"), tr("3D gizmo: cycle world/local/view axes")),
-        action(QStringLiteral("toggleBookmark"), tr("Add/remove bookmark at current time")),
-        action(QStringLiteral("nextBookmark"), tr("Go to next bookmark")),
-        action(QStringLiteral("previousBookmark"), tr("Go to previous bookmark")),
-        action(QStringLiteral("markIn"), tr("Mark work area in")),
-        action(QStringLiteral("markOut"), tr("Mark work area out")),
-        action(QStringLiteral("goToIn"), tr("Go to work area in")),
-        action(QStringLiteral("goToOut"), tr("Go to work area out")),
-        action(QStringLiteral("clearInOut"), tr("Clear work area")),
-        action(QStringLiteral("toggleLoop"), tr("Loop work area playback")),
-        action(QStringLiteral("selectTool"), tr("Select tool")),
-        action(QStringLiteral("bladeTool"), tr("Cut tool / Brush mask")),
-        action(QStringLiteral("slipTool"), tr("Slip tool")),
-        action(QStringLiteral("rollTool"), tr("Roll edit tool")),
-        action(QStringLiteral("slideTool"), tr("Slide edit tool")),
-        action(QStringLiteral("cycleEditTool"), tr("Cycle timeline edit tool")),
-        action(QStringLiteral("toggleTrackVolumeEnvelope"), tr("Toggle track volume envelope")),
-        action(QStringLiteral("toggleTrackPanEnvelope"), tr("Toggle track pan envelope")),
-        action(QStringLiteral("toggleTrackCompositeEnvelope"), tr("Toggle track composite level envelope")),
-        action(QStringLiteral("toggleTrackMuteEnvelope"), tr("Toggle track mute envelope")),
-        action(QStringLiteral("normalizeAudio"), tr("Normalize selected audio clip")),
-        action(QStringLiteral("pitchUp"), tr("Pitch shift selected clip up 1 semitone")),
-        action(QStringLiteral("pitchDown"), tr("Pitch shift selected clip down 1 semitone")),
-        action(QStringLiteral("maskingPolygonTool"), tr("Polygon mask tool")),
-        action(QStringLiteral("maskingAiTool"), tr("AI object mask tool")),
-        action(QStringLiteral("maskingBrushSmaller"), tr("Decrease brush size")),
-        action(QStringLiteral("maskingBrushLarger"), tr("Increase brush size")),
-        action(QStringLiteral("maskingBrushToggleErase"), tr("Brush: switch paint / erase")),
-        action(QStringLiteral("trackForward"), tr("Track forward")),
-        action(QStringLiteral("trackBackward"), tr("Track backward")),
-        action(QStringLiteral("trackFrameForward"), tr("Track one frame forward")),
-        action(QStringLiteral("trackFrameBackward"), tr("Track one frame backward")),
-        action(QStringLiteral("trackBoth"), tr("Track whole clip")),
-        action(QStringLiteral("zoomIn"), tr("Zoom in")),
-        action(QStringLiteral("zoomOut"), tr("Zoom out")),
-        action(QStringLiteral("multicam"), tr("Multicam window")),
-        action(QStringLiteral("toggleInlineMulticam"), tr("Inline multicamera mode")),
-        action(QStringLiteral("openTrimmer"), tr("Open Trimmer window")),
-        action(QStringLiteral("dynamicRamPreview"), tr("Dynamic RAM preview")),
-        action(QStringLiteral("addRegionFromWorkArea"), tr("Create region from work area")),
-        action(QStringLiteral("search"), tr("Search…")),
-        action(QStringLiteral("workspace.restoreWindows"), tr("Restore Workspace Windows")),
-        action(QStringLiteral("workspace.next"), tr("Next workspace")),
-        action(QStringLiteral("workspace.prev"), tr("Previous workspace")),
-        action(QStringLiteral("workspace.1"), tr("Workspace 1")),
-        action(QStringLiteral("workspace.2"), tr("Workspace 2")),
-        action(QStringLiteral("workspace.3"), tr("Workspace 3")),
-        action(QStringLiteral("workspace.4"), tr("Workspace 4")),
-        action(QStringLiteral("workspace.5"), tr("Workspace 5")),
-        action(QStringLiteral("workspace.6"), tr("Workspace 6")),
-        action(QStringLiteral("workspace.7"), tr("Workspace 7")),
-        action(QStringLiteral("workspace.8"), tr("Workspace 8")),
-        action(QStringLiteral("workspace.9"), tr("Workspace 9")),
-    };
+    return m_keymap->actions();
 }
 
 void AppController::setPlayheadUs(drift::TimeUs us)

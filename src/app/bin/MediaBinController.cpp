@@ -5,12 +5,17 @@
 #include "app/bin/AssetLibrary.h"
 #include "app/mcp/McpController.h"
 #include "app/editor/ProjectFileController.h"
+#include "app/mcp/protocol/McpJson.h"
+#include "core/project/media/ImageSequence.h"
 #include "engine/platform/AndroidUri.h"
 #include "engine/encode/MediaEditor.h"
 #include "engine/decode/probe/MediaProbe.h"
 
 #include <QDir>
+#include <QDirIterator>
 #include <QElapsedTimer>
+#include <QJsonArray>
+#include <QRegularExpression>
 #include <QFile>
 #include <QFileInfo>
 #include <QFutureWatcher>
@@ -21,6 +26,7 @@
 #include <QVector>
 #include <QtConcurrent>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <utility>
@@ -40,6 +46,8 @@ MediaBinController::MediaBinController(AppController *app, QObject *parent)
                 if (ok)
                     refreshChangedSources();
             });
+    connect(this, &MediaBinController::editFinished, this, &MediaBinController::onProResEditFinished,
+            Qt::QueuedConnection);
     // Queued: the finished job's own bookkeeping is still unwinding when this is emitted.
     connect(this, &MediaBinController::editFinished, this, &MediaBinController::startNextConversion,
             Qt::QueuedConnection);
@@ -279,12 +287,69 @@ bool MediaBinController::importFolder(const QUrl &folderUrl)
         return false;
 
     const QString path = folderUrl.isLocalFile() ? folderUrl.toLocalFile() : folderUrl.toString();
-    const QDir dir(path);
-    if (path.isEmpty() || !dir.exists())
+    if (path.isEmpty() || !QDir(path).exists())
         return false;
 
     m_importingFolder = true;
     emit importingFolderChanged();
+    m_folderBatchFolders = 0;
+    m_folderBatchFiles = 0;
+    m_folderBatchSkipped = 0;
+    m_folderBatchTruncated = false;
+    beginFolderWalk(path);
+    return true;
+}
+
+QList<QUrl> MediaBinController::importFoldersFrom(const QList<QUrl> &urls)
+{
+    QList<QUrl> files;
+    QList<QUrl> folders;
+    for (const QUrl &url : urls) {
+        // Only a local path can be a directory: an Android content:// pick is always a document,
+        // and QFileInfo would reject it anyway, so it stays on the ordinary media path.
+        const QString path = url.isLocalFile() ? url.toLocalFile() : QString();
+        if (!path.isEmpty() && QFileInfo(path).isDir())
+            folders.append(url);
+        else
+            files.append(url);
+    }
+
+    if (!folders.isEmpty()) {
+        const bool idle = !m_importingFolder;
+        m_folderQueue.append(folders);
+        if (idle) {
+            m_importingFolder = true;
+            emit importingFolderChanged();
+            m_folderBatchFolders = 0;
+            m_folderBatchFiles = 0;
+            m_folderBatchSkipped = 0;
+            m_folderBatchTruncated = false;
+            startNextFolderImport();
+        }
+    }
+    return files;
+}
+
+void MediaBinController::startNextFolderImport()
+{
+    while (!m_folderQueue.isEmpty()) {
+        const QUrl url = m_folderQueue.takeFirst();
+        const QString path = url.isLocalFile() ? url.toLocalFile() : url.toString();
+        if (path.isEmpty() || !QDir(path).exists())
+            continue;
+        beginFolderWalk(path);
+        return;
+    }
+
+    m_importingFolder = false;
+    emit importingFolderChanged();
+    emit folderImportFinished(m_folderBatchFolders, m_folderBatchFiles, m_folderBatchSkipped,
+                              m_folderBatchTruncated);
+}
+
+void MediaBinController::beginFolderWalk(const QString &path)
+{
+    const QDir dir(path);
 
     // Only the walk is off-thread. Creating the bin folders and the asset rows stays on the GUI
     // thread, because both are model mutations — but with the file limit above, that half is
@@ -343,19 +408,23 @@ bool MediaBinController::importFolder(const QUrl &folderUrl)
         if (folderCount > 0)
             m_app->m_projectFile->setDirty(true);
 
-        m_importingFolder = false;
-        emit importingFolderChanged();
-        emit folderImportFinished(folderCount, fileCount, plan.skipped, plan.truncated);
+        m_folderBatchFolders += folderCount;
+        m_folderBatchFiles += fileCount;
+        m_folderBatchSkipped += plan.skipped;
+        m_folderBatchTruncated = m_folderBatchTruncated || plan.truncated;
+        startNextFolderImport();
     });
 
-    watcher->setFuture(QtConcurrent::run([dir]() {
+    // Seeded with the batch's running count so a drop of several folders stops at the same file
+    // limit one folder would, rather than at the limit times the number of folders.
+    const int taken = m_folderBatchFiles;
+    watcher->setFuture(QtConcurrent::run([dir, taken]() {
         FolderImportPlan plan;
-        int fileCount = 0;
+        int fileCount = taken;
         QSet<QString> visitedDirs;
         planDirectory(dir, -1, plan, fileCount, visitedDirs);
         return plan;
     }));
-    return true;
 }
 
 bool MediaBinController::replaceSource(int assetIndex, const QUrl &url)
@@ -578,6 +647,10 @@ bool MediaBinController::saveAs(int assetIndex, const QUrl &url)
 void MediaBinController::cancelEdit()
 {
     m_conversionQueue.clear();
+    if (m_proresActive) {
+        m_proresQueue.clear();
+        m_proresCancelled = true;
+    }
     if (m_editing)
         m_editCancel.storeRelaxed(1);
 }
@@ -837,20 +910,27 @@ QString MediaBinController::appendSubclip(const QString &assetId, drift::TimeUs 
 }
 
 void MediaBinController::startEditJob(const QString &assetId, const QString &name,
-                                      const drift::MediaEditSpec &spec, bool conversion)
+                                      const drift::MediaEditSpec &spec, bool conversion,
+                                      const QString &status, bool reuseOutput)
 {
     m_app->setPlaying(false);
 
     m_editCancel.storeRelaxed(0);
     m_editProgress = 0.0;
-    m_editStatus = conversion ? tr("Converting…") : tr("Saving…");
+    m_editStatus = !status.isEmpty() ? status : (conversion ? tr("Converting…") : tr("Saving…"));
     m_editing = true;
     m_editingAssetId = assetId;
     m_editKeepName = name;
     m_editIsConversion = conversion;
     emit editChanged();
-    m_app->setLastMessage(conversion ? tr("Converting %1 to an edit-friendly format…").arg(name)
-                              : tr("Saving media…"));
+    m_app->setLastMessage(!status.isEmpty() ? status
+                          : conversion ? tr("Converting %1 to an edit-friendly format…").arg(name)
+                                       : tr("Saving media…"));
+
+    if (reuseOutput) {
+        landEdit(assetId, spec.outputPath, true, QString(), true);
+        return;
+    }
 
     (void)QtConcurrent::run([this, spec, assetId]() {
         QString error;
@@ -860,7 +940,9 @@ void MediaBinController::startEditJob(const QString &assetId, const QString &nam
             QMetaObject::invokeMethod(
                 this,
                 [this, fraction]() {
-                    m_editProgress = fraction;
+                    m_editProgress = m_proresInFlight && m_proresTotal > 0
+                        ? (m_proresDone + fraction) / m_proresTotal
+                        : fraction;
                     emit editChanged();
                 },
                 Qt::QueuedConnection);
@@ -869,46 +951,52 @@ void MediaBinController::startEditJob(const QString &assetId, const QString &nam
 
         QMetaObject::invokeMethod(
             this,
-            [this, ok, error, spec, assetId]() {
-                if (!ok) {
-                    QFile::remove(spec.outputPath);
-                    m_editing = false;
-                    m_editingAssetId.clear();
-                    m_editKeepName.clear();
-                    m_editProgress = 0.0;
-                    m_editStatus = error;
-                    emit editChanged();
-                    m_app->setLastMessage(error.isEmpty() ? tr("Couldn’t save that edit") : error,
-                                          QStringLiteral("error"));
-                    emit editFinished(false, error);
-                    return;
-                }
-
-                m_editStatus = tr("Updating the library…");
-                emit editChanged();
-                // By id: a conversion runs in the background, and the bin may have been sorted
-                // or had rows removed since it started.
-                const int assetIndex = m_app->m_assetLibrary
-                                           ? m_app->m_assetLibrary->indexOfId(assetId)
-                                           : -1;
-                m_editOutputPath = spec.outputPath;
-                m_editOutputAssetId = assetId;
-                if (assetIndex < 0
-                    || !replaceSource(assetIndex, QUrl::fromLocalFile(spec.outputPath))) {
-                    m_editOutputPath.clear();
-                    m_editOutputAssetId.clear();
-                    QFile::remove(spec.outputPath);
-                    m_editing = false;
-                    m_editingAssetId.clear();
-                    m_editKeepName.clear();
-                    m_editProgress = 0.0;
-                    m_editStatus = tr("Couldn’t update the library");
-                    emit editChanged();
-                    emit editFinished(false, m_editStatus);
-                }
+            [this, ok, error, assetId, path = spec.outputPath]() {
+                landEdit(assetId, path, ok, error, false);
             },
             Qt::QueuedConnection);
     });
+}
+
+void MediaBinController::landEdit(const QString &assetId, const QString &outputPath, bool ok,
+                                  const QString &error, bool keepOutput)
+{
+    if (!ok) {
+        if (!keepOutput)
+            QFile::remove(outputPath);
+        m_editing = false;
+        m_editingAssetId.clear();
+        m_editKeepName.clear();
+        m_editProgress = 0.0;
+        m_editStatus = error;
+        emit editChanged();
+        m_app->setLastMessage(error.isEmpty() ? tr("Couldn’t save that edit") : error,
+                              QStringLiteral("error"));
+        emit editFinished(false, error);
+        return;
+    }
+
+    m_editStatus = tr("Updating the library…");
+    emit editChanged();
+    // By id: a conversion runs in the background, and the bin may have been sorted
+    // or had rows removed since it started.
+    const int assetIndex = m_app->m_assetLibrary ? m_app->m_assetLibrary->indexOfId(assetId) : -1;
+    m_editOutputPath = outputPath;
+    m_editOutputAssetId = assetId;
+    m_editOutputKeep = keepOutput;
+    if (assetIndex < 0 || !replaceSource(assetIndex, QUrl::fromLocalFile(outputPath))) {
+        m_editOutputPath.clear();
+        m_editOutputAssetId.clear();
+        if (!keepOutput)
+            QFile::remove(outputPath);
+        m_editing = false;
+        m_editingAssetId.clear();
+        m_editKeepName.clear();
+        m_editProgress = 0.0;
+        m_editStatus = tr("Couldn’t update the library");
+        emit editChanged();
+        emit editFinished(false, m_editStatus);
+    }
 }
 
 void MediaBinController::convertToConstantFrameRate(const QStringList &assetIds)
@@ -919,6 +1007,216 @@ void MediaBinController::convertToConstantFrameRate(const QStringList &assetIds)
     }
     if (!m_editing)
         startNextConversion();
+}
+
+void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl &projectUrl)
+{
+    if (assetIds.isEmpty() || !m_app->m_assetLibrary)
+        return;
+
+    if (m_editing || m_proresActive) {
+        m_app->setLastMessage(tr("Another conversion or media edit is currently running"),
+                              QStringLiteral("warning"));
+        return;
+    }
+
+    QDir projectDir;
+    const QString projectPath = projectUrl.isLocalFile()
+                                    ? projectUrl.toLocalFile()
+                                    : (projectUrl.isEmpty() ? m_app->projectFile()->currentProjectPath()
+                                                            : projectUrl.toString());
+    if (!projectPath.isEmpty() && QFileInfo(projectPath).isAbsolute())
+        projectDir = QFileInfo(projectPath).dir();
+    const bool haveProjectDir = !projectDir.path().isEmpty() && projectDir.path() != QLatin1String(".");
+
+    QList<ProResJob> jobs;
+    QSet<QString> claimed;
+    int skipped = 0;
+    int planFailed = 0;
+    QString planError;
+
+    for (const QString &id : assetIds) {
+        const drift::MediaAsset *asset = m_app->m_project.asset(id);
+        if (!asset || asset->kind != drift::MediaKind::Video || asset->path.isEmpty()
+            || !QFileInfo::exists(asset->path))
+            continue;
+        if (asset->codecName.compare(QLatin1String("prores"), Qt::CaseInsensitive) == 0) {
+            ++skipped;
+            continue;
+        }
+
+        const QFileInfo srcInfo(asset->path);
+        const QString srcDir = srcInfo.absolutePath();
+        const QString srcBase = srcInfo.completeBaseName();
+
+        QString targetDir;
+        if (haveProjectDir) {
+            const QString relDir = projectDir.relativeFilePath(srcDir);
+            const QString sibling = projectDir.filePath(QStringLiteral("../Transcodes_ProRes"));
+            if (!relDir.isEmpty() && !relDir.startsWith(QLatin1String("..")) && relDir != QLatin1String(".")) {
+                // Preserve source subdirectories (e.g. "Day 4") to avoid collisions between identical camera clip numbers
+                targetDir = projectDir.filePath(QStringLiteral("Transcodes_ProRes/") + relDir);
+            } else if (QDir(sibling).exists()) {
+                targetDir = sibling + QLatin1Char('/') + projectDir.dirName();
+            } else {
+                targetDir = projectDir.filePath(QStringLiteral("Transcodes_ProRes"));
+            }
+        } else {
+            const QDir sDir(srcDir);
+            const QString sibling = sDir.filePath(QStringLiteral("../Transcodes_ProRes"));
+            targetDir = QDir(sibling).exists() ? sibling + QLatin1Char('/') + sDir.dirName()
+                                               : sDir.filePath(QStringLiteral("Transcodes_ProRes"));
+        }
+        targetDir = QDir::cleanPath(targetDir);
+
+        if (!QDir().mkpath(targetDir)) {
+            planError = tr("Could not create the folder %1").arg(QDir::toNativeSeparators(targetDir));
+            ++planFailed;
+            continue;
+        }
+
+        const auto samePath = [](const QString &a, const QString &b) {
+            return QDir::cleanPath(a).compare(QDir::cleanPath(b), Qt::CaseInsensitive) == 0;
+        };
+        const QString stem = samePath(QDir(targetDir).filePath(srcBase + QStringLiteral(".mov")), asset->path)
+            ? srcBase + QStringLiteral("_prores")
+            : srcBase;
+
+        ProResJob job;
+        job.assetId = id;
+        job.name = asset->name.isEmpty() ? srcInfo.fileName() : asset->name;
+        job.inputPath = asset->path;
+        job.rotation = drift::effectiveRotation(*asset);
+        for (int i = 0;; ++i) {
+            const QString candidate = QDir(targetDir).filePath(
+                (i == 0 ? stem : stem + QLatin1Char('_') + QString::number(i)) + QStringLiteral(".mov"));
+            if (claimed.contains(candidate.toLower()) || samePath(candidate, asset->path))
+                continue;
+            const int inLibrary = m_app->m_assetLibrary->indexOfPath(candidate);
+            if (inLibrary >= 0)
+                continue;
+            if (QFileInfo::exists(candidate)) {
+                // Only a finished ProRes transcode of this very source is worth keeping; anything
+                // else at the name belongs to someone else.
+                const MediaInfo info = MediaProbe::probe(candidate);
+                bool prores = false;
+                for (const StreamInfo &stream : info.streams) {
+                    if (stream.type == StreamInfo::Type::Video && !stream.attachedPicture
+                        && stream.codecName.compare(QLatin1String("prores"), Qt::CaseInsensitive) == 0)
+                        prores = true;
+                }
+                if (!info.ok || !prores || std::abs(info.durationUs - asset->durationUs) > 500'000)
+                    continue;
+                job.reuse = true;
+            }
+            job.outputPath = candidate;
+            break;
+        }
+        claimed.insert(job.outputPath.toLower());
+        jobs.append(job);
+    }
+
+    if (jobs.isEmpty()) {
+        m_app->setLastMessage(!planError.isEmpty() ? planError
+                              : skipped > 0 ? tr("Those clips are already Apple ProRes")
+                                            : tr("No valid video files to transcode"),
+                              QStringLiteral("warning"));
+        return;
+    }
+
+    m_proresQueue = jobs;
+    m_proresProjectId = m_app->m_project.id();
+    m_proresTotal = int(jobs.size());
+    m_proresDone = 0;
+    m_proresFailed = planFailed;
+    m_proresLastError = planError;
+    m_proresActive = true;
+    m_proresInFlight = false;
+    m_proresCancelled = false;
+    startNextProRes();
+}
+
+void MediaBinController::startNextProRes()
+{
+    while (m_proresActive && !m_editing) {
+        if (m_proresQueue.isEmpty() || m_app->m_project.id() != m_proresProjectId) {
+            finishProResBatch();
+            return;
+        }
+        const ProResJob job = m_proresQueue.takeFirst();
+        const drift::MediaAsset *asset = m_app->m_project.asset(job.assetId);
+        if (!asset || asset->path != job.inputPath) {
+            ++m_proresFailed;
+            continue;
+        }
+
+        drift::MediaEditSpec spec;
+        spec.inputPath = job.inputPath;
+        spec.outputPath = job.outputPath;
+        spec.kind = QStringLiteral("video");
+        spec.conformFrameRate = true;
+        // Baked upright the way a crop is, so rebindClipsToAsset carries the bin's correction over.
+        spec.rotationOverride = job.rotation;
+        spec.output.container = QStringLiteral("mov");
+        spec.output.videoCodec = QStringLiteral("prores");
+
+        m_proresInFlight = true;
+        startEditJob(job.assetId, job.name, spec, true,
+                     tr("Transcoding to Apple ProRes 422 (%1/%2)…").arg(m_proresDone + m_proresFailed + 1).arg(m_proresTotal),
+                     job.reuse);
+        return;
+    }
+}
+
+void MediaBinController::onProResEditFinished(bool ok, const QString &message)
+{
+    if (!m_proresActive || !m_proresInFlight)
+        return;
+    m_proresInFlight = false;
+    if (ok) {
+        ++m_proresDone;
+    } else if (!m_proresCancelled) {
+        ++m_proresFailed;
+        m_proresLastError = message;
+    }
+    if (m_proresCancelled) {
+        finishProResBatch();
+        return;
+    }
+    startNextProRes();
+}
+
+void MediaBinController::finishProResBatch()
+{
+    const int done = m_proresDone;
+    const int failed = m_proresFailed;
+    const bool cancelled = m_proresCancelled;
+    const QString error = m_proresLastError;
+    m_proresActive = false;
+    m_proresInFlight = false;
+    m_proresCancelled = false;
+    m_proresQueue.clear();
+    m_proresLastError.clear();
+    m_editProgress = 1.0;
+    m_editStatus.clear();
+    emit editChanged();
+
+    QString message;
+    QString level = QStringLiteral("success");
+    if (cancelled) {
+        message = tr("ProRes transcoding cancelled after %n clip(s)", nullptr, done);
+        level = QStringLiteral("warning");
+    } else if (done > 0 && failed == 0) {
+        message = tr("Transcoded %n clip(s) to Apple ProRes 422 and relinked", nullptr, done);
+    } else if (done > 0) {
+        message = tr("Transcoded %n clip(s) to Apple ProRes 422, %1 failed", nullptr, done).arg(failed);
+        level = QStringLiteral("warning");
+    } else {
+        message = error.isEmpty() ? tr("ProRes transcoding failed") : tr("ProRes transcoding failed: %1").arg(error);
+        level = QStringLiteral("error");
+    }
+    m_app->setLastMessage(message, level);
+    emit proresTranscodeFinished(done, failed);
 }
 
 void MediaBinController::startNextConversion()
@@ -947,294 +1245,6 @@ void MediaBinController::startNextConversion()
         spec.rotationOverride = asset.value(QStringLiteral("effectiveRotation"), -1).toInt();
         startEditJob(assetId, asset.value(QStringLiteral("name")).toString(), spec, true);
     }
-}
-
-void MediaBinController::convertToProRes(const QStringList &assetIds, const QUrl &projectUrl)
-{
-    if (assetIds.isEmpty() || !m_app->m_assetLibrary)
-        return;
-
-    if (m_editing) {
-        m_app->setLastMessage(tr("Another conversion or media edit is currently running"),
-                              QStringLiteral("warning"));
-        return;
-    }
-
-    struct TranscodeItem {
-        QString assetId;
-        QString name;
-        QString inputPath;
-        QString outputPath;
-        bool alreadyExists = false;
-    };
-
-    QList<TranscodeItem> items;
-
-    for (const QString &id : assetIds) {
-        if (!m_app->m_project.assets().contains(id))
-            continue;
-        const drift::MediaAsset &asset = m_app->m_project.assets().value(id);
-        if (asset.kind != drift::MediaKind::Video || asset.path.isEmpty() || !QFileInfo::exists(asset.path))
-            continue;
-
-        const QFileInfo srcInfo(asset.path);
-        const QString srcDir = srcInfo.absolutePath();
-        const QString srcBase = srcInfo.completeBaseName();
-
-        QString targetDir;
-        if (projectUrl.isValid() && projectUrl.isLocalFile()) {
-            const QDir pDir = QFileInfo(projectUrl.toLocalFile()).dir();
-            const QString relDir = pDir.relativeFilePath(srcDir);
-            const QString candidate1 = pDir.filePath(QStringLiteral("../Transcodes_ProRes/") + pDir.dirName());
-            const QString candidate2 = pDir.filePath(QStringLiteral("Transcodes_ProRes"));
-
-            if (!relDir.isEmpty() && !relDir.startsWith(QLatin1String("..")) && relDir != QLatin1String(".")) {
-                // Preserve source subdirectories (e.g. "Day 4") to avoid collisions between identical camera clip numbers
-                targetDir = pDir.filePath(QStringLiteral("Transcodes_ProRes/") + relDir);
-            } else if (QDir(candidate1).exists() || QDir(pDir.filePath(QStringLiteral("../Transcodes_ProRes"))).exists()) {
-                targetDir = candidate1;
-            } else {
-                targetDir = candidate2;
-            }
-        }
-
-        if (targetDir.isEmpty()) {
-            const QDir sDir(srcDir);
-            const QString candidate1 = sDir.filePath(QStringLiteral("../Transcodes_ProRes/") + sDir.dirName());
-            if (QDir(sDir.filePath(QStringLiteral("../Transcodes_ProRes"))).exists()) {
-                targetDir = candidate1;
-            } else {
-                targetDir = sDir.filePath(QStringLiteral("Transcodes_ProRes"));
-            }
-        }
-
-        QDir(targetDir).mkpath(QStringLiteral("."));
-
-        QString outPath;
-        if (asset.path.endsWith(QLatin1String(".mov"), Qt::CaseInsensitive)) {
-            outPath = asset.path;
-        } else {
-            const QString sameFolderMov = QDir(srcDir).filePath(srcBase + QStringLiteral(".mov"));
-            if (QFileInfo::exists(sameFolderMov) && QFileInfo(sameFolderMov).size() > 1024 * 1024) {
-                outPath = sameFolderMov;
-            } else {
-                outPath = QDir(targetDir).filePath(srcBase + QStringLiteral(".mov"));
-            }
-        }
-
-        TranscodeItem item;
-        item.assetId = id;
-        item.name = asset.name.isEmpty() ? srcInfo.fileName() : asset.name;
-        item.inputPath = asset.path;
-        item.outputPath = outPath;
-        if (QFileInfo::exists(outPath) && QFileInfo(outPath).size() > 1024 * 1024) {
-            item.alreadyExists = true;
-        }
-        items.append(item);
-    }
-
-    if (items.isEmpty()) {
-        m_app->setLastMessage(tr("No valid video files to transcode"), QStringLiteral("warning"));
-        return;
-    }
-
-    const int total = int(items.size());
-    m_editing = true;
-    m_editIsConversion = true;
-    m_editProgress = 0.0;
-    m_editStatus = tr("Transcoding to Apple ProRes 422…");
-    m_editKeepName = tr("%n clip(s)", nullptr, total);
-    m_editCancel.storeRelaxed(0);
-    emit editChanged();
-
-    m_app->setLastMessage(tr("Starting Apple ProRes 422 transcode for %n file(s)…", nullptr, total),
-                          QStringLiteral("info"));
-
-    (void)QtConcurrent::run([this, items, total]() {
-        const int maxThreads = std::clamp(QThread::idealThreadCount() / 2, 1, 6);
-        QThreadPool pool;
-        pool.setMaxThreadCount(maxThreads);
-
-        struct SharedResult {
-            QMutex mutex;
-            QHash<QString, QString> remap;
-            QVector<double> clipProgress;
-            QElapsedTimer lastUiUpdate;
-            QString firstError;
-            QAtomicInt completed = 0;
-            QAtomicInt failed = 0;
-        } result;
-        result.clipProgress = QVector<double>(total, 0.0);
-        result.lastUiUpdate.start();
-
-        for (int idx = 0; idx < total; ++idx) {
-            const TranscodeItem item = items.at(idx);
-            pool.start([this, idx, item, &result, total]() {
-                if (m_editCancel.loadRelaxed() != 0)
-                    return;
-
-                if (item.alreadyExists) {
-                    double frac = 0.0;
-                    {
-                        QMutexLocker locker(&result.mutex);
-                        result.remap.insert(item.inputPath, item.outputPath);
-                        result.clipProgress[idx] = 1.0;
-                        double sum = 0.0;
-                        for (double v : result.clipProgress)
-                            sum += v;
-                        frac = sum / double(total);
-                    }
-                    const int done = ++result.completed;
-                    QMetaObject::invokeMethod(
-                        this,
-                        [this, frac, done, total, name = item.name]() {
-                            if (!m_editing)
-                                return;
-                            m_editProgress = frac;
-                            m_editKeepName = QStringLiteral("%1 (%2/%3)").arg(name).arg(done).arg(total);
-                            m_editStatus = tr("Transcoding to Apple ProRes 422 (%1 of %2 complete)…")
-                                               .arg(done)
-                                               .arg(total);
-                            emit editChanged();
-                            emit proresTranscodeProgress(done, total, frac);
-                        },
-                        Qt::QueuedConnection);
-                    return;
-                }
-
-                // Native Apple ProRes 422 transcode via libav* (src/engine/encode/)
-                drift::MediaEditSpec spec;
-                spec.inputPath = item.inputPath;
-                spec.outputPath = item.outputPath;
-                spec.kind = QStringLiteral("video");
-                spec.conformFrameRate = true;
-                spec.output.container = QStringLiteral("mov");
-                spec.output.videoCodec = QStringLiteral("prores");
-
-                QString transcodeError;
-                const bool ok = drift::editMedia(spec, &transcodeError, [this, idx, &result, total, name = item.name](double clipFrac) {
-                    if (m_editCancel.loadRelaxed() != 0)
-                        return false;
-                    bool shouldEmit = false;
-                    double frac = 0.0;
-                    {
-                        QMutexLocker locker(&result.mutex);
-                        result.clipProgress[idx] = std::clamp(clipFrac, 0.0, 0.999);
-                        if (!result.lastUiUpdate.isValid() || result.lastUiUpdate.elapsed() >= 75) {
-                            result.lastUiUpdate.restart();
-                            double sum = 0.0;
-                            for (double v : result.clipProgress)
-                                sum += v;
-                            frac = sum / double(total);
-                            shouldEmit = true;
-                        }
-                    }
-                    if (shouldEmit) {
-                        const int activeNum = qMin(result.completed.loadRelaxed() + 1, total);
-                        QMetaObject::invokeMethod(
-                            this,
-                            [this, frac, activeNum, total, name]() {
-                                if (!m_editing)
-                                    return;
-                                m_editProgress = frac;
-                                m_editKeepName = QStringLiteral("%1 (%2/%3)").arg(name).arg(activeNum).arg(total);
-                                m_editStatus = tr("Transcoding %1 to Apple ProRes 422 (%2 of %3)…")
-                                                   .arg(name)
-                                                   .arg(activeNum)
-                                                   .arg(total);
-                                emit editChanged();
-                            },
-                            Qt::QueuedConnection);
-                    }
-                    return true;
-                });
-
-                double frac = 0.0;
-                {
-                    QMutexLocker locker(&result.mutex);
-                    if (ok && QFile::exists(item.outputPath) && QFileInfo(item.outputPath).size() > 0) {
-                        result.remap.insert(item.inputPath, item.outputPath);
-                    } else {
-                        ++result.failed;
-                        if (result.firstError.isEmpty() && !transcodeError.isEmpty())
-                            result.firstError = transcodeError;
-                        qWarning("ProRes transcode failed for %s: %s", qPrintable(item.inputPath),
-                                 qPrintable(transcodeError));
-                    }
-                    result.clipProgress[idx] = 1.0;
-                    double sum = 0.0;
-                    for (double v : result.clipProgress)
-                        sum += v;
-                    frac = sum / double(total);
-                }
-
-                const int done = ++result.completed;
-                QMetaObject::invokeMethod(
-                    this,
-                    [this, frac, done, total, name = item.name]() {
-                        if (!m_editing)
-                            return;
-                        m_editProgress = frac;
-                        m_editKeepName = QStringLiteral("%1 (%2/%3)").arg(name).arg(done).arg(total);
-                        m_editStatus = tr("Transcoding to Apple ProRes 422 (%1 of %2 complete)…")
-                                           .arg(done)
-                                           .arg(total);
-                        emit editChanged();
-                        emit proresTranscodeProgress(done, total, frac);
-                    },
-                    Qt::QueuedConnection);
-            });
-        }
-
-        pool.waitForDone();
-
-        const QHash<QString, QString> remap = result.remap;
-        const int succeeded = int(remap.size());
-        const int failed = result.failed.loadRelaxed();
-        const QString firstError = result.firstError;
-
-        QMetaObject::invokeMethod(
-            this,
-            [this, remap, succeeded, failed, firstError]() {
-                m_editing = false;
-                m_editProgress = 1.0;
-                m_editKeepName.clear();
-                m_editStatus.clear();
-                emit editChanged();
-                emit proresTranscodeFinished(succeeded, failed);
-
-                if (succeeded > 0) {
-                    const bool relinked = relinkPaths(remap, tr("Transcode to Apple ProRes 422"));
-                    for (auto it = remap.constBegin(); it != remap.constEnd(); ++it) {
-                        const QString &newPath = it.value();
-                        for (drift::MediaAsset &asset : m_app->m_project.assets()) {
-                            if (asset.path == newPath) {
-                                asset.editFriendly = true;
-                                asset.variableFrameRate = false;
-                                asset.frameRateKnown = true;
-                            }
-                        }
-                    }
-                    if (m_app->m_assetLibrary)
-                        m_app->m_assetLibrary->setProject(&m_app->m_project);
-                    m_app->notifyTracksChanged();
-
-                    const QString message = relinked
-                        ? tr("Transcoded %n clip(s) to Apple ProRes 422 and relinked", nullptr, succeeded)
-                        : tr("Transcoded %n clip(s) to Apple ProRes 422, but could not relink (unlock locked tracks first)", nullptr, succeeded);
-                    m_app->setLastMessage(message, relinked ? QStringLiteral("success") : QStringLiteral("warning"));
-                    emit editFinished(true, message);
-                } else {
-                    const QString errorMsg = m_editCancel.loadRelaxed() != 0
-                        ? tr("ProRes transcoding cancelled")
-                        : (firstError.isEmpty() ? tr("ProRes transcoding failed")
-                                                : tr("ProRes transcoding failed: %1").arg(firstError));
-                    m_app->setLastMessage(errorMsg, QStringLiteral("error"));
-                    emit editFinished(false, errorMsg);
-                }
-            },
-            Qt::QueuedConnection);
-    });
 }
 
 void MediaBinController::finalizeReplace(const QString &assetId, const drift::MediaAsset &filled,
@@ -1425,6 +1435,10 @@ QHash<QString, QString> MediaBinController::findSiblingRelinks(const QString &as
 
 void MediaBinController::dropPendingReplace()
 {
+    // The batch belongs to the project that was picked from; its message would describe the wrong one.
+    m_proresActive = false;
+    m_proresInFlight = false;
+    m_proresQueue.clear();
     // An edit (crop, trim, convert) whose render has started its replace. One still encoding
     // hasn't, and is left to finish.
     const QString editOutput = std::exchange(m_editOutputPath, QString());
@@ -1442,7 +1456,8 @@ void MediaBinController::dropPendingReplace()
     }
     if (!editOutput.isEmpty()) {
         // The edit's own render, which nothing else points at.
-        QFile::remove(editOutput);
+        if (!std::exchange(m_editOutputKeep, false))
+            QFile::remove(editOutput);
         // Conversions queued behind it were picked in the old project.
         m_conversionQueue.clear();
         // Unless a replace of the asset while it encoded ended the edit already.
@@ -1552,6 +1567,560 @@ int MediaBinController::rebindClipsToAsset(const QString &assetId, const drift::
         }
     });
     return adjusted;
+}
+
+QJsonObject MediaBinController::validateProject(int limit) const
+{
+    const drift::Project &project = m_app->m_project;
+    QJsonArray problems;
+    QJsonObject counts;
+    int total = 0;
+    const auto add = [&](const QString &kind, const QString &message, QJsonObject where) {
+        counts.insert(kind, counts.value(kind).toInt() + 1);
+        if (++total > limit)
+            return;
+        where.insert(QStringLiteral("kind"), kind);
+        where.insert(QStringLiteral("message"), message);
+        problems.append(where);
+    };
+
+    // Files are checked once each. Paths that aren't plain files (content: URIs, resources) are
+    // left to the platform; an image sequence is there when its first frame is, as the bin checks it.
+    QHash<QString, bool> present;
+    const auto fileMissing = [&](const QString &path) {
+        if (path.isEmpty() || path.startsWith(QLatin1String("content:")) || path.startsWith(QLatin1Char(':')))
+            return false;
+        auto it = present.constFind(path);
+        if (it == present.constEnd()) {
+            const std::optional<drift::ImageSequence> sequence = drift::parseImageSequencePath(path);
+            it = present.insert(path, QFileInfo::exists(sequence ? drift::imageSequenceFramePath(*sequence, sequence->start)
+                                                                 : path));
+        }
+        return !it.value();
+    };
+    // How many clips use each asset, anywhere: an unused bin item that's gone is less urgent.
+    QHash<QString, int> uses;
+    const auto countUses = [&](const QList<drift::Track> &tracks) {
+        for (const drift::Track &track : tracks)
+            for (const drift::Clip &clip : track.clips)
+                if (!clip.assetId.isEmpty())
+                    ++uses[clip.assetId];
+    };
+    countUses(project.rootTracks());
+    for (const QString &id : project.sequenceIds())
+        countUses(project.sequenceTracks(id));
+
+    // Media: a file that is gone.
+    QStringList assetIds = project.assets().keys();
+    assetIds.sort();
+    for (const QString &id : std::as_const(assetIds)) {
+        const drift::MediaAsset &asset = project.assets().value(id);
+        if (asset.kind != drift::MediaKind::Composite && fileMissing(asset.path))
+            add(QStringLiteral("missing_media"), QStringLiteral("%1 isn't at %2").arg(asset.name, asset.path),
+                {{QStringLiteral("asset"), id}, {QStringLiteral("clips"), uses.value(id)}});
+    }
+
+    // A clip's own file that's gone, once per file (a split clip is many clips on one file), with how
+    // many clips play it; reported after the timelines are walked. Not one an asset row has named.
+    QSet<QString> assetFiles;
+    for (const drift::MediaAsset &asset : project.assets())
+        if (!asset.path.isEmpty())
+            assetFiles.insert(QDir::cleanPath(asset.path));
+    QStringList goneClipFiles;
+    QHash<QString, QPair<QJsonObject, int>> goneClipFile;
+    const auto clipFileGone = [&](const QString &path, const QJsonObject &where) {
+        const QString cleaned = QDir::cleanPath(path);
+        if (assetFiles.contains(cleaned) || !fileMissing(path))
+            return;
+        auto it = goneClipFile.find(cleaned);
+        if (it == goneClipFile.end()) {
+            goneClipFiles.append(cleaned);
+            goneClipFile.insert(cleaned, {where, 1});
+        } else {
+            ++it->second;
+        }
+    };
+
+    const drift::TimeUs frameUs = project.fps() > 0 ? 1000000 / project.fps() : 0;
+    const auto checkTracks = [&](const QList<drift::Track> &tracks, const QString &sequence) {
+        const auto at = [&](QJsonObject where, int t) {
+            where.insert(QStringLiteral("track"), t);
+            if (!sequence.isEmpty())
+                where.insert(QStringLiteral("sequence"), sequence);
+            return where;
+        };
+        QSet<QString> clipIds;
+        QHash<QString, int> linkCount;
+        for (const drift::Track &track : tracks)
+            for (const drift::Clip &clip : track.clips) {
+                clipIds.insert(clip.id);
+                if (!clip.linkId.isEmpty())
+                    ++linkCount[clip.linkId];
+            }
+        for (int t = 0; t < tracks.size(); ++t) {
+            const drift::Track &track = tracks.at(t);
+            if (track.isAdjustmentLane() && track.clips.isEmpty())
+                add(QStringLiteral("empty_lane"), QStringLiteral("An effects lane with nothing on it"), at({}, t));
+            for (const drift::Clip &clip : track.clips) {
+                const QJsonObject here = at({{QStringLiteral("clip"), clip.id}}, t);
+                // An effect pinned to a clip that isn't there any more.
+                if (!clip.linkedClipId.isEmpty() && !clipIds.contains(clip.linkedClipId))
+                    add(QStringLiteral("orphaned_effect"),
+                        QStringLiteral("Pinned to clip %1, which is gone").arg(clip.linkedClipId), here);
+                // One side of an A/V link.
+                if (!clip.linkId.isEmpty() && linkCount.value(clip.linkId) < 2)
+                    add(QStringLiteral("broken_link"),
+                        QStringLiteral("Linked (%1), but nothing else is").arg(clip.linkId), here);
+                const bool media = clip.type == drift::ClipType::Video || clip.type == drift::ClipType::Audio
+                                   || clip.type == drift::ClipType::Image;
+                // A recording, denoised audio or a 3D model keeps only its path.
+                if (clip.assetId.isEmpty()) {
+                    clipFileGone(clip.path, here);
+                    continue;
+                }
+                const drift::MediaAsset *asset = project.asset(clip.assetId);
+                if (!asset) {
+                    add(QStringLiteral("missing_asset"),
+                        QStringLiteral("Its asset %1 isn't in the project").arg(clip.assetId), here);
+                    continue;
+                }
+                QJsonObject withAsset = here;
+                withAsset.insert(QStringLiteral("asset"), clip.assetId);
+                // The file the clip itself plays, when it isn't its asset's (reported above): a 3D
+                // model swapped in place, or a clip relinked on its own.
+                if (!clip.path.isEmpty() && QDir::cleanPath(clip.path) != QDir::cleanPath(asset->path))
+                    clipFileGone(clip.path, withAsset);
+                // Media clips only: a 3D model swapped in place (set_model3d_source) keeps its old
+                // asset id on purpose, and resources (stickers) were moved by a load migration.
+                if (media && !clip.path.isEmpty() && !asset->path.isEmpty() && !clip.path.startsWith(QLatin1Char(':'))
+                    && QDir::cleanPath(clip.path) != QDir::cleanPath(asset->path))
+                    add(QStringLiteral("asset_mismatch"),
+                        QStringLiteral("Plays %1, but its asset %2 is %3").arg(clip.path, asset->name, asset->path),
+                        withAsset);
+                // Source past the end of time-based media (more than a frame, for rounding).
+                if ((asset->kind == drift::MediaKind::Video || asset->kind == drift::MediaKind::Audio)
+                    && asset->durationUs > 0 && clip.srcOut > asset->durationUs + frameUs) {
+                    add(QStringLiteral("range_past_media"),
+                        QStringLiteral("Out point %1 s is past the end of %2 (%3 s)")
+                            .arg(drift::usToSeconds(clip.srcOut), 0, 'f', 3)
+                            .arg(asset->name)
+                            .arg(drift::usToSeconds(asset->durationUs), 0, 'f', 3),
+                        withAsset);
+                }
+            }
+            // A transition between clips that aren't both on this track.
+            QSet<QString> onTrack;
+            for (const drift::Clip &clip : track.clips)
+                onTrack.insert(clip.id);
+            QSet<QPair<QString, QString>> joined;
+            for (const drift::Transition &transition : track.transitions) {
+                joined.insert({transition.fromClipId, transition.toClipId});
+                if (!onTrack.contains(transition.fromClipId) || !onTrack.contains(transition.toClipId))
+                    add(QStringLiteral("dangling_transition"),
+                        QStringLiteral("A transition from %1 to %2, but one of them isn't on this track")
+                            .arg(transition.fromClipId, transition.toClipId),
+                        at({{QStringLiteral("transition"), transition.id}}, t));
+            }
+            // Overlaps, when overlap is off; a crossfade (a transition joining them) is one on purpose.
+            if (m_app->allowClipOverlap() || track.isAdjustment())
+                continue;
+            QList<const drift::Clip *> byStart;
+            for (const drift::Clip &clip : track.clips)
+                byStart.append(&clip);
+            // Stable: clips starting together keep their track order, so a crossfade between them
+            // reads the same way on every call.
+            std::stable_sort(byStart.begin(), byStart.end(),
+                      [](const drift::Clip *a, const drift::Clip *b) { return a->timelineStart < b->timelineStart; });
+            // Against every earlier clip still running, so one inside a long clip isn't missed and a
+            // crossfade with one of them doesn't hide an overlap with another.
+            QList<const drift::Clip *> running;
+            for (const drift::Clip *b : std::as_const(byStart)) {
+                running.removeIf([b](const drift::Clip *a) { return a->timelineEnd() <= b->timelineStart; });
+                for (const drift::Clip *a : std::as_const(running)) {
+                    if (!joined.contains({a->id, b->id}) && !joined.contains({b->id, a->id})) {
+                        add(QStringLiteral("overlap"), QStringLiteral("Overlaps %1").arg(a->id),
+                            at({{QStringLiteral("clip"), b->id}}, t));
+                        break;
+                    }
+                }
+                running.append(b);
+            }
+        }
+    };
+    checkTracks(project.rootTracks(), {});
+    QStringList sequences = project.sequenceIds();
+    sequences.sort();
+    for (const QString &id : std::as_const(sequences))
+        checkTracks(project.sequenceTracks(id), id);
+    for (const QString &path : std::as_const(goneClipFiles)) {
+        QJsonObject where = goneClipFile.value(path).first;
+        where.insert(QStringLiteral("clips"), goneClipFile.value(path).second);
+        add(QStringLiteral("missing_media"), QStringLiteral("Plays %1, which is gone").arg(path), where);
+    }
+
+    QJsonObject out{{QStringLiteral("problems"), problems}, {QStringLiteral("n"), total}};
+    // Rows without a sequence are on the main timeline; track indexes there are its own, not the
+    // composite's that's open (whose rows carry its id).
+    if (!project.activeSequenceId().isEmpty())
+        out.insert(QStringLiteral("open_sequence"), project.activeSequenceId());
+    if (total > 0)
+        out.insert(QStringLiteral("counts"), counts);
+    if (total > limit)
+        out.insert(QStringLiteral("truncated"), true);
+    return out;
+}
+
+namespace {
+
+// The file a path stands for: an image sequence's first frame (its path is a pattern).
+QString fileOf(const QString &path)
+{
+    if (const auto seq = drift::parseImageSequencePath(path))
+        return drift::imageSequenceFramePath(*seq, seq->start);
+    return path;
+}
+
+// A path that names a file which isn't there. Paths that aren't plain files (content: URIs,
+// resources) are left to the platform.
+bool fileGone(const QString &path)
+{
+    return !path.isEmpty() && !path.startsWith(QLatin1String("content:")) && !path.startsWith(QLatin1Char(':'))
+           && !QFileInfo::exists(fileOf(path));
+}
+
+QHash<QString, int> clipsPerAsset(const drift::Project &project)
+{
+    QHash<QString, int> uses;
+    const auto count = [&](const QList<drift::Track> &tracks) {
+        for (const drift::Track &track : tracks)
+            for (const drift::Clip &clip : track.clips)
+                if (!clip.assetId.isEmpty())
+                    ++uses[clip.assetId];
+    };
+    count(project.rootTracks());
+    for (const QString &id : project.sequenceIds())
+        count(project.sequenceTracks(id));
+    return uses;
+}
+
+// File names compare as the platform's file system does.
+constexpr Qt::CaseSensitivity kPathCase =
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+    Qt::CaseInsensitive;
+#else
+    Qt::CaseSensitive;
+#endif
+
+} // namespace
+
+QJsonObject MediaBinController::missingMedia() const
+{
+    const drift::Project &project = m_app->m_project;
+    const QHash<QString, int> uses = clipsPerAsset(project);
+    QJsonArray missing;
+    for (const QString &id : project.assetOrder()) {
+        const drift::MediaAsset *asset = project.asset(id);
+        if (!asset || asset->kind == drift::MediaKind::Composite || asset->path.isEmpty())
+            continue;
+        // The bin's own answer, so this agrees with what the user sees; an image sequence is
+        // missing when its first frame is.
+        const bool gone = m_app->m_assetLibrary ? m_app->m_assetLibrary->isMissing(id) || fileGone(asset->path)
+                                                : fileGone(asset->path);
+        if (!gone)
+            continue;
+        missing.append(QJsonObject{{QStringLiteral("asset"), id},
+                                   {QStringLiteral("name"), asset->name},
+                                   {QStringLiteral("path"), asset->path},
+                                   {QStringLiteral("clips"), uses.value(id)}});
+    }
+    return {{QStringLiteral("ok"), true}, {QStringLiteral("missing"), missing}, {QStringLiteral("n"), missing.size()}};
+}
+
+QJsonObject MediaBinController::relinkMedia(const QJsonObject &args)
+{
+    const auto fail = [](const char *code, const QString &detail) {
+        return QJsonObject{{QStringLiteral("ok"), false}, {QStringLiteral("error"), QString::fromLatin1(code)},
+                           {QStringLiteral("detail"), detail}};
+    };
+    // As given: a file:// URL or a path, either separator, without a trailing slash.
+    const auto clean = [](QString path) {
+        path = path.trimmed();
+        if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive))
+            path = QUrl(path).toLocalFile();
+        path.replace(QLatin1Char('\\'), QLatin1Char('/'));
+        path = QDir::cleanPath(path);
+        while (path.size() > 1 && path.endsWith(QLatin1Char('/')) && !path.endsWith(QLatin1String(":/")))
+            path.chop(1);
+        return path;
+    };
+    const QString from = clean(args.value(QStringLiteral("from")).toString());
+    const QString to = clean(args.value(QStringLiteral("to")).toString());
+    const QString searchDir = clean(args.value(QStringLiteral("search_dir")).toString());
+    const bool dryRun = args.value(QStringLiteral("dry_run")).toBool();
+    const bool byPrefix = !from.isEmpty() || !to.isEmpty();
+    if (byPrefix == !searchDir.isEmpty())
+        return fail("bad_args", QStringLiteral("Give from and to (a folder or drive that moved), or search_dir (where "
+                                               "to look for missing files by name), not both"));
+    if (byPrefix && (from.isEmpty() || to.isEmpty()))
+        return fail("bad_args", QStringLiteral("from and to go together"));
+    // `from` only has to match the paths the project stores, which may come from another platform
+    // ("D:/footage" in a project made on Windows); `to` and `search_dir` are read here.
+    static const QRegularExpression kForeignAbsolute(QStringLiteral("^(/|[A-Za-z]:/)"));
+    if (!from.isEmpty() && !QDir::isAbsolutePath(from) && !kForeignAbsolute.match(from).hasMatch())
+        return fail("bad_args", QStringLiteral("%1 isn't an absolute path").arg(from));
+    for (const QString &path : {to, searchDir})
+        if (!path.isEmpty() && !QDir::isAbsolutePath(path))
+            return fail("bad_args", QStringLiteral("%1 isn't an absolute path").arg(path));
+    if (byPrefix && from.compare(to, kPathCase) == 0)
+        return fail("bad_args", QStringLiteral("from and to are the same"));
+    if (!searchDir.isEmpty() && !QFileInfo(searchDir).isDir())
+        return fail("bad_args", QStringLiteral("search_dir %1 isn't a folder").arg(searchDir));
+
+    const drift::Project &project = m_app->m_project;
+    // Every path the project names a file by, the way a relink rewrites them.
+    QSet<QString> paths;
+    {
+        drift::Project scratch = project;
+        ProjectFileController::remapPaths(scratch, [&paths](const QString &path) -> std::optional<QString> {
+            paths.insert(path);
+            return std::nullopt;
+        });
+    }
+    // What already names each file, so a relink never points two assets at one file, and what a
+    // missing asset's file weighed, to tell its file from another of the same name.
+    const auto key = [](const QString &path) {
+        const QString cleaned = QDir::cleanPath(path);
+        return kPathCase == Qt::CaseInsensitive ? cleaned.toLower() : cleaned;
+    };
+    QHash<QString, const drift::MediaAsset *> assetByPath;
+    for (const drift::MediaAsset &asset : project.assets())
+        assetByPath.insert(key(asset.path), &asset);
+    QSet<QString> claimed;
+    const auto refusal = [&](const QString &path, const QString &target) -> QString {
+        const drift::MediaAsset *asset = assetByPath.value(key(path));
+        // Two assets on one file breaks the bin (import dedupes by path); a mask or an effect file
+        // sharing an asset's file is fine.
+        const drift::MediaAsset *owner = asset ? assetByPath.value(key(target)) : nullptr;
+        if (owner && owner != asset)
+            return QStringLiteral("another asset (%1) already uses %2").arg(owner->name, target);
+        // Size before claims, so the reason doesn't depend on which asset was looked at first.
+        if (asset && asset->sourceSize > 0 && !drift::parseImageSequencePath(target)
+            && QFileInfo(target).size() != asset->sourceSize)
+            return QStringLiteral("%1 isn't the same size as the file was").arg(target);
+        if (asset && claimed.contains(key(target)))
+            return QStringLiteral("another missing file was relinked to %1").arg(target);
+        return {};
+    };
+
+    QHash<QString, QString> remap;
+    QJsonArray stillMissing;
+    int matched = 0;
+    bool truncated = false;
+    int unresolvedCount = 0;
+    const auto unresolved = [&](QJsonObject row, const QString &reason) {
+        ++unresolvedCount;
+        if (const drift::MediaAsset *asset = assetByPath.value(key(row.value(QStringLiteral("path")).toString())))
+            row.insert(QStringLiteral("asset"), asset->id);
+        row.insert(QStringLiteral("reason"), reason);
+        if (stillMissing.size() < 200)
+            stillMissing.append(row);
+    };
+    if (byPrefix) {
+        // A missing file under `from` moves to the same place under `to`, where that file is. A root
+        // ("/", "D:/") already ends with its separator.
+        const QString fromPrefix = from.endsWith(QLatin1Char('/')) ? from : from + QLatin1Char('/');
+        const QString toPrefix = to.endsWith(QLatin1Char('/')) ? to : to + QLatin1Char('/');
+        QStringList sorted(paths.cbegin(), paths.cend());
+        sorted.sort();
+        for (const QString &path : std::as_const(sorted)) {
+            QString cleaned = QDir::cleanPath(path);
+            cleaned.replace(QLatin1Char('\\'), QLatin1Char('/'));
+            const bool exact = cleaned.compare(from, kPathCase) == 0;
+            if (!exact && !cleaned.startsWith(fromPrefix, kPathCase))
+                continue;
+            ++matched;
+            if (!fileGone(path))
+                continue; // still there: not ours to move
+            const QString moved = exact ? to : toPrefix + cleaned.mid(fromPrefix.size());
+            if (!QFileInfo(fileOf(moved)).isFile()) {
+                unresolved({{QStringLiteral("path"), path}, {QStringLiteral("tried"), moved}}, QStringLiteral("no file there"));
+                continue;
+            }
+            if (const QString why = refusal(path, moved); !why.isEmpty()) {
+                unresolved({{QStringLiteral("path"), path}, {QStringLiteral("tried"), moved}}, why);
+                continue;
+            }
+            claimed.insert(key(moved));
+            remap.insert(path, moved);
+        }
+    } else {
+        // Missing assets, found by file name under search_dir.
+        QHash<QString, QList<const drift::MediaAsset *>> wanted;
+        for (const drift::MediaAsset &asset : project.assets())
+            if (asset.kind != drift::MediaKind::Composite && fileGone(asset.path)
+                && !drift::parseImageSequencePath(asset.path))
+                wanted[kPathCase == Qt::CaseInsensitive ? QFileInfo(asset.path).fileName().toLower()
+                                                        : QFileInfo(asset.path).fileName()]
+                    .append(&asset);
+        QHash<QString, QStringList> found;
+        if (!wanted.isEmpty()) {
+            int seen = 0;
+            QDirIterator it(searchDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+            while (it.hasNext()) {
+                if (++seen > 200000) {
+                    truncated = true;
+                    break;
+                }
+                const QString path = it.next();
+                const QString name = kPathCase == Qt::CaseInsensitive ? it.fileName().toLower() : it.fileName();
+                if (wanted.contains(name))
+                    found[name].append(path);
+            }
+        }
+        QStringList names = wanted.keys();
+        names.sort();
+        for (const QString &name : std::as_const(names)) {
+            const QStringList candidates = found.value(name);
+            const QList<const drift::MediaAsset *> sharing = wanted.value(name);
+            // Several missing files of one name, and nothing to tell them apart: none is guessed.
+            const bool ambiguous = sharing.size() > 1
+                                   && std::any_of(sharing.cbegin(), sharing.cend(),
+                                                  [](const drift::MediaAsset *a) { return a->sourceSize <= 0; });
+            // A walk cut short may have missed another file of the name, so no match is sure.
+            if (truncated) {
+                for (const drift::MediaAsset *asset : sharing)
+                    unresolved({{QStringLiteral("path"), asset->path}},
+                               QStringLiteral("search_dir holds over 200,000 files and wasn't searched in full; "
+                                              "search a narrower folder"));
+                continue;
+            }
+            // Which of the files of this name pass for each asset: the same size when known, not
+            // another asset's, not taken.
+            QHash<const drift::MediaAsset *, QStringList> fits;
+            QHash<QString, int> fittedBy;
+            for (const drift::MediaAsset *asset : ambiguous ? QList<const drift::MediaAsset *>{} : sharing)
+                for (const QString &candidate : candidates)
+                    if (refusal(asset->path, candidate).isEmpty()) {
+                        fits[asset].append(candidate);
+                        ++fittedBy[candidate];
+                    }
+            for (const drift::MediaAsset *asset : sharing) {
+                if (ambiguous) {
+                    unresolved({{QStringLiteral("path"), asset->path}},
+                               QStringLiteral("several missing files share this name; relink them with from/to or "
+                                              "replace_asset"));
+                    continue;
+                }
+                const QStringList fit = fits.value(asset);
+                // A file that fits two of them (same name and size) can't be told to be either's.
+                if (fit.size() == 1 && fittedBy.value(fit.first()) > 1) {
+                    unresolved({{QStringLiteral("path"), asset->path}},
+                               QStringLiteral("another missing file has the same name and size; relink them with "
+                                              "from/to or replace_asset"));
+                    continue;
+                }
+                if (fit.size() == 1) {
+                    claimed.insert(key(fit.first()));
+                    remap.insert(asset->path, fit.first());
+                    continue;
+                }
+                QJsonObject row{{QStringLiteral("path"), asset->path}};
+                if (candidates.size() > 1)
+                    row.insert(QStringLiteral("candidates"), QJsonArray::fromStringList(candidates.mid(0, 10)));
+                unresolved(row, candidates.isEmpty() ? QStringLiteral("no file of that name")
+                                : fit.isEmpty()
+                                    ? (candidates.size() == 1 ? refusal(asset->path, candidates.first())
+                                                              : QStringLiteral("none of the files of that name fits"))
+                                    : QStringLiteral("several files of that name fit"));
+            }
+        }
+    }
+
+    QJsonArray relinked;
+    QStringList keys = remap.keys();
+    keys.sort();
+    for (const QString &path : std::as_const(keys))
+        if (relinked.size() < 200)
+            relinked.append(QJsonObject{{QStringLiteral("from"), path}, {QStringLiteral("to"), remap.value(path)}});
+    if (!dryRun && !remap.isEmpty() && !m_app->m_assetLibrary)
+        return fail("internal", QStringLiteral("The media bin isn't available. Nothing was relinked"));
+    if (!dryRun && !remap.isEmpty() && !relinkPaths(remap, tr("Relink media")))
+        return fail("locked", QStringLiteral("A locked track holds a clip using these files; unlock it and try again. "
+                                             "Nothing was relinked"));
+    QJsonObject out{{QStringLiteral("ok"), true},
+                    {QStringLiteral("relinked"), relinked},
+                    {QStringLiteral("n"), int(remap.size())},
+                    {QStringLiteral("still_missing"), stillMissing},
+                    {QStringLiteral("still_missing_n"), unresolvedCount}};
+    if (byPrefix)
+        out.insert(QStringLiteral("matched"), matched);
+    if (dryRun)
+        out.insert(QStringLiteral("dry_run"), true);
+    if (truncated)
+        out.insert(QStringLiteral("truncated"), true);
+    return out;
+}
+
+QJsonObject MediaBinController::removeUnusedAssets(bool dryRun)
+{
+    using namespace drift::mcp;
+    AssetLibrary *lib = m_app->assetLibrary();
+    if (!lib)
+        return err("unsupported", QStringLiteral("No media library"));
+    const QHash<QString, int> counts = m_app->clipCountsByAsset();
+    const QHash<QString, int> derived = m_app->derivedAssetCounts();
+    QStringList ids;
+    QJsonArray listed;
+    int composites = 0;
+    int sources = 0;
+    for (int i = 0; i < lib->count(); ++i) {
+        const QVariantMap a = lib->assetAt(i);
+        const QString id = a.value(QStringLiteral("id")).toString();
+        if (id.isEmpty() || counts.value(id) > 0)
+            continue;
+        // A composite is a whole nested timeline, not media: removing an unplaced one would
+        // delete that timeline, so it stays (remove_asset takes it explicitly).
+        if (a.value(QStringLiteral("kind")).toString() == QLatin1String("composite")) {
+            ++composites;
+            continue;
+        }
+        // The original of a stabilized render: re-stabilizing reads it, and a re-import would
+        // not reconnect it (it gets a new id).
+        if (derived.value(id) > 0) {
+            ++sources;
+            continue;
+        }
+        ids.append(id);
+        listed.append(QJsonObject{{QStringLiteral("id"), id},
+                                  {QStringLiteral("name"), a.value(QStringLiteral("name")).toString()},
+                                  {QStringLiteral("kind"), a.value(QStringLiteral("kind")).toString()}});
+    }
+    QJsonObject reply{{QStringLiteral("assets"), listed},
+                      {QStringLiteral("dry_run"), dryRun},
+                      {QStringLiteral("kept_composites"), composites},
+                      {QStringLiteral("kept_sources"), sources}};
+    if (dryRun || ids.isEmpty()) {
+        reply.insert(QStringLiteral("removed"), 0);
+        return ok(reply);
+    }
+    // One undo step for the lot; refused as a whole if a clip started using one meanwhile.
+    const int removed = m_app->removeAssets(ids);
+    if (removed == 0)
+        return err("conflict", QStringLiteral("An asset came into use; list again"));
+    reply.insert(QStringLiteral("removed"), removed);
+    return ok(reply);
+}
+
+
+QJsonObject MediaBinController::relinkFolder(const QString &from, const QString &to, bool dryRun)
+{
+    return relinkMedia({{QStringLiteral("from"), from}, {QStringLiteral("to"), to}, {QStringLiteral("dry_run"), dryRun}});
+}
+
+QJsonObject MediaBinController::relinkSearchFolder(const QUrl &folder, bool dryRun)
+{
+    return relinkMedia({{QStringLiteral("search_dir"), folder.isLocalFile() ? folder.toLocalFile() : folder.toString()},
+                        {QStringLiteral("dry_run"), dryRun}});
 }
 
 #include "moc_MediaBinController.cpp"

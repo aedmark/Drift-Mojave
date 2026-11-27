@@ -15,34 +15,43 @@ Item {
     id: root
 
     property string currentPage: "general"
-    // The phone shell has no workspaces, timeline toolbar or keyboard to configure.
+    // The phone shell has no workspaces or keyboard to configure.
     property bool mobile: false
-    readonly property var mobileHiddenPages: ["workspaces", "toolbar", "keymap"]
+    readonly property var mobileHiddenPages: ["workspaces", "personalize", "keymap"]
     readonly property string query: searchField.text.trim().toLowerCase()
     readonly property bool narrow: width < 640
     readonly property real sidebarWidth: 220
     readonly property real pageMargin: narrow ? Theme.pagePadding : Theme.spacing3xl
 
     readonly property var pages: [
-        { id: "general", title: qsTr("General"), keywords: "language locale startup autosave recovery cache backup" },
-        { id: "appearance", title: qsTr("Appearance"), keywords: "theme dark light color workspace layout translucency" },
-        { id: "workspaces", title: qsTr("Workspaces"), keywords: "workspace layout panel window monitor screen dock preset" },
-        { id: "timeline", title: qsTr("Timeline"), keywords: "scroll wheel horizontal vertical crossfade transition overview minimap" },
-        { id: "toolbar", title: qsTr("Timeline toolbar"), keywords: "toolbar buttons customize" },
+        { id: "general", title: qsTr("General"), keywords: "language locale startup autosave recovery backup undo crash reports privacy" },
+        { id: "personalize", title: qsTr("Personalize"), keywords: "accent colour color rail labels hints tips workspaces hide show experience level beginner pro agentic ai ask what you make youtube shorts films podcasts tutorials" },
+        { id: "appearance", title: qsTr("Appearance"), keywords: "theme dark light color translucency interface size scale layout" },
+        { id: "workspaces", title: qsTr("Workspaces"), keywords: "workspace layout panel window monitor screen dock preset orientation landscape portrait" },
+        { id: "timeline", title: qsTr("Timeline"), keywords: "scroll wheel horizontal vertical crossfade transition overview minimap toolbar buttons customize auto keyframes animation" },
         { id: "keymap", title: qsTr("Keyboard shortcuts"), keywords: "keymap keys hotkeys bindings" },
-        { id: "preview", title: qsTr("Preview"), keywords: "quality resolution decode proxies guides background graphics gpu" },
-        { id: "performance", title: qsTr("Performance"), keywords: "advanced tuning cache memory ram vram read-ahead buffer drop frames hardware encoder export pool" },
+        { id: "surfaces", title: qsTr("Control surfaces"), keywords: "midi osc mackie controller faders knobs jog hardware surface phone remote" },
+        { id: "preview", title: qsTr("Preview"), keywords: "quality resolution decode guides background" },
+        { id: "controllers", title: qsTr("Controllers"), keywords: "gamepad controller joystick xbox playstation dualsense gyro rumble stick dead zone", available: Gamepad.available },
+        { id: "performance", title: qsTr("Performance"), keywords: "graphics card gpu faster preview zero copy advanced tuning cache memory ram vram buffer drop frames pool" },
+        { id: "storage", title: qsTr("Storage & media"), keywords: "cache location disk space preview copies proxies proxy folder thumbnails" },
+        { id: "export", title: qsTr("Export"), keywords: "hardware encoder gpu encode h264 nvenc folder" },
+        { id: "farm", title: qsTr("Render farm"), keywords: "render queue farm coordinator workers distributed network lan token port cache" },
         { id: "audio", title: qsTr("Audio"), keywords: "sound speakers microphone output input" },
         { id: "ai", title: qsTr("AI & Cloud"), keywords: "agent mcp claude cursor api key elevenlabs voice scene detection" },
-        { id: "network", title: qsTr("Network"), keywords: "proxy http socks internet firewall" },
-        { id: "about", title: qsTr("About"), keywords: "version updates debug info diagnostics" }
+        { id: "notifications", title: qsTr("Notifications"), keywords: "extras reminders pack updates agent notifications toasts pop-ups quiet" },
+        { id: "network", title: qsTr("Network & internet"), keywords: "internet proxy server http socks firewall" },
+        { id: "about", title: qsTr("About"), keywords: "version updates debug info diagnostics quick setup" }
     ]
+    // The render farm is desktop-only: the coordinator is not built for Android or the browser.
+    readonly property bool farmSupported: Qt.platform.os !== "android" && Qt.platform.os !== "wasm"
     readonly property var visiblePages: pages.filter(
-        (page) => !(mobile && mobileHiddenPages.includes(page.id)))
+        (page) => page.available !== false && !(mobile && mobileHiddenPages.includes(page.id)) && (farmSupported || page.id !== "farm"))
 
     readonly property bool searchHasMatches: {
-        for (const slot of [generalSlot, appearanceSlot, workspacesSlot, timelineSlot, toolbarSlot, keymapSlot,
-                            previewSlot, performanceSlot, audioSlot, aiSlot, networkSlot, aboutSlot]) {
+        for (const slot of [generalSlot, personalizeSlot, appearanceSlot, workspacesSlot, timelineSlot, keymapSlot, surfacesSlot,
+                            previewSlot, controllersSlot, performanceSlot, storageSlot, exportSlot, farmSlot, audioSlot, aiSlot,
+                            notificationsSlot, networkSlot, aboutSlot]) {
             if (slot.hasMatches)
                 return true
         }
@@ -50,7 +59,7 @@ Item {
     }
 
     // A page exists only while it is the open one, or while a search needs every page's rows to
-    // test against the query. Building all twelve up front dominated the dialog's open time.
+    // test against the query. Building every page up front dominated the dialog's open time.
     component PageSlot: Loader {
         id: slot
 
@@ -72,8 +81,14 @@ Item {
 
     onCurrentPageChanged: flick.contentY = 0
 
+    // Page ids that were folded into another page keep working as deep links.
+    readonly property var pageAliases: ({ "toolbar": "timeline" })
+
     function selectPage(pageId) {
-        currentPage = pageId
+        currentPage = pageAliases[pageId] || pageId
+        const i = visiblePages.findIndex(p => p.id === currentPage)
+        if (i >= 0)
+            tabStrip.positionViewAtIndex(i, ListView.Contain)
         searchField.text = ""
     }
 
@@ -97,6 +112,7 @@ Item {
         y: Theme.spacingLg
         width: root.narrow ? root.width - Theme.pagePadding * 2 : root.sidebarWidth - Theme.spacingLg * 2
         placeholderText: qsTr("Search settings…")
+        font.family: root.mobile ? Theme.fontFamily : Theme.monoFontFamily
     }
 
     ListView {
@@ -155,7 +171,7 @@ Item {
         x: Theme.pagePadding
         y: searchField.y + searchField.height + Theme.spacingMd
         width: root.width - Theme.pagePadding * 2
-        height: Theme.controlHeightSm
+        height: Theme.touchInput && Theme.compact ? Theme.androidRowHeight : Theme.controlHeightSm
         clip: true
         spacing: Theme.spacingSm
         orientation: ListView.Horizontal
@@ -198,6 +214,13 @@ Item {
             }
 
             PageSlot {
+                id: personalizeSlot
+                pageId: "personalize"
+                allowed: !root.mobile
+                sourceComponent: SettingsPersonalizePage { query: root.query }
+            }
+
+            PageSlot {
                 id: appearanceSlot
                 pageId: "appearance"
                 sourceComponent: SettingsAppearancePage { query: root.query }
@@ -217,17 +240,16 @@ Item {
             }
 
             PageSlot {
-                id: toolbarSlot
-                pageId: "toolbar"
-                allowed: !root.mobile
-                sourceComponent: SettingsToolbarPage { query: root.query }
-            }
-
-            PageSlot {
                 id: keymapSlot
                 pageId: "keymap"
                 allowed: !root.mobile
                 sourceComponent: SettingsKeymapPage { query: root.query }
+            }
+
+            PageSlot {
+                id: surfacesSlot
+                pageId: "surfaces"
+                sourceComponent: SettingsSurfacesPage { query: root.query }
             }
 
             PageSlot {
@@ -237,9 +259,35 @@ Item {
             }
 
             PageSlot {
+                id: controllersSlot
+                pageId: "controllers"
+                allowed: Gamepad.available
+                sourceComponent: SettingsControllersPage { query: root.query }
+            }
+
+            PageSlot {
                 id: performanceSlot
                 pageId: "performance"
                 sourceComponent: SettingsPerformancePage { query: root.query }
+            }
+
+            PageSlot {
+                id: storageSlot
+                pageId: "storage"
+                sourceComponent: SettingsStoragePage { query: root.query }
+            }
+
+            PageSlot {
+                id: exportSlot
+                pageId: "export"
+                sourceComponent: SettingsExportPage { query: root.query }
+            }
+
+            PageSlot {
+                id: farmSlot
+                pageId: "farm"
+                allowed: root.farmSupported
+                sourceComponent: SettingsFarmPage { query: root.query }
             }
 
             PageSlot {
@@ -252,6 +300,12 @@ Item {
                 id: aiSlot
                 pageId: "ai"
                 sourceComponent: SettingsAiPage { query: root.query }
+            }
+
+            PageSlot {
+                id: notificationsSlot
+                pageId: "notifications"
+                sourceComponent: SettingsNotificationsPage { query: root.query }
             }
 
             PageSlot {

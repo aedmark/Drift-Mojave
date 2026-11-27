@@ -135,6 +135,8 @@ struct MediaAsset
     // Audio Drift generated rather than imported (voiceover, sound effect): what made it —
     // {provider, kind, voice, model, text/prompt} — so it can be regenerated. Empty otherwise.
     QJsonObject generator;
+    // Set on an asset a project-folder script declared; see Clip::generatedBy.
+    QString generatedBy;
 
     // Media Pool FX (VEGAS parity): pre-timeline source processing applied to this asset
     // before any event-level pan/crop or event FX. All timeline clips referencing this asset
@@ -194,6 +196,13 @@ inline int effectiveRotation(const MediaAsset &asset)
 inline int rotationCorrectionOf(const MediaAsset &asset)
 {
     return ((effectiveRotation(asset) - asset.rotationDegrees) % 360 + 360) % 360;
+}
+
+// Whether the footage already has a frame for every project frame once the clip's speed is counted, so
+// frame interpolation has nothing to add. False when the rate is unknown.
+inline bool framesAlreadyCoverProject(double sourceFps, double speed, double projectFps)
+{
+    return sourceFps > 0.0 && projectFps > 0.0 && sourceFps * std::abs(speed) >= projectFps - 0.5;
 }
 
 } // namespace drift

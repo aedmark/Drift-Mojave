@@ -120,32 +120,15 @@ SettingsPage {
     }
 
     SettingsRow {
-        title: qsTr("Notifications for agent actions")
-        searchId: "ai-agent-notifications"
-        description: qsTr("Which pop-ups an agent's own edits show you. Errors always show.")
-        keywords: "mcp agent toast notification quiet silence"
+        title: qsTr("Commands in search (Ctrl+K)")
+        searchId: "ai-command-bar"
+        description: qsTr("Type a sentence such as \"split at 12 seconds\" in search and run it as an editing command. Needs the Command Bar Model and llama.cpp runtime add-ons; runs on this device.")
+        keywords: "command bar natural language ask prompt llm assistant ctrl+k"
         query: page.query
 
-        ThemedComboBox {
-            width: Theme.c.settingsRow.controlWidth
-            textRole: "label"
-            valueRole: "id"
-            model: [
-                { id: "all", label: qsTr("All") },
-                { id: "problems", label: qsTr("Problems only") },
-                { id: "none", label: qsTr("None (errors still show)") }
-            ]
-            currentIndex: {
-                for (var i = 0; i < model.length; ++i) {
-                    if (model[i].id === EditorState.preferences.agentNotifications)
-                        return i
-                }
-                return 1
-            }
-            onActivated: {
-                if (currentIndex >= 0 && currentIndex < model.length)
-                    EditorState.preferences.agentNotifications = model[currentIndex].id
-            }
+        ThemedSwitch {
+            checked: EditorState.preferences.commandBarEnabled
+            onToggled: EditorState.preferences.commandBarEnabled = checked
         }
     }
 

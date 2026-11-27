@@ -167,6 +167,9 @@ AndroidBottomSheet {
                   icon: Theme.icons.linkTwo },
                 { id: "closeGap", label: qsTr("Close gap"),
                   detail: qsTr("Close gap after clip"),
+                  icon: Theme.icons.chevronsRightLeft },
+                { id: "closeGapAll", label: qsTr("Close gap on all tracks"),
+                  detail: qsTr("Close the gap after the clip on every free track"),
                   icon: Theme.icons.chevronsRightLeft }
             ]
         },
@@ -284,6 +287,7 @@ AndroidBottomSheet {
         case "speed":
             return root.hasSelection && !root.isTransformClip
         case "closeGap":
+        case "closeGapAll":
             return root.hasSelection
         case "merge":
             return EditorState.mergeAvailable
@@ -445,6 +449,12 @@ AndroidBottomSheet {
                 EditorState.closeGap(EditorState.selectedTrack, clip.start + clip.duration)
             break
         }
+        case "closeGapAll": {
+            const clip = EditorState.clipAt(EditorState.selectedTrack, EditorState.selectedClip)
+            if (clip && clip.start !== undefined)
+                EditorState.closeGapOnAllTracks(EditorState.selectedTrack, clip.start + clip.duration)
+            break
+        }
         case "separateAudio":
             EditorState.separateAudioFromSelection()
             break
@@ -501,8 +511,9 @@ AndroidBottomSheet {
         Column {
             id: groupColumn
             width: parent.width
+            topPadding: Theme.spacingSm
             bottomPadding: Theme.spacing3xl
-            spacing: Theme.spacingLg
+            spacing: Theme.spacingXl
 
             Repeater {
                 model: root.groups
@@ -529,13 +540,13 @@ AndroidBottomSheet {
                         sideInset: root.safeLeft
                     }
 
-                    // Four to a row: the sheet had grown past two screens as a list. Grid skips
+                    // Three to a row: the sheet had grown past two screens as a list. Grid skips
                     // hidden tiles, so a group packs whatever applies to the selection.
                     Grid {
                         id: tileGrid
                         x: Theme.spacingMd + root.safeLeft
                         width: group.width - Theme.spacingMd * 2 - root.safeLeft - root.safeRight
-                        columns: 4
+                        columns: Theme.phone ? 4 : 3
                         readonly property real tileWidth: Math.floor(width / columns)
 
                         Repeater {

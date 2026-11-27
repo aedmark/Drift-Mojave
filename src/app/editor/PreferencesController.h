@@ -55,6 +55,19 @@ class PreferencesController : public QObject
                    NOTIFY proxyNamePatternsChanged)
     // Opt-in: on launch, restore the last open project (saved .drift or unsaved recovery snapshot).
     Q_PROPERTY(bool reopenLastProject READ reopenLastProject WRITE setReopenLastProject NOTIFY reopenLastProjectChanged)
+    // Ctrl+K offers "Ask" rows that run a typed sentence as an editing command. QSettings("commandBar/enabled").
+    Q_PROPERTY(bool showRailLabels READ showRailLabels WRITE setShowRailLabels NOTIFY showRailLabelsChanged)
+    // Personalisation. whatYouMake is "" (not chosen), "youtube", "shorts", "films", "podcasts" or
+    // "tutorials". experienceLevel is "first", "some" (default) or "pro". agenticUse is "none",
+    // "some" (default) or "lots". Changing the last two rewrites hiddenWorkspaces; the user can
+    // still toggle individual workspaces afterwards. "edit" is never hidden.
+    Q_PROPERTY(QString whatYouMake READ whatYouMake WRITE setWhatYouMake NOTIFY whatYouMakeChanged)
+    Q_PROPERTY(QString experienceLevel READ experienceLevel WRITE setExperienceLevel NOTIFY experienceLevelChanged)
+    Q_PROPERTY(QString agenticUse READ agenticUse WRITE setAgenticUse NOTIFY agenticUseChanged)
+    Q_PROPERTY(bool showTips READ showTips WRITE setShowTips NOTIFY showTipsChanged)
+    Q_PROPERTY(QStringList hiddenWorkspaces READ hiddenWorkspaces WRITE setHiddenWorkspaces NOTIFY hiddenWorkspacesChanged)
+    Q_PROPERTY(QStringList studioWorkspaceIds READ studioWorkspaceIds CONSTANT)
+    Q_PROPERTY(bool commandBarEnabled READ commandBarEnabled WRITE setCommandBarEnabled NOTIFY commandBarEnabledChanged)
     // Which notifications raised during an agent's (MCP) call reach the screen: "all", "problems"
     // (warnings and errors, the default) or "none" (errors only -- an error is never hidden).
     // Applies to what a call raises while it runs; a result landing later (an export) still shows.
@@ -62,6 +75,19 @@ class PreferencesController : public QObject
     // What an import does with footage that would preview slowly: "ask" (offer proxies in a
     // notification, the default), "always" (create them straight away) or "never".
     Q_PROPERTY(QString proxySuggestion READ proxySuggestion WRITE setProxySuggestion NOTIFY proxySuggestionChanged)
+    // Where new proxies and reversed renders are saved: "beside" | "cache" | "folder" (proxyFolder).
+    Q_PROPERTY(QString proxyLocation READ proxyLocation WRITE setProxyLocation NOTIFY proxyLocationChanged)
+    Q_PROPERTY(QString proxyFolder READ proxyFolder NOTIFY proxyFolderChanged)
+    // Where new screen and camera recordings are saved: "movies" | "project" | "folder"
+    // (recordingFolder). There is deliberately no cache option, unlike proxies: a proxy can be
+    // rebuilt, while a recording is the only copy of something that happened once.
+    Q_PROPERTY(QString recordingLocation READ recordingLocation WRITE setRecordingLocation NOTIFY
+                   recordingLocationChanged)
+    Q_PROPERTY(QString recordingFolder READ recordingFolder NOTIFY recordingFolderChanged)
+    // Bytes of Drift's own files in proxyFolder; -1 while unknown or without a folder.
+    Q_PROPERTY(qint64 proxyFolderBytes READ proxyFolderBytes NOTIFY proxyFolderBytesChanged)
+    // False on Android: the picker returns a tree URI, not a writable path.
+    Q_PROPERTY(bool proxyFolderSupported READ proxyFolderSupported CONSTANT)
     // Undo history: "project" (saved into the project file), "session" (the default; kept until
     // the project closes, never saved) or "off" (no undo steps at all).
     Q_PROPERTY(QString undoHistoryMode READ undoHistoryMode WRITE setUndoHistoryMode NOTIFY undoHistoryModeChanged)
@@ -199,10 +225,49 @@ public:
 
     bool reopenLastProject() const { return m_reopenLastProject; }
     void setReopenLastProject(bool enabled);
+    bool showRailLabels() const { return m_showRailLabels; }
+    void setShowRailLabels(bool enabled);
+    // Dismissed inline tips and suggestions live under QSettings "tips/<id>".
+    Q_INVOKABLE bool tipDismissed(const QString &id) const;
+    Q_INVOKABLE void dismissTip(const QString &id);
+    Q_INVOKABLE void resetDismissedTips();
+    QString whatYouMake() const { return m_whatYouMake; }
+    void setWhatYouMake(const QString &value);
+    QString experienceLevel() const { return m_experienceLevel; }
+    void setExperienceLevel(const QString &level);
+    QString agenticUse() const { return m_agenticUse; }
+    void setAgenticUse(const QString &level);
+    bool showTips() const { return m_showTips; }
+    void setShowTips(bool enabled);
+    QStringList hiddenWorkspaces() const { return m_hiddenWorkspaces; }
+    void setHiddenWorkspaces(const QStringList &ids);
+    static QStringList studioWorkspaceIds();
+    bool commandBarEnabled() const { return m_commandBarEnabled; }
+    void setCommandBarEnabled(bool enabled);
     QString agentNotifications() const { return m_agentNotifications; }
     void setAgentNotifications(const QString &level);
     static QStringList agentNotificationLevels();
     QString proxySuggestion() const { return m_proxySuggestion; }
+    QString proxyLocation() const { return m_proxyLocation; }
+    // Refused (stays put) for "folder" without a folder, and for "folder" where it isn't supported.
+    void setProxyLocation(const QString &location);
+    QString recordingLocation() const { return m_recordingLocation; }
+    void setRecordingLocation(const QString &location);
+    QString recordingFolder() const { return m_recordingFolder; }
+    // Empty on success, else why the folder was refused. The same checks as setProxyFolder, minus
+    // the cache test: there is no cache mode here for a folder to be confused with.
+    Q_INVOKABLE QString setRecordingFolder(const QString &path);
+    Q_INVOKABLE QUrl recordingFolderUrl() const;
+    QString proxyFolder() const { return m_proxyFolder; }
+    qint64 proxyFolderBytes() const { return m_proxyFolderBytes; }
+    static bool proxyFolderSupported();
+    // Returns "" on success, else a user-facing reason: absolute, exists, takes a write, and not
+    // Drift's own cache (or inside it).
+    Q_INVOKABLE QString setProxyFolder(const QString &path);
+    // Walks the folder off-thread and posts proxyFolderBytes (Drift-named files only).
+    Q_INVOKABLE void refreshProxyFolderUsage();
+    // proxyFolder as a file URL for a dialog's start directory; empty without a folder.
+    Q_INVOKABLE QUrl proxyFolderUrl() const;
     void setProxySuggestion(const QString &mode);
     static QStringList proxySuggestionModes();
     QString undoHistoryMode() const { return m_undoHistoryMode; }
@@ -245,6 +310,10 @@ public:
     double transitionDurationSeconds() const { return m_transitionDurationSeconds; }
     QStringList recentTransitions() const { return m_recentTransitions; }
     void pushRecentTransition(const QString &kind);
+    // Recent queries of one asset search bar, newest first. Stored as a JSON string under
+    // "assetSearchHistory/<key>/json", the layout QtCore's QML Settings used before.
+    Q_INVOKABLE QStringList assetSearchHistory(const QString &key) const;
+    Q_INVOKABLE void setAssetSearchHistory(const QString &key, const QStringList &entries);
     void setTransitionDurationSeconds(double seconds);
     // Performance tunables (see the properties above).
     int staleFrameLagMs() const;
@@ -313,7 +382,10 @@ public:
     bool canRestart() const;
     // False once the first-run Quick Setup has been completed (and always on wasm, which skips it).
     static bool quickSetupNeeded();
-    Q_INVOKABLE void completeQuickSetup();
+    // startProject asks the editor that opens next to begin on a fresh project with the canvas
+    // implied by whatYouMake instead of the usual startup choice; takeStartProject() consumes it.
+    Q_INVOKABLE void completeQuickSetup(bool startProject = false);
+    Q_INVOKABLE bool takeStartProject();
     // Clears the done flag and relaunches into setup; the caller handles unsaved work first.
     Q_INVOKABLE void rerunQuickSetup();
     // Android relaunches the activity right away; flush recovery first. Elsewhere this only
@@ -340,8 +412,20 @@ signals:
     void proxyNamePatternsChanged();
     void timelineToolbarLayoutChanged();
     void reopenLastProjectChanged();
+    void showRailLabelsChanged();
+    void whatYouMakeChanged();
+    void experienceLevelChanged();
+    void agenticUseChanged();
+    void showTipsChanged();
+    void hiddenWorkspacesChanged();
+    void commandBarEnabledChanged();
     void agentNotificationsChanged();
     void proxySuggestionChanged();
+    void proxyLocationChanged();
+    void recordingLocationChanged();
+    void recordingFolderChanged();
+    void proxyFolderChanged();
+    void proxyFolderBytesChanged();
     void undoHistoryModeChanged();
     void undoHistoryLimitChanged();
     void vaapiZeroCopyChanged();
@@ -382,8 +466,20 @@ private:
     QStringList m_proxyNamePatterns;
     QStringList m_timelineMenuItems;
     bool m_reopenLastProject = false;
+    bool m_commandBarEnabled = true;
+    bool m_showRailLabels = true;
+    bool m_showTips = true;
+    QString m_whatYouMake;
+    QString m_experienceLevel = QStringLiteral("some");
+    QString m_agenticUse = QStringLiteral("some");
+    QStringList m_hiddenWorkspaces;
     QString m_agentNotifications = QStringLiteral("problems");
     QString m_proxySuggestion = QStringLiteral("ask");
+    QString m_proxyLocation = QStringLiteral("beside");
+    QString m_proxyFolder;
+    QString m_recordingLocation = QStringLiteral("movies");
+    QString m_recordingFolder;
+    qint64 m_proxyFolderBytes = -1;
     QString m_undoHistoryMode = QStringLiteral("session");
     int m_undoHistoryLimit = 200;
     bool m_vaapiZeroCopy = false;

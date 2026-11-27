@@ -61,6 +61,7 @@ public:
         EffectsRole,
         AudioEffectsRole,
         VolumeKeysRole,
+        KeyTimesRole,
         LoopRole,
         LoopPeriodRole,
         LoopPhaseRole,
@@ -81,6 +82,7 @@ public:
         InvertPhaseRole,
         AudioChannelModeRole,
         NormalizeGainRole,
+        GeneratedByRole,
     };
     Q_ENUM(Role)
 
@@ -115,6 +117,10 @@ public:
         QVariantList effects;
         QVariantList audioEffects;
         QVariantList volumeKeys;
+        // Every time this clip carries a keyframe at, on any of its own curves, in seconds from
+        // its own start (drift::clipKeyTimes). One entry per distinct time, not per property:
+        // the timeline draws a marker per time, which is what "where are my keys" asks.
+        QList<double> keyTimes;
         // A looping clip: the timeline length of one pass through inPoint..outPoint, and how far
         // into the first pass the clip starts (both seconds, both 0 when not looping).
         bool loop = false;
@@ -137,6 +143,8 @@ public:
         bool invertPhase = false;
         QString audioChannelMode;
         double normalizeGain = 1.0;
+        // The project-folder script that made this clip; it is locked while set.
+        QString generatedBy;
 
         // Not roles: typed copies for the scene-graph renderer, derived from the fields above so
         // any change to them already arrives as a changed row.

@@ -28,6 +28,7 @@ resources/stickers/
 *.mkv
 *.webm
 *.wav
+!resources/forge/ir/*.wav
 *.mp3
 
 # Flatpak build artifacts (build-dir is already covered by build-*/ above)
@@ -72,3 +73,7 @@ third_party/prebuilt/
 .env.*
 
 !resources/diagnostics/bench1080p60.mp4
+
+# nix build / nix develop
+/result
+/result-*

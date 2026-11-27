@@ -13,6 +13,12 @@ namespace drift {
 
 // The most past source frames a package may ask for with "history".
 inline constexpr int kMaxHistoryFrames = 32;
+// The most of those a package may have decoded on demand with "historyExact".
+inline constexpr int kMaxHistoryExactFrames = 2;
+// The most source frames after the current one a package may ask for with "future".
+inline constexpr int kMaxFutureFrames = 2;
+// With "historyUnits": "source", the most source frames on either side of the current one.
+inline constexpr int kMaxSourceNeighbourFrames = 4;
 
 // A vecN[] uniform carried through the parameter map. Only the engine produces these — the face
 // contour loops are the one thing too large to spell out as named scalars, and 128 points would
@@ -35,13 +41,17 @@ inline bool isEngineBoundGpuUniform(const QString &name)
         || name == QLatin1String("u_frameRate")
         || name == QLatin1String("u_currentTexture") || name == QLatin1String("u_progress")
         || name == QLatin1String("u_fromTexture") || name == QLatin1String("u_toTexture")
-        || name == QLatin1String("u_hasDepth") || name == QLatin1String("u_templateBounds")
+        || name == QLatin1String("u_hasDepth") || name == QLatin1String("u_floatBuffers") || name == QLatin1String("u_templateBounds")
         || name == QLatin1String("u_clipMask") || name == QLatin1String("u_hasClipMask")
-        || name == QLatin1String("u_meshAspect") || name == QLatin1String("u_prevOutput")) {
+        || name == QLatin1String("u_meshAspect") || name == QLatin1String("u_prevOutput")
+        || name == QLatin1String("u_sourceFps") || name == QLatin1String("u_sourcePhase")
+        || name == QLatin1String("u_sourceStep") || name == QLatin1String("u_projectFps")
+        || name == QLatin1String("u_contentRect")) {
         return true;
     }
     // The depth map and its size, bound for "requires": "depth" packages.
-    if (name.startsWith(QLatin1String("u_depth")) || name.startsWith(QLatin1String("u_history")))
+    if (name.startsWith(QLatin1String("u_depth")) || name.startsWith(QLatin1String("u_history"))
+        || name.startsWith(QLatin1String("u_future")))
         return true;
     // Extra samplers bound for multi-input passes: u_texture1, u_texture2, ...
     return name.startsWith(QLatin1String("u_texture"));
@@ -68,13 +78,20 @@ inline bool isReservedGpuUniform(const QString &name)
 {
     return isEngineBoundGpuUniform(name) || name.startsWith(QLatin1String("u_face"))
            || name == QLatin1String("u_audioLevel") || name == QLatin1String("u_audioBass")
-           || name == QLatin1String("u_audioBeat") || isProceduralContractUniform(name);
+           || name == QLatin1String("u_audioBeat") || name == QLatin1String("u_direction")
+           || isProceduralContractUniform(name);
 }
+
+// What an intermediate buffer stores per texel. The half-float formats hold values outside [0, 1]
+// and keep their sign; Rg16F is stored as RGBA16F, so it is no smaller in memory. Where the GL
+// context cannot render to half float the runtime allocates Rgba8 instead.
+enum class GpuBufferFormat { Rgba8, Rgba16F, Rg16F };
 
 struct GpuEffectBufferSpec
 {
     QString id;
     double scale = 1.0;
+    GpuBufferFormat format = GpuBufferFormat::Rgba8;
 };
 
 // Static image asset loaded from the package dir and bound as a sampler.
@@ -131,6 +148,13 @@ struct GpuEffectDefinition
 {
     QString packageDir;
     QList<GpuEffectBufferSpec> intermediateBuffers;
+    bool usesFloatBuffers() const
+    {
+        for (const GpuEffectBufferSpec &b : intermediateBuffers)
+            if (b.format != GpuBufferFormat::Rgba8)
+                return true;
+        return false;
+    }
     QList<GpuEffectTextureSpec> textures;
     QList<GpuEffectPass> passes;
     // "requires": "depth": the depth prelude is compiled into every pass and the clip's depth map
@@ -143,6 +167,21 @@ struct GpuEffectDefinition
     // "history": N source frames before the current one are kept for the clip and sampled with
     // historyFrame(age, uv). 0 for packages that do not look back. See docs/gpu-effects.md.
     int historyFrames = 0;
+    // "historyExact": N: the N frames before the current one are decoded when the ring lacks them
+    // (after a seek, a pause, an export start), so the effect always sees them. At most `historyFrames`.
+    int historyExactFrames = 0;
+    // "future": N: the N source frames after the current one are decoded for the effect and sampled with
+    // futureFrame(ahead, uv). 0 for packages that do not look ahead.
+    int futureFrames = 0;
+    // "historyUnits": "source": historyExact and future count the clip's own source frames (the ones
+    // the media holds) around the one shown, not project frames, and are read from decoded neighbours
+    // instead of the history ring. `historyFrames` is then just the prelude switch.
+    bool sourceUnits = false;
+    // "padding": f: the clip frame grows by f of its width and height on every side before this effect
+    // runs, transparent where the clip is not, so the effect can draw past the frame (a shadow). The
+    // layer is drawn at the larger size, so the extra reaches the canvas. u_contentRect says where the
+    // clip sits inside it. 0 for packages that stay inside the frame.
+    float padding = 0.f;
     // "previousOutput": true: u_prevOutput is this effect's own result from the previous project frame.
     bool needsPrevOutput = false;
     // Parameters bound beyond plain scalars, from the package's parameter list (declaration order).

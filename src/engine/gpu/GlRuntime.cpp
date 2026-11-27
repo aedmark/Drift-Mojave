@@ -91,6 +91,9 @@ extern "C" {
 // qopengl.h includes <GLES2/gl2.h> accordingly. The ES 3.0 *functions* this file uses still resolve,
 // because QOpenGLExtraFunctions looks them up at runtime — but the ES 3.0 *enum constants* are
 // simply absent from the ES2 header, so they are supplied here.
+#ifndef GL_RGBA16F
+#define GL_RGBA16F 0x881A
+#endif
 #ifndef GL_RED
 #define GL_RED 0x1903
 #endif
@@ -402,8 +405,103 @@ vec4 historyFrame(float age, vec2 uv)
 }
 )";
 
+// Compiled into every pass of a "future" package.
+constexpr const char *kFuturePrelude = R"(
+uniform sampler2D u_futureTexture1;
+uniform sampler2D u_futureTexture2;
+uniform float u_futureCount;
+
+// How many source frames after the current one are available; 0 at the end of the clip and while scrubbing.
+float futureCount()
+{
+    return u_futureCount;
+}
+
+// The clip's source frame `ahead` project frames later (1 = the next frame) at uv, rounded and clamped to
+// what is available. With none available the engine binds the effect's own input, so this is the current
+// frame.
+vec4 futureFrame(float ahead, vec2 uv)
+{
+    int n = max(int(u_futureCount + 0.5), 1);
+    int k = clamp(int(floor(ahead + 0.5)), 1, n);
+    return k == 1 ? texture(u_futureTexture1, uv) : texture(u_futureTexture2, uv);
+}
+)";
+
+// Compiled into every pass of a "historyUnits": "source" package. The past and future frames share the
+// history atlas: historyFrame() reads the past slots as for the ring, and futureFrame() the slots after them.
+constexpr const char *kSourceUnitsPrelude = R"(
+uniform float u_sourceFps;
+uniform float u_sourcePhase;
+uniform float u_sourceStep;
+uniform float u_projectFps;
+
+// The media's frame rate, the project's, how far between the source frame shown and the next one (in
+// playback order) this frame falls (0 to 1), and how many source frames one project frame advances
+// (the media rate over the project rate, times the clip's speed).
+float sourceFrameRate() { return u_sourceFps; }
+float projectFrameRate() { return u_projectFps; }
+float sourcePhase() { return u_sourcePhase; }
+float sourceStep() { return u_sourceStep; }
+)";
+
+constexpr const char *kSourceFuturePrelude = R"(
+uniform float u_futureCount;
+uniform float u_futureSlot;
+
+// How many source frames after the shown one are available; 0 at the clip's end and while scrubbing.
+float futureCount()
+{
+    return u_futureCount;
+}
+
+// The media's frame `ahead` source frames after the one shown (1 = the next), rounded and clamped to
+// what is available. With none available this is the effect's own input.
+vec4 futureFrame(float ahead, vec2 uv)
+{
+    int n = max(int(u_futureCount + 0.5), 1);
+    int slots = int(u_historyGrid.y + 0.5);
+    int columns = int(u_historyGrid.x + 0.5);
+    int slot = min(int(u_futureSlot + 0.5) + clamp(int(floor(ahead + 0.5)), 1, n) - 1, slots - 1);
+    vec2 cell = vec2(float(slot % columns), float(slot / columns));
+    vec2 px = cell * u_historyTile + clamp(uv * u_historyTile, vec2(0.5), u_historyTile - 0.5);
+    return texture(u_historyTexture, px / u_historyAtlas);
+}
+)";
+
 constexpr const char *kPrevOutputPrelude = R"(
 uniform sampler2D u_prevOutput;
+)";
+
+// Compiled into every pass of a package that declares a half-float buffer. u_floatBuffers is 0 when the
+// context could not allocate them and the buffers are RGBA8, so a shader writes and reads its signed
+// vec2 through packFlow / unpackFlow and works either way. The value must lie within [-0.5, 0.5]; the
+// RGBA8 form keeps it to 16 bits per component in the red/green and blue/alpha channel pairs.
+constexpr const char *kFloatBufferPrelude = R"(
+uniform float u_floatBuffers;
+
+vec2 packFlowComponent(float v)
+{
+    float e = floor(clamp(v + 0.5, 0.0, 1.0) * 65535.0 + 0.5);
+    float hi = floor(e / 256.0);
+    return vec2(hi, e - hi * 256.0) / 255.0;
+}
+
+float unpackFlowComponent(vec2 b)
+{
+    return (floor(b.x * 255.0 + 0.5) * 256.0 + floor(b.y * 255.0 + 0.5)) / 65535.0 - 0.5;
+}
+
+vec4 packFlow(vec2 v)
+{
+    return u_floatBuffers > 0.5 ? vec4(v, 0.0, 1.0)
+                                : vec4(packFlowComponent(v.x), packFlowComponent(v.y));
+}
+
+vec2 unpackFlow(vec4 b)
+{
+    return u_floatBuffers > 0.5 ? b.rg : vec2(unpackFlowComponent(b.rg), unpackFlowComponent(b.ba));
+}
 )";
 
 // The engine declarations a package's passes are compiled with.
@@ -412,12 +510,18 @@ QByteArray packagePrelude(const drift::GpuEffectDefinition &gpu)
     QByteArray out;
     if (gpu.historyFrames > 0)
         out += kHistoryPrelude;
+    if (gpu.futureFrames > 0)
+        out += gpu.sourceUnits ? kSourceFuturePrelude : kFuturePrelude;
+    if (gpu.sourceUnits)
+        out += kSourceUnitsPrelude;
     if (gpu.needsPrevOutput)
         out += kPrevOutputPrelude;
     if (gpu.needsDepth)
         out += kDepthPrelude;
     if (gpu.needsMask)
         out += kMaskPrelude;
+    if (gpu.usesFloatBuffers())
+        out += kFloatBufferPrelude;
     return out;
 }
 
@@ -1082,12 +1186,18 @@ QString describePrime(const VaDrmPrimeSurfaceDescriptor &desc)
 }
 #endif // DRIFT_VAAPI_IMPORT
 
-uint64_t targetPoolKey(int width, int height, bool wantDepth)
+uint64_t targetPoolKey(int width, int height, bool wantDepth, bool floatColor)
 {
-    // w/h fit in 31 bits; the low bit tags depth so colour-only and depth targets never share.
+    // w/h fit in 31 bits; bit 0 tags depth and bit 32 half-float colour, so those never share.
     return (uint64_t(uint32_t(width) & 0x7fffffffu) << 33)
            | (uint64_t(uint32_t(height) & 0x7fffffffu) << 1)
+           | (floatColor ? (uint64_t(1) << 32) : 0u)
            | (wantDepth ? 1u : 0u);
+}
+
+size_t targetBytesPerPixel(bool depth, bool floatColor)
+{
+    return (floatColor ? 8u : 4u) + (depth ? 4u : 0u);
 }
 
 GlRuntime *g_runtime = nullptr;
@@ -1587,27 +1697,54 @@ void GlRuntime::shutdown()
 }
 
 
-GlTarget GlRuntime::acquireTarget(int width, int height, bool wantDepth)
+bool GlRuntime::supportsFloatTargets()
+{
+    if (m_floatTargetsDisabled)
+        return false;
+    if (m_floatTargetsProbe >= 0)
+        return m_floatTargetsProbe == 1;
+    bool ok = false;
+    if (const QOpenGLContext *ctx = QOpenGLContext::currentContext()) {
+        const QSurfaceFormat fmt = ctx->format();
+        const auto has = [ctx](const char *name) {
+            return ctx->hasExtension(QByteArray("GL_") + name) || ctx->hasExtension(QByteArray(name));
+        };
+        if (!ctx->isOpenGLES())
+            ok = fmt.majorVersion() >= 3;
+        else
+            ok = (fmt.majorVersion() > 3 || (fmt.majorVersion() == 3 && fmt.minorVersion() >= 2))
+                 || has("EXT_color_buffer_float") || has("EXT_color_buffer_half_float");
+    }
+    m_floatTargetsProbe = ok ? 1 : 0;
+    if (!ok)
+        qInfo("GlRuntime: half-float render targets unavailable, effect buffers fall back to RGBA8");
+    return ok;
+}
+
+GlTarget GlRuntime::acquireTarget(int width, int height, bool wantDepth, bool floatColor)
 {
     GlTarget target;
     target.width = qMax(1, width);
     target.height = qMax(1, height);
     target.hasDepth = wantDepth;
+    target.floatColor = floatColor;
 
-    const uint64_t key = targetPoolKey(target.width, target.height, wantDepth);
+    const uint64_t key = targetPoolKey(target.width, target.height, wantDepth, floatColor);
     const auto it = m_targetPool.find(key);
     if (it != m_targetPool.end()) {
         target.fbo = std::move(it->second);
         m_targetPool.erase(it);
         --m_pooledTargets;
         m_pooledTargetBytes -= size_t(target.width) * size_t(target.height)
-                               * (wantDepth ? 8u : 4u);
+                               * targetBytesPerPixel(wantDepth, floatColor);
         return target;
     }
 
     QOpenGLFramebufferObjectFormat fmt;
     fmt.setAttachment(wantDepth ? QOpenGLFramebufferObject::Depth
                                 : QOpenGLFramebufferObject::NoAttachment);
+    if (floatColor)
+        fmt.setInternalTextureFormat(GL_RGBA16F);
     target.fbo = std::make_unique<QOpenGLFramebufferObject>(target.width, target.height, fmt);
     return target;
 }
@@ -1619,17 +1756,18 @@ void GlRuntime::releaseTarget(GlTarget &&target)
 
     // Count both the color texture and (when present) the depth attachment.
     const size_t bytes = size_t(target.width) * size_t(target.height)
-                         * (target.hasDepth ? 8u : 4u);
+                         * targetBytesPerPixel(target.hasDepth, target.floatColor);
     const size_t maxTargets = size_t(qMax(1, drift::tuning::targetPoolMax.load(std::memory_order_relaxed)));
     const size_t maxBytes = size_t(qMax(0, drift::tuning::targetPoolMiB.load(std::memory_order_relaxed)))
                             * size_t(drift::tuning::kMiB);
     if (maxBytes > 0 && bytes > maxBytes)
         return;
 
-    const uint64_t key = targetPoolKey(target.width, target.height, target.hasDepth);
+    const uint64_t key = targetPoolKey(target.width, target.height, target.hasDepth, target.floatColor);
     const auto entryBytes = [](const QOpenGLFramebufferObject *fbo) {
         const bool depth = fbo->format().attachment() != QOpenGLFramebufferObject::NoAttachment;
-        return size_t(fbo->width()) * size_t(fbo->height()) * (depth ? 8u : 4u);
+        const bool floatColor = fbo->format().internalTextureFormat() == GLenum(GL_RGBA16F);
+        return size_t(fbo->width()) * size_t(fbo->height()) * targetBytesPerPixel(depth, floatColor);
     };
     while (!m_targetPool.empty()
            && (m_pooledTargets >= maxTargets
@@ -3312,8 +3450,14 @@ CompiledEffect *GlRuntime::compile(const QString &cacheKey, const drift::GpuEffe
         sourceSig += QLatin1String("#mask");
     if (gpu.historyFrames > 0)
         sourceSig += QLatin1String("#history");
+    if (gpu.futureFrames > 0)
+        sourceSig += QLatin1String("#future");
+    if (gpu.sourceUnits)
+        sourceSig += QLatin1String("#srcunits");
     if (gpu.needsPrevOutput)
         sourceSig += QLatin1String("#prev");
+    if (gpu.usesFloatBuffers())
+        sourceSig += QLatin1String("#float");
     const QByteArray prelude = packagePrelude(gpu);
 
     CompiledEffect &cached = programs[cacheKey];
@@ -3873,6 +4017,8 @@ void setPackageUniforms(QOpenGLShaderProgram *program, const drift::GpuEffectDef
     program->setUniformValue("u_time", timeSec);
     const float frameRate = aux && aux->frameRate > 0 ? float(aux->frameRate) : 30.f;
     program->setUniformValue("u_frameRate", frameRate);
+    const std::array<float, 4> content = aux ? aux->contentRect : std::array<float, 4>{0.f, 0.f, 1.f, 1.f};
+    program->setUniformValue("u_contentRect", QVector4D(content[0], content[1], content[2], content[3]));
     // Rounded, so a time a hair under k / fps still lands on frame k.
     program->setUniformValue("u_frameIndex", int(std::floor(double(timeUs) * frameRate / 1'000'000.0 + 0.5)));
     // Integer microseconds for hash-stable glitch effects that mirror CPU seeding.
@@ -3948,6 +4094,12 @@ void setPackageUniforms(QOpenGLShaderProgram *program, const drift::GpuEffectDef
                                               array.values.size() / array.tupleSize,
                                               array.tupleSize);
             }
+        } else if (value.typeId() == QMetaType::QVector2D) {
+            program->setUniformValue(loc, value.value<QVector2D>());
+        } else if (value.typeId() == QMetaType::QVector3D) {
+            program->setUniformValue(loc, value.value<QVector3D>());
+        } else if (value.typeId() == QMetaType::QVector4D) {
+            program->setUniformValue(loc, value.value<QVector4D>());
         } else if (value.typeId() == QMetaType::QString) {
             const QString s = value.toString();
             // File-path params must not fall through to s.toFloat(). A path currently binds as
@@ -4179,16 +4331,27 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
 
     std::map<QString, GlTarget> buffers;
     bool failed = false;
-    for (const drift::GpuEffectBufferSpec &spec : gpu.intermediateBuffers) {
-        const int w = qMax(1, int(std::lround(canvasSize.width() * spec.scale)));
-        const int h = qMax(1, int(std::lround(canvasSize.height() * spec.scale)));
-        GlTarget target = rt.acquireTarget(w, h);
-        if (!target.isValid()) {
-            qWarning("GlRuntime: FBO alloc failed for buffer %s", qPrintable(spec.id));
-            failed = true;
-            break;
+    bool floatBuffers = gpu.usesFloatBuffers() && rt.supportsFloatTargets();
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        failed = false;
+        for (const drift::GpuEffectBufferSpec &spec : gpu.intermediateBuffers) {
+            const int w = qMax(1, int(std::lround(canvasSize.width() * spec.scale)));
+            const int h = qMax(1, int(std::lround(canvasSize.height() * spec.scale)));
+            const bool wantFloat = floatBuffers && spec.format != drift::GpuBufferFormat::Rgba8;
+            GlTarget target = rt.acquireTarget(w, h, false, wantFloat);
+            if (!target.isValid()) {
+                qWarning("GlRuntime: FBO alloc failed for buffer %s", qPrintable(spec.id));
+                failed = true;
+                break;
+            }
+            buffers.emplace(spec.id, std::move(target));
         }
-        buffers.emplace(spec.id, std::move(target));
+        if (!failed || !floatBuffers)
+            break;
+        for (auto &entry : buffers)
+            rt.releaseTarget(std::move(entry.second));
+        buffers.clear();
+        floatBuffers = false;
     }
 
     std::map<QString, GLuint> textures;
@@ -4354,6 +4517,9 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
             if (toUnit >= 0)
                 program->setUniformValue("u_toTexture", toUnit);
 
+            if (gpu.usesFloatBuffers())
+                program->setUniformValue("u_floatBuffers", floatBuffers ? 1.f : 0.f);
+
             // Re-apply resolution after possible buffer-sized primary input.
             program->setUniformValue("u_resolution",
                                      QVector2D(float(inputSize.width()), float(inputSize.height())));
@@ -4407,7 +4573,7 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
 
             if (gpu.historyFrames > 0) {
                 HistoryBinding h;
-                if (aux && aux->history.atlas && aux->history.count > 0) {
+                if (aux && aux->history.atlas && (aux->history.count > 0 || gpu.sourceUnits)) {
                     h = aux->history;
                 } else {
                     h.atlas = sourceTexAt(0);
@@ -4426,6 +4592,30 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
                 program->setUniformValue("u_historyTile",
                                          QVector2D(float(qMax(1, h.tileSize.width())),
                                                    float(qMax(1, h.tileSize.height()))));
+            }
+
+            if (gpu.sourceUnits) {
+                program->setUniformValue("u_sourceFps", aux && aux->sourceFps > 0.f ? aux->sourceFps
+                                                        : (aux && aux->frameRate > 0 ? float(aux->frameRate) : 30.f));
+                program->setUniformValue("u_projectFps", aux && aux->frameRate > 0 ? float(aux->frameRate) : 30.f);
+                program->setUniformValue("u_sourcePhase", aux ? aux->sourcePhase : 0.f);
+                program->setUniformValue("u_sourceStep", aux ? aux->sourceStep : 1.f);
+            }
+
+            if (gpu.futureFrames > 0 && gpu.sourceUnits) {
+                program->setUniformValue("u_futureCount", float(aux ? aux->futureCount : 0));
+                program->setUniformValue("u_futureSlot", float(aux ? aux->neighbourPast : 0));
+            } else if (gpu.futureFrames > 0) {
+                const int have = aux ? qBound(0, aux->futureCount, 2) : 0;
+                for (int k = 0; k < 2; ++k) {
+                    const GLuint tex = have > 0 ? aux->future[size_t(qMin(k, have - 1))] : sourceTexAt(0);
+                    gl->glActiveTexture(GL_TEXTURE0 + kFutureTextureUnit - k);
+                    gl->glBindTexture(GL_TEXTURE_2D, tex);
+                    program->setUniformValue(k == 0 ? "u_futureTexture1" : "u_futureTexture2",
+                                             kFutureTextureUnit - k);
+                }
+                gl->glActiveTexture(GL_TEXTURE0);
+                program->setUniformValue("u_futureCount", float(have));
             }
 
             if (gpu.needsPrevOutput) {

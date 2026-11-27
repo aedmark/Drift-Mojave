@@ -11,11 +11,15 @@ Item {
 
     signal newProjectRequested()
     signal openProjectRequested()
+    signal importExportRequested()
     signal openRecentRequested(string path)
     // The header's app-level entries, which do not need a project: without them here,
     // turning on agent access or changing a setting meant creating an empty project first.
     signal helpRequested()
     signal moreSettingsRequested()
+    signal shortcutsRequested()
+    signal updatesRequested()
+    signal aboutRequested()
     signal debugInfoRequested()
     signal agentAccessRequested()
 
@@ -42,21 +46,30 @@ Item {
         anchors.margins: Theme.spacingXl
         spacing: Theme.spacingSm
 
-        // The header's own Settings menu, minus Multicam, which needs a timeline.
         IconButton {
-            id: settingsButton
             glyph: Theme.icons.settings
             variant: "ghost"
             text: qsTr("Settings")
-            active: settingsMenu.opened
             tooltip: qsTr("Settings")
-            onClicked: settingsMenu.popup(0, settingsButton.height + Theme.spacingMd)
+            onClicked: root.moreSettingsRequested()
+        }
+
+        IconButton {
+            id: helpButton
+            glyph: Theme.icons.help
+            variant: "ghost"
+            text: qsTr("Help")
+            active: helpMenu.opened
+            tooltip: qsTr("Help and support")
+            onClicked: helpMenu.popup(0, helpButton.height + Theme.spacingMd)
 
             AppSettingsMenu {
-                id: settingsMenu
-                projectTools: false
-                onMoreSettingsRequested: root.moreSettingsRequested()
+                id: helpMenu
                 onHelpRequested: root.helpRequested()
+                onShortcutsRequested: root.shortcutsRequested()
+                onUpdatesRequested: root.updatesRequested()
+                onDebugInfoRequested: root.debugInfoRequested()
+                onAboutRequested: root.aboutRequested()
             }
         }
 
@@ -104,6 +117,7 @@ Item {
                 width: parent.width
                 onNewProjectRequested: root.newProjectRequested()
                 onOpenProjectRequested: root.openProjectRequested()
+                onImportExportRequested: root.importExportRequested()
             }
 
             StartScreenRecents {

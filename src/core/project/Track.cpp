@@ -74,7 +74,8 @@ bool Track::allowsClipType(ClipType clipType) const
     case TrackType::Shape:
         return clipType == ClipType::Image || clipType == ClipType::Shape
             || clipType == ClipType::Vector || clipType == ClipType::Model3d
-            || clipType == ClipType::Pdf || clipType == ClipType::Procedural;
+            || clipType == ClipType::Pdf || clipType == ClipType::Procedural
+            || clipType == ClipType::Generator;
     case TrackType::Video:
         return clipType == ClipType::Video || clipType == ClipType::Composite;
     case TrackType::Adjustment:
@@ -131,6 +132,15 @@ QString trackDefaultLabel(const Track &track)
         }
     }
     return track.number > 0 ? QStringLiteral("%1 %2").arg(type).arg(track.number) : type;
+}
+
+bool anyTrackSoloed(const QList<Track> &tracks)
+{
+    for (const Track &track : tracks) {
+        if (track.solo)
+            return true;
+    }
+    return false;
 }
 
 } // namespace drift

@@ -383,7 +383,7 @@ ThemedDialog {
     property bool batchRenderRegions: false
     property string batchFilenameTemplate: "{Project}_{Region}_{Index}.{ext}"
 
-    function startExport(bakeMode) {
+    function pickOutput(bakeMode) {
         var container = isGifExport ? "gif"
                 : isAudioOnly
                   ? EditorState.exportPreferredAudioOnlyContainer(audioCodecId)
@@ -393,7 +393,7 @@ ThemedDialog {
         if (batchRenderRegions && EditorState.regions.length > 0) {
             if (!FileDialogs.supportsDirectoryPicker()) {
                 Toasts.warning(qsTr("Folder picker is unavailable on this platform."))
-                return
+                return ""
             }
             var folder = EditorState.lastExportFolder()
             var startDir = folder.length > 0
@@ -402,14 +402,14 @@ ThemedDialog {
             var dirUrl = FileDialogs.openDirectory(qsTr("Choose folder for Batch Region Render"), startDir)
             if (dirUrl != "") {
                 const batchSettings = buildSettings()
-                batchSettings.bakes = useBakes ? bakeMode : "none"
+                batchSettings.bakes = useBakes ? (bakeMode || "all") : "none"
                 batchSettings.exportWorkAreaOnly = false
                 if (EditorState.batchExportRegions(dirUrl, batchFilenameTemplate, [], batchSettings))
                     Toasts.info(qsTr("Batch region render started…"))
             } else {
                 Toasts.info(qsTr("Batch render cancelled."))
             }
-            return
+            return ""
         }
         var dialogTitle = isGifExport ? qsTr("Export GIF")
                 : isAudioOnly ? qsTr("Export Audio") : qsTr("Export Video")
@@ -417,9 +417,13 @@ ThemedDialog {
         var suggestedName = Qt.platform.os === "android"
                 ? EditorState.projectFile.projectName + " " + Qt.formatDateTime(new Date(), "yyyyMMdd_HHmmss")
                 : EditorState.projectFile.projectName
-        var url = FileDialogs.saveFile(dialogTitle, filters,
-                                       suggestedName, suffix,
-                                       EditorState.lastExportFolder())
+        return FileDialogs.saveFile(dialogTitle, filters,
+                                    suggestedName, suffix,
+                                    EditorState.lastExportFolder())
+    }
+
+    function startExport(bakeMode) {
+        var url = pickOutput(bakeMode)
         if (url != "") {
             const settings = buildSettings()
             settings.bakes = useBakes ? bakeMode : "none"
@@ -430,9 +434,34 @@ ThemedDialog {
         }
     }
 
+    // Queued renders use the editor's frozen copy of the project, so the dialog can close at once.
+    function queueExport(target) {
+        var url = pickOutput()
+        if (url == "")
+            return
+        const jobId = RenderQueue.addCurrent(url, buildSettings(), target)
+        if (jobId === "")
+            return
+        Toasts.info(target === "farm" ? qsTr("Sent to the render farm")
+                    : RenderQueue.autoStart ? qsTr("Added to the render queue")
+                    : qsTr("Added to the render queue. Press Start there to render it."))
+        root.close()
+    }
+
+    readonly property bool queueAvailable: Qt.platform.os !== "android" && Qt.platform.os !== "wasm"
+    extraButtons: {
+        if (!queueAvailable)
+            return []
+        const buttons = [{ id: "queue", text: qsTr("Add to queue") }]
+        if (RenderFarm.running)
+            buttons.push({ id: "farm", text: qsTr("Send to farm") })
+        return buttons
+    }
+    onExtraClicked: (id) => queueExport(id === "farm" ? "farm" : "local")
+
     ThemedDialog {
         id: staleBakesDialog
-        title: qsTr("Some bakes are out of date")
+        title: qsTr("Some pre-rendered sections are out of date")
         preferredWidth: Theme.dialogWidthSm
         showFooter: false
         acceptOnReturn: false
@@ -445,7 +474,7 @@ ThemedDialog {
                 width: parent.width
                 size: "sm"
                 tone: "default"
-                text: qsTr("%n baked range(s) no longer match your edits. Exporting them as is uses the old pictures.", "",
+                text: qsTr("%n pre-rendered section(s) no longer match your edits. Exporting them as is uses the old pictures.", "",
                            root.staleBakes.length)
             }
 
@@ -455,7 +484,7 @@ ThemedDialog {
 
                 ThemedButton {
                     variant: "primary"
-                    text: qsTr("Re-bake first")
+                    text: qsTr("Re-render first")
                     onClicked: {
                         staleBakesDialog.close()
                         EditorState.bakes.rebakeAllStale()
@@ -501,7 +530,7 @@ ThemedDialog {
         property int dragLocks: 0
         interactive: contentHeight > height && dragLocks === 0
         ScrollBar.vertical: AppScrollBar {
-            policy: contentFlick.contentHeight > contentFlick.height
+            policy: contentFlick.contentHeight > contentFlick.height && !(Theme.touchInput && Theme.compact)
                     ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
         }
 
@@ -575,7 +604,7 @@ ThemedDialog {
             ThemedCheckBox {
                 width: parent.width
                 visible: root.exportMode === "video" && EditorState.bakes.bakes.length > 0
-                text: qsTr("Use baked ranges")
+                text: qsTr("Use pre-rendered sections")
                 checked: root.useBakes
                 tooltip: qsTr("Read pre-rendered ranges instead of compositing them again")
                 onToggled: root.useBakes = checked
@@ -753,6 +782,11 @@ ThemedDialog {
                     text: qsTr("Clear Queue")
                     onClicked: EditorState.clearRenderQueue()
                 }
+            }
+
+            ExportDialogSizeEstimate {
+                width: parent.width
+                dialog: root
             }
         }
     }

@@ -1,4 +1,6 @@
+#include "app/surfaces/EditorSurfaceTargets.h"
 #include "engine/platform/AndroidUri.h"
+#include "engine/encode/proxies/ProxyLocation.h"
 #include "ui/timeline/TimelineCursors.h"
 #include "core/base/CacheRoot.h"
 #include "app/editor/appcontroller/AppControllerInternal.h"
@@ -12,6 +14,7 @@
 #include "app/color/ColorController.h"
 #include "app/editor/BlendPreviewController.h"
 #include "app/jobs/audio/DenoiseController.h"
+#include "app/jobs/capture/CaptureController.h"
 #include "app/jobs/audio/AudioAlignController.h"
 #include "app/jobs/render/BakeController.h"
 #include "app/jobs/vision/DepthController.h"
@@ -22,7 +25,9 @@
 #include "app/jobs/vision/SegmentationController.h"
 #include "app/bin/MediaBinController.h"
 #include "app/bin/SourceLabController.h"
+#include "app/editor/InterchangeController.h"
 #include "app/jobs/vision/StabilizeController.h"
+#include "app/commandbar/CommandBarController.h"
 #include "app/jobs/vision/TrackingController.h"
 #include "app/jobs/audio/TtsController.h"
 #include "app/jobs/audio/VoiceLibrary.h"
@@ -30,6 +35,7 @@
 #include "app/editor/PreferencesController.h"
 #include "app/editor/ProjectFileController.h"
 #include "ui/preview/PreviewController.h"
+#include "ui/manip/DragSession.h"
 
 #include "app/online/addons/AddonManager.h"
 #include "engine/render2d/pdf/PdfClipRenderer.h"
@@ -616,6 +622,7 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
     m_depth = new DepthController(this, this);
     m_bakes = new BakeController(this, this);
     m_denoise = new DenoiseController(this, this);
+    m_capture = new CaptureController(this, this);
     m_audioAlign = new AudioAlignController(this, this);
     m_color = new ColorController(this, this);
     m_blendPreview = new BlendPreviewController(this, this);
@@ -626,13 +633,19 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
     m_restore = new RestoreController(this, this);
     m_faces = new FaceTrackingController(this, this);
     m_stabilize = new StabilizeController(this, this);
+    m_commandBar = new CommandBarController(this, this);
     m_tracking = new TrackingController(this, this);
     m_bin = new MediaBinController(this, this);
     m_sourceLab = new SourceLabController(this, this);
+    m_interchange = new InterchangeController(this, this);
     m_tts = new TtsController(this, this);
     m_voices = new VoiceLibrary(this, m_tts, this);
     m_tts->setVoices(m_voices);
     m_preview = new PreviewController(*this, this);
+    m_drag = new drift::manip::DragSession(this);
+    m_drag->setHooks({[this](const QString &undoText) { beginPreviewDrag(undoText); },
+                      [this] { commitPreviewDrag(); },
+                      [this] { cancelPreviewDrag(); }});
     m_preferences = new PreferencesController(this);
     connect(m_preferences, &PreferencesController::restartNoticeRequested, this,
             [this](const QString &text) {
@@ -698,6 +711,14 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
         });
         connect(m_assetLibrary, &AssetLibrary::proxyRuleLearned, m_preferences,
                 &PreferencesController::addProxyNamePattern);
+        const auto applyProxyLocation = [this] {
+            m_assetLibrary->setProxyLocation(
+                drift::proxyLocationFromString(m_preferences->proxyLocation()).value_or(drift::ProxyLocation::Beside),
+                m_preferences->proxyFolder());
+        };
+        applyProxyLocation();
+        connect(m_preferences, &PreferencesController::proxyLocationChanged, this, applyProxyLocation);
+        connect(m_preferences, &PreferencesController::proxyFolderChanged, this, applyProxyLocation);
         m_assetLibrary->setProxySuggestionMode(m_preferences->proxySuggestion());
         connect(m_preferences, &PreferencesController::proxySuggestionChanged, this, [this] {
             m_assetLibrary->setProxySuggestionMode(m_preferences->proxySuggestion());
@@ -944,7 +965,9 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
         }
     });
 
-    loadShortcuts();
+    m_keymap = new drift::Keymap(this);
+    connect(m_keymap, &drift::Keymap::changed, this, &AppController::shortcutsChanged);
+    m_surfaces = new drift::ControlSurfaceManager(new drift::EditorSurfaceTargets(this, this), this);
     QSettings settings;
     for (const QJsonValue &value :
          QJsonDocument::fromJson(settings.value(QStringLiteral("preview/guideSets")).toByteArray()).array())

@@ -11,32 +11,100 @@ Item {
     signal added()
     // Set by the phone's add page: tap adds, hold opens the card menu, and the last pick is marked.
     property bool pickerMode: false
+    property var headerTabs: []
+    property string headerTabId: ""
+    signal headerTabSelected(string tabId)
     property string pickedId: ""
 
     readonly property var categories: EditorState.builtinShapeCategories()
-    readonly property var allShapes: EditorState.builtinShapes()
     // The section at the top of the grid; showCategory() scrolls to one.
     readonly property string activeCategory: shapeGrid.currentSectionId
     function showCategory(id) { shapeGrid.scrollToSection(id) }
+    // Bumped when the library changes, so the lists are read again.
+    property int userShapesTick: 0
+    readonly property var allShapes: { void userShapesTick; return EditorState.builtinShapes() }
+    readonly property bool hasUserShapes: allShapes.some(s => s.user === true)
     property alias searchText: search.text
     readonly property string query: search.text.trim().toLowerCase()
+    Connections {
+        target: EditorState
+        function onUserShapesChanged() { root.userShapesTick++ }
+    }
+
+    function importSvg() {
+        const url = FileDialogs.openFile(qsTr("Import SVG"), [qsTr("SVG images (*.svg)")])
+        if (url.toString().length > 0)
+            EditorState.importSvgToLibrary(url)
+    }
+
     Column {
         anchors.fill: parent
         spacing: 0
 
         AssetSearchBar {
             id: search
+            tabs: root.headerTabs
+            currentTabId: root.headerTabId
+            onTabSelected: tabId => root.headerTabSelected(tabId)
             placeholderText: qsTr("Search shapes")
             historyKey: "shapes"
+
+            IconButton {
+                visible: Theme.phone && root.pickerMode
+                glyph: Theme.icons.penTool
+                variant: "text"
+                tooltip: qsTr("Draw a line or custom shape")
+                onClicked: EditorState.preview.shapePathMode = "draw"
+            }
         }
 
         Item {
+            id: chipsGap
             width: 1
-            height: Theme.spacingSm
+            height: Theme.phone ? 0 : Theme.spacingSm
+        }
+
+        Row {
+            id: toolbar
+            x: Theme.pagePadding
+            width: parent.width - Theme.pagePadding * 2
+            visible: !(Theme.phone && root.pickerMode)
+            height: visible ? implicitHeight + Theme.spacingSm : 0
+            spacing: Theme.spacingSm
+
+            ThemedButton {
+                variant: "secondary"
+                glyph: Theme.icons.penTool
+                text: qsTr("Draw")
+                tooltip: qsTr("Draw a line or custom shape")
+                onClicked: EditorState.preview.shapePathMode = "draw"
+            }
+            ThemedButton {
+                variant: "secondary"
+                visible: !root.pickerMode
+                glyph: Theme.icons.upload
+                text: qsTr("Import SVG")
+                tooltip: qsTr("Add an SVG file to My shapes")
+                onClicked: root.importSvg()
+            }
+        }
+
+        Text {
+            id: userHint
+            visible: !root.pickerMode && !root.hasUserShapes && root.query.length === 0
+            x: Theme.pagePadding
+            width: parent.width - Theme.pagePadding * 2
+            height: visible ? implicitHeight + Theme.spacingSm : 0
+            text: qsTr("My shapes: draw or import a shape, then Save to My shapes.")
+            color: Theme.c.shapesTab.foregroundMuted
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSizeXs
+            wrapMode: Text.WordWrap
         }
 
         AssetCategoryChips {
             id: categoryChips
+            flickable: shapeGrid
             width: parent.width
             sections: shapeGrid.visibleSections
             activeCategory: root.activeCategory
@@ -46,7 +114,7 @@ Item {
 
         Item {
             width: parent.width
-            height: Math.max(0, parent.height - search.height - Theme.spacingSm - categoryChips.height)
+            height: Math.max(0, parent.height - search.height - chipsGap.height - toolbar.height - userHint.height - categoryChips.height)
 
             Text {
                 id: emptySearchHint
@@ -74,6 +142,8 @@ Item {
                 items: root.allShapes
                 categories: root.categories
                 favoritesKind: "shapes"
+                isMine: function(item) { return item.user === true }
+                mineLabel: qsTr("My shapes")
                 query: root.query
                 cellHeight: cardSize + Theme.spacingSm + Math.ceil(labelMetrics.height) + Theme.assetCardGap
                 cardDelegate: ShapePresetCard {

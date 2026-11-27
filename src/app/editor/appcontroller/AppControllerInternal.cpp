@@ -11,6 +11,7 @@
 #include "engine/render3d/splats/SplatAsset.h"
 #include "engine/packages/transitions/TransitionCatalog.h"
 #include "app/mcp/McpDetail.h"
+#include "engine/render2d/shapes/SvgShapeImport.h"
 
 #include <QStandardPaths>
 #include <QDir>
@@ -405,7 +406,10 @@ QVariantMap legacyTextAnimationMap(const drift::TextAnimationSlot &slot)
 
 QVariantMap textLayerToMap(const drift::TextShadingLayer &layer)
 {
-    return drift::textShadingLayerToJson(layer).toVariantMap();
+    QVariantMap map = drift::textShadingLayerToJson(layer).toVariantMap();
+    // The JSON omits the default, which the inspector would then have to know.
+    map.insert(QStringLiteral("cap"), drift::strokeCapToString(layer.cap));
+    return map;
 }
 
 QJsonObject deepMergeJson(QJsonObject base, const QJsonObject &patch)
@@ -562,6 +566,13 @@ QVariantMap textStyleToMap(const drift::TextStyle &s, drift::TimeUs timelineStar
         {QStringLiteral("accent"), wordAccentToMap(s.accent)},
         {QStringLiteral("animation"), textAnimationSetToMap(s.animation)},
     };
+
+    // Only scrolling styles carry the keys, which keeps agent-facing clip rows small.
+    if (s.scroll != drift::TextScroll::None) {
+        map.insert(QStringLiteral("scroll"), drift::textScrollToString(s.scroll));
+        map.insert(QStringLiteral("scrollEnterOffscreen"), s.scrollEnterOffscreen);
+        map.insert(QStringLiteral("scrollExitOffscreen"), s.scrollExitOffscreen);
+    }
 
     // Read-only mirrors of the flat v6 look, kept one release for the inspector rows and agents
     // that still read them.
@@ -746,6 +757,7 @@ drift::Mask maskFromMap(const QVariantMap &m)
     mask.feather = m.value(QStringLiteral("feather"), mask.feather).toDouble();
     mask.roundness = m.value(QStringLiteral("roundness"), mask.roundness).toDouble();
     mask.invert = m.value(QStringLiteral("invert"), mask.invert).toBool();
+    mask.lockAspect = m.value(QStringLiteral("lockAspect"), mask.lockAspect).toBool();
     mask.op = drift::maskOpFromString(m.value(QStringLiteral("op")).toString());
     mask.enabled = m.value(QStringLiteral("enabled"), mask.enabled).toBool();
     mask.name = m.value(QStringLiteral("name"), mask.name).toString();
@@ -761,20 +773,8 @@ drift::Mask maskFromMap(const QVariantMap &m)
     if (m.contains(QStringLiteral("mediaTimeBase")))
         mask.mediaTimeBase =
             drift::maskMediaTimeBaseFromString(m.value(QStringLiteral("mediaTimeBase")).toString());
-    const QVariantList points = m.value(QStringLiteral("points")).toList();
-    for (const QVariant &value : points) {
-        // The [x, y] pair form is what this map used to emit, so anything already sending it
-        // over MCP keeps working.
-        if (value.canConvert<QVariantMap>() && !value.canConvert<QVariantList>()) {
-            const QVariantMap point = value.toMap();
-            mask.points.append(QPointF(point.value(QStringLiteral("x")).toDouble(),
-                                       point.value(QStringLiteral("y")).toDouble()));
-            continue;
-        }
-        const QVariantList pair = value.toList();
-        if (pair.size() >= 2)
-            mask.points.append(QPointF(pair.at(0).toDouble(), pair.at(1).toDouble()));
-    }
+    // Plain [x, y] pairs and {x, y} maps still come in from older MCP clients; they become corners.
+    mask.vertices = maskVerticesFromVariant(m.value(QStringLiteral("points")).toList());
     return mask;
 }
 
@@ -844,6 +844,7 @@ bool isSyntheticTimelineClip(drift::ClipType type)
            || type == drift::ClipType::Shape || type == drift::ClipType::Image
            || type == drift::ClipType::Vector || type == drift::ClipType::Model3d
            || type == drift::ClipType::Pdf || type == drift::ClipType::Procedural
+           || type == drift::ClipType::Generator
            || type == drift::ClipType::Adjustment;
 }
 
@@ -958,13 +959,22 @@ bool parsePdfProp(const drift::Clip &clip, const QString &prop, QString *key)
     return true;
 }
 
+QList<drift::EffectParamSpec> proceduralSpecsFor(const drift::Clip &clip)
+{
+    if (clip.type == drift::ClipType::Generator) {
+        const drift::GeneratorKind *kind = drift::generatorKind(clip.procedural.packageId);
+        return kind ? kind->parameters : QList<drift::EffectParamSpec>{};
+    }
+    return proceduralForId(clip.procedural.packageId).parameters;
+}
+
 bool parseProceduralProp(const drift::Clip &clip, const QString &prop, QString *key)
 {
-    if (clip.type != drift::ClipType::Procedural || !prop.startsWith(QLatin1String("proc.")))
+    if ((clip.type != drift::ClipType::Procedural && clip.type != drift::ClipType::Generator)
+        || !prop.startsWith(QLatin1String("proc.")))
         return false;
     const QString candidate = prop.mid(5);
-    const drift::ProceduralPackage package = proceduralForId(clip.procedural.packageId);
-    for (const drift::EffectParamSpec &spec : package.parameters) {
+    for (const drift::EffectParamSpec &spec : proceduralSpecsFor(clip)) {
         if (spec.key == candidate) {
             if (spec.isText() || spec.isVec2() || spec.isRegion())
                 return false;
@@ -1463,7 +1473,7 @@ void applyDefaultVisualLayout(drift::Clip &clip, int canvasW, int canvasH, doubl
             w = canvasW * 0.6;
             h = w / aspect;
         }
-        setClipFrameBox(clip, 0, 0, w, h);
+        setClipFrameBox(clip, (canvasW - w) / 2.0, (canvasH - h) / 2.0, w, h);
         return;
     }
     if (clip.type == drift::ClipType::Text) {
@@ -1474,9 +1484,9 @@ void applyDefaultVisualLayout(drift::Clip &clip, int canvasW, int canvasH, doubl
         setClipFrameBox(clip, 0, canvasH * 0.78, canvasW, canvasH * 0.18);
         return;
     }
-    // Stickers / generic images without metadata: modest top-left box.
+    // Stickers / generic images without metadata: a modest box on the canvas centre.
     const double side = qMin(canvasW, canvasH) * 0.25;
-    setClipFrameBox(clip, 0, 0, side, side);
+    setClipFrameBox(clip, (canvasW - side) / 2.0, (canvasH - side) / 2.0, side, side);
 }
 
 bool assetHasAudioStreams(const drift::Project &project, AssetLibrary *library, const QString &assetId)
@@ -1895,6 +1905,70 @@ void applyShapeStylePatch(drift::ShapeStyle &s, const QVariantMap &m)
         s.tailX = qBound(0.08, m.value(QStringLiteral("tailX")).toDouble(), 0.92);
     if (m.contains(QStringLiteral("tailSize")))
         s.tailSize = qBound(0.05, m.value(QStringLiteral("tailSize")).toDouble(), 0.5);
+    if (m.contains(QStringLiteral("sweep")))
+        s.sweep = qBound(1.0, m.value(QStringLiteral("sweep")).toDouble(), 359.0);
+    // A path replaces the outline, so the keys that animated the old one go.
+    if (m.contains(QStringLiteral("path"))) {
+        QVector<drift::ShapeContour> contours;
+        if (drift::contoursFromSvgPath(m.value(QStringLiteral("path")).toString(), &contours, nullptr, nullptr)) {
+            s.kind = drift::ShapeKind::Path;
+            s.contours = contours;
+            s.pathKeys.clear();
+        }
+    } else if (m.contains(QStringLiteral("contours"))) {
+        s.contours = shapeContoursFromVariant(m.value(QStringLiteral("contours")).toList());
+        s.pathKeys.clear();
+    }
+    if (m.contains(QStringLiteral("fillRule")))
+        s.fillRule = m.value(QStringLiteral("fillRule")).toString() == QLatin1String("evenodd") ? Qt::OddEvenFill
+                                                                                              : Qt::WindingFill;
+}
+
+QVariantList shapeContoursToVariant(const QVector<drift::ShapeContour> &contours)
+{
+    QVariantList out;
+    for (const drift::ShapeContour &contour : contours) {
+        QVariantList vertices;
+        for (const drift::ShapeVertex &v : contour.vertices) {
+            vertices.append(QVariantMap{{QStringLiteral("x"), v.p.x()},
+                                        {QStringLiteral("y"), v.p.y()},
+                                        {QStringLiteral("inX"), v.in.x()},
+                                        {QStringLiteral("inY"), v.in.y()},
+                                        {QStringLiteral("outX"), v.out.x()},
+                                        {QStringLiteral("outY"), v.out.y()},
+                                        {QStringLiteral("smooth"), v.smooth()},
+                                        {QStringLiteral("mode"), drift::tangentModeToString(v.mode)}});
+        }
+        out.append(QVariantMap{{QStringLiteral("vertices"), vertices}, {QStringLiteral("closed"), contour.closed}});
+    }
+    return out;
+}
+
+QVector<drift::ShapeContour> shapeContoursFromVariant(const QVariantList &list)
+{
+    QVector<drift::ShapeContour> out;
+    for (const QVariant &entry : list) {
+        const QVariantMap map = entry.toMap();
+        drift::ShapeContour contour;
+        contour.closed = map.value(QStringLiteral("closed"), true).toBool();
+        for (const QVariant &vertex : map.value(QStringLiteral("vertices")).toList()) {
+            const QVariantMap v = vertex.toMap();
+            const auto num = [&v](const char *key) { return v.value(QLatin1String(key)).toDouble(); };
+            // The overlay's JS still edits `smooth`; a mode it did not touch is kept only while the two agree.
+            const bool smooth = v.value(QStringLiteral("smooth")).toBool();
+            drift::TangentMode mode = smooth ? drift::TangentMode::Mirrored : drift::TangentMode::Corner;
+            if (v.contains(QStringLiteral("mode"))) {
+                const drift::TangentMode given = drift::tangentModeFromString(v.value(QStringLiteral("mode")).toString());
+                if (drift::tangentModeIsSmooth(given) == smooth)
+                    mode = given;
+            }
+            contour.vertices.append({QPointF(num("x"), num("y")), QPointF(num("inX"), num("inY")),
+                                     QPointF(num("outX"), num("outY")), mode});
+        }
+        if (!contour.vertices.isEmpty())
+            out.append(contour);
+    }
+    return out;
 }
 
 drift::Mask clipMatte(const drift::Project &project, int trackIndex, int clipIndex)

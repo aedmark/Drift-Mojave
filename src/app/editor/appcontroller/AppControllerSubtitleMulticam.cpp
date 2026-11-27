@@ -1,5 +1,7 @@
 #include "app/editor/appcontroller/AppControllerInternal.h"
 #include "engine/decode/probe/MediaProbe.h"
+#include "engine/compositor/ScriptedText.h"
+#include "core/text/TextScriptPresets.h"
 #include "app/editor/ProjectFileController.h"
 
 #include "core/interchange/subtitles/SrtIO.h"
@@ -80,6 +82,52 @@ void AppController::addTextClip(const QString &text, double atSeconds, const QSt
             setPlayheadSeconds(drift::usToSeconds(start));
         emit inlineTextEditRequested(trackIndex, newClipIndex);
     }
+}
+
+bool AppController::setTextScript(int trackIndex, int clipIndex, const QString &script)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return false;
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    if (clip.type != drift::ClipType::Text)
+        return false;
+    if (clip.textScript == script)
+        return true;
+
+    const drift::Project before = m_project;
+    clip.textScript = script;
+    pushProjectEdit(before, tr("Edit text script"));
+    finishEdit(tr("Text script updated"));
+    return true;
+}
+
+QVariantMap AppController::textScriptStatus(int trackIndex, int clipIndex) const
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return {};
+    const drift::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    if (clip.type != drift::ClipType::Text)
+        return {};
+    QVariantMap out{{QStringLiteral("script"), clip.textScript}, {QStringLiteral("text"), QString()},
+                    {QStringLiteral("error"), QString()}};
+    if (clip.textScript.isEmpty())
+        return out;
+    const bool inside = m_playheadUs >= clip.timelineStart && m_playheadUs < clip.timelineStart + clip.timelineDuration;
+    const drift::ScriptedText result = drift::scriptedTextAt(m_project, clip, inside ? m_playheadUs : clip.timelineStart);
+    out.insert(QStringLiteral("text"), result.text);
+    out.insert(QStringLiteral("error"), result.error);
+    return out;
+}
+
+QVariantList AppController::textScriptPresets() const
+{
+    QVariantList out;
+    for (const drift::TextScriptPreset &preset : drift::textScriptPresets()) {
+        out.append(QVariantMap{{QStringLiteral("id"), preset.id},
+                               {QStringLiteral("label"), preset.label},
+                               {QStringLiteral("script"), preset.script}});
+    }
+    return out;
 }
 
 void AppController::addSubtitleClip(double atSeconds)
@@ -1390,6 +1438,45 @@ void AppController::clearClipSpeedCurve(int trackIndex, int clipIndex)
     drift::retimeLinkedSubtitles(before, m_project);
     pushProjectEdit(before, tr("Speed curve removed"));
     finishEdit(tr("Speed curve removed"));
+}
+
+void AppController::addSpeedPointAtPlayhead()
+{
+    if (m_selectedTrack < 0 || m_selectedTrack >= m_project.tracks().size())
+        return;
+    drift::Track &track = m_project.tracks()[m_selectedTrack];
+    if (m_selectedClip < 0 || m_selectedClip >= track.clips.size())
+        return;
+    drift::Clip &clip = track.clips[m_selectedClip];
+    const drift::TimeUs span = clip.srcOut - clip.srcIn;
+    if (!clip.hasSpeedCurve() || span <= 0 || m_playheadUs <= clip.timelineStart || m_playheadUs >= clip.timelineEnd())
+        return;
+
+    const double pos = static_cast<double>(
+                           clip.speedCurve.sourceOffsetForTimelineOffset(m_playheadUs - clip.timelineStart, span))
+                       / span;
+    QList<drift::SpeedPoint> points = clip.speedCurve.points();
+    int index = 0;
+    while (index < points.size() && points.at(index).pos <= pos)
+        ++index;
+    if (index == 0 || index >= points.size() || pos - points.at(index - 1).pos < 0.001
+        || points.at(index).pos - pos < 0.001)
+        return;
+
+    drift::SpeedPoint point;
+    point.pos = pos;
+    point.speed = clip.speedCurve.speedAt(pos);
+    point.corner = true;
+    points.insert(index, point);
+
+    const drift::Project before = m_project;
+    const drift::Clip source = clip;
+    clip.speedCurve.setPoints(points);
+    clip.syncDurationFromSpeedCurve();
+    drift::appdetail::remapKeyframesForRetime(clip, source);
+    drift::retimeLinkedSubtitles(before, m_project);
+    pushProjectEdit(before, tr("Speed point added"));
+    finishEdit(tr("Speed point added"));
 }
 
 void AppController::setTransitionEasing(int trackIndex, const QString &transitionId,

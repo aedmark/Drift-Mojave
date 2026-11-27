@@ -2,9 +2,16 @@
 #include "core/base/CacheRoot.h"
 #include "app/bin/MediaBinController.h"
 #include "app/editor/PreferencesController.h"
+#include "app/forge/AudioForgeController.h"
+#include "app/forge/ForgeController.h"
+#include "ui/nodes/NodeGraphController.h"
+#include "ui/nodes/NodeGridItem.h"
 #include "app/procedural/ProceduralEditorController.h"
 #include "app/procedural/ProceduralHighlighter.h"
 #include "app/editor/ProjectFileController.h"
+#if !defined(Q_OS_ANDROID) && !defined(Q_OS_WASM)
+#include "app/ProjectDirCli.h"
+#endif
 #include "app/mcp/McpController.h"
 #include "engine/packages/assets/EmojiCatalog.h"
 #include "engine/packages/assets/FontCatalog.h"
@@ -21,12 +28,22 @@
 #include "app/online/addons/AddonManager.h"
 #include "app/bin/AssetLibrary.h"
 #include "app/editor/EditorState.h"
+#if !defined(Q_OS_ANDROID) && !defined(Q_OS_WASM)
+#include "app/farm/FarmCoordinator.h"
+#include "app/farm/RenderQueue.h"
+#include "app/farm/TemplateBatch.h"
+#include "app/mcp/tools/McpProjectFolder.h"
+#include <QJsonArray>
+#endif
 #include "app/crash/CrashReporter.h"
 #include "app/platform/CrashHandler.h"
 #include "app/platform/FileDialogs.h"
 #include "engine/addons/AddonRegistry.h"
 #include "app/platform/Haptics.h"
 #include "app/platform/PointerDevices.h"
+#include "app/platform/Gamepad.h"
+#include "app/platform/PointerLock.h"
+#include "app/surfaces/SurfaceHub.h"
 #include "app/platform/PlatformDrag.h"
 #include "app/platform/PrimaryDisplay.h"
 #include "app/GraphicsApiChoice.h"
@@ -63,6 +80,10 @@
 #include "ui/keyframes/KeyframeLanesItem.h"
 #include "ui/preview/BrushStrokeItem.h"
 #include "ui/preview/ToolCursor.h"
+#include "ui/manip/CurveGraphModel.h"
+#include "ui/manip/DragSession.h"
+#include "ui/manip/ManipQml.h"
+#include "ui/manip/StrokeSmoother.h"
 #include "ui/preview/ConfidenceStripItem.h"
 #include "ui/preview/TrackerOverlayItem.h"
 #include "ui/preview/PreviewItem.h"
@@ -71,6 +92,7 @@
 #include "ui/timeline/TimelineTrackItem.h"
 #include "ui/timeline/TimelineViewState.h"
 #include "app/editor/sessions/KeyframeCurvesModel.h"
+#include "app/editor/sessions/KeyframeInteraction.h"
 #include "app/editor/sessions/KeyframeRowsModel.h"
 #include "app/editor/sessions/KeyframeSelection.h"
 #include "app/editor/sessions/PolylineDraft.h"
@@ -651,6 +673,12 @@ int main(int argc, char *argv[])
         qputenv("QT_LOGGING_RULES", "qt.scenegraph.time.renderloop.debug=true");
 
 #if !defined(Q_OS_ANDROID) && !defined(Q_OS_WASM)
+    // `drift lint <folder>` and `drift --lsp` are command-line tools: no window, no editor, nothing else started.
+    {
+        int projdirExit = 0;
+        if (drift::projdir::handleProjectDirCli(argc, argv, &projdirExit))
+            return projdirExit;
+    }
     // --headless is checked first: it also accepts --mcp-stdio, as the transport to serve
     // rather than as a request to attach to an editor running elsewhere.
     for (int i = 1; i < argc; ++i) {
@@ -947,8 +975,18 @@ int main(int argc, char *argv[])
     qmlRegisterType<KeyframeTimeView>("Drift", 1, 0, "KeyframeTimeView");
     qmlRegisterType<KeyframeRowsModel>("Drift", 1, 0, "KeyframeRowsModel");
     qmlRegisterType<KeyframeCurvesModel>("Drift", 1, 0, "KeyframeCurvesModel");
+    qmlRegisterType<KeyframeInteraction>("Drift", 1, 0, "KeyframeInteraction");
     qmlRegisterType<BrushStrokeItem>("Drift", 1, 0, "BrushStrokeItem");
     qmlRegisterType<ToolCursor>("Drift", 1, 0, "ToolCursor");
+    qmlRegisterType<drift::manip::ClipFrameMapperItem>("Drift", 1, 0, "ClipFrameMapper");
+    qmlRegisterType<drift::manip::StrokeSmoother>("Drift", 1, 0, "StrokeSmoother");
+    qmlRegisterType<drift::manip::CurveGraphModel>("Drift", 1, 0, "CurveGraphModel");
+    qmlRegisterUncreatableMetaObject(drift::manip::ManipModifiers::staticMetaObject, "Drift", 1, 0,
+                                     "ManipModifiers", QStringLiteral("Obtained from Manip.fromQtFlags"));
+    qmlRegisterUncreatableType<drift::manip::DragSession>("Drift", 1, 0, "DragSession",
+                                                          QStringLiteral("Use EditorState.drag"));
+    qmlRegisterSingletonType<drift::manip::ManipService>(
+        "Drift", 1, 0, "Manip", [](QQmlEngine *, QJSEngine *) { return new drift::manip::ManipService; });
     qmlRegisterType<PolylineDraft>("Drift", 1, 0, "PolylineDraft");
     qmlRegisterType<ColorWheelPad>("Drift", 1, 0, "ColorWheelPad");
     qmlRegisterType<ProceduralHighlighter>("Drift", 1, 0, "ProceduralHighlighter");
@@ -957,6 +995,9 @@ int main(int argc, char *argv[])
     qmlRegisterType<KeyframeCurvesItem>("Drift", 1, 0, "KeyframeCurvesItem");
     qmlRegisterType<TrackerOverlayItem>("Drift", 1, 0, "TrackerOverlayItem");
     qmlRegisterType<ConfidenceStripItem>("Drift", 1, 0, "ConfidenceStripItem");
+    qmlRegisterType<NodeGridItem>("Drift", 1, 0, "NodeGridItem");
+    qmlRegisterUncreatableType<NodeGraphController>("Drift", 1, 0, "NodeGraphController",
+                                                     QStringLiteral("Subclassed by the graph workspaces"));
     TimelineTrackItem::installAccessibility();
 
     step(StartupSplash::tr("Starting the playback and audio engines…"), 0.12);
@@ -970,8 +1011,38 @@ int main(int argc, char *argv[])
     WorkspaceStore workspaceStore;
     SearchIndex searchIndex;
     ProceduralEditorController proceduralEditor(&editorState);
+    ForgeController forge(&editorState, &workspaceStore);
+    AudioForgeController audioForge(&editorState, &workspaceStore);
     drift::Haptics haptics;
+#if !defined(Q_OS_ANDROID) && !defined(Q_OS_WASM)
+    drift::farm::RenderQueue renderQueue;
+    drift::farm::FarmCoordinator renderFarm(&renderQueue);
+    drift::mcp::projectfolder::setTemplateQueueHook(
+        [&renderQueue](const QString &folder, const QString &data, const QString &output, int row, bool all,
+                       const QString &target) {
+            drift::farm::TemplateBatch batch;
+            batch.folder = folder;
+            batch.dataFile = data;
+            batch.output = output;
+            batch.row = row;
+            batch.all = all;
+            batch.target = target == QLatin1String("farm") ? drift::farm::JobTarget::Farm : drift::farm::JobTarget::Local;
+            const drift::farm::TemplateBatchResult result = drift::farm::queueTemplateBatch(renderQueue, batch);
+            QJsonArray jobs;
+            for (const drift::farm::TemplateBatchJob &job : result.jobs)
+                jobs.append(QJsonObject{{QStringLiteral("row"), job.row},
+                                        {QStringLiteral("id"), job.id},
+                                        {QStringLiteral("output"), job.output}});
+            return QJsonObject{{QStringLiteral("error"), result.error},
+                               {QStringLiteral("jobs"), jobs},
+                               {QStringLiteral("failures"), QJsonArray::fromStringList(result.failures)}};
+        });
+    renderQueue.setSnapshotProvider([&editorState] { return editorState.exportSnapshotJson(); });
+#endif
     drift::PointerDevices pointerDevices;
+    drift::PointerLock pointerLock;
+    drift::Gamepad gamepad;
+    drift::SurfaceHub surfaceHub(editorState.surfaces());
     drift::PlatformDrag platformDrag;
     CrashReporter crashReporter;
     editorState.setAddonManager(&addonManager);
@@ -983,6 +1054,8 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonInstance("Drift", 1, 0, "BinFolderModel", editorState.bin()->folderModel());
     qmlRegisterSingletonInstance("Drift", 1, 0, "EditorState", &editorState);
     qmlRegisterSingletonInstance("Drift", 1, 0, "ProceduralEditor", &proceduralEditor);
+    qmlRegisterSingletonInstance("Drift", 1, 0, "Forge", &forge);
+    qmlRegisterSingletonInstance("Drift", 1, 0, "AudioForge", &audioForge);
     qmlRegisterSingletonInstance("Drift", 1, 0, "AppController", &editorState);
     qmlRegisterSingletonInstance("Drift", 1, 0, "FileDialogs", &fileDialogs);
     qmlRegisterSingletonInstance("Drift", 1, 0, "Addons", &addonManager);
@@ -1001,7 +1074,15 @@ int main(int argc, char *argv[])
     searchIndex.setSources(&editorState, &workspaceStore, &addonManager, ThemeManager::shared());
     qmlRegisterSingletonInstance("Drift", 1, 0, "SearchIndex", &searchIndex);
     qmlRegisterSingletonInstance("Drift", 1, 0, "Haptics", &haptics);
+#if !defined(Q_OS_ANDROID) && !defined(Q_OS_WASM)
+    qmlRegisterSingletonInstance("Drift", 1, 0, "RenderQueue", &renderQueue);
+    qmlRegisterSingletonInstance("Drift", 1, 0, "RenderFarm", &renderFarm);
+    renderFarm.restore();
+#endif
     qmlRegisterSingletonInstance("Drift", 1, 0, "PointerDevices", &pointerDevices);
+    qmlRegisterSingletonInstance("Drift", 1, 0, "PointerLock", &pointerLock);
+    qmlRegisterSingletonInstance("Drift", 1, 0, "Gamepad", &gamepad);
+    qmlRegisterSingletonInstance("Drift", 1, 0, "SurfaceHub", &surfaceHub);
     qmlRegisterSingletonInstance("Drift", 1, 0, "PlatformDrag", &platformDrag);
     qmlRegisterSingletonInstance("Drift", 1, 0, "CrashReports", &crashReporter);
     // QML_ELEMENT on ThemeManager is recorded in qml_register_types_Drift(), and
@@ -1192,12 +1273,11 @@ int main(int argc, char *argv[])
     };
     const auto loadShell = [&engine, resolvedShell, windowOf, hookWindow](bool first) {
         engine.setInitialProperties({{QStringLiteral("shellPreference"), resolvedShell}});
+        const qsizetype rootsBefore = engine.rootObjects().size();
         engine.loadFromModule("Drift", "Shell");
-        if (engine.rootObjects().isEmpty()) {
-            qCritical("Failed to load Shell QML module");
-            return;
-        }
-        hookWindow(windowOf(engine.rootObjects().constLast()), first, true);
+        // A Shell.qml that fails to load adds no root; objectCreationFailed then exits.
+        const QList<QObject *> roots = engine.rootObjects();
+        hookWindow(windowOf(roots.size() > rootsBefore ? roots.constLast() : nullptr), first, true);
     };
 
     const auto startEditor = [&](bool first) {

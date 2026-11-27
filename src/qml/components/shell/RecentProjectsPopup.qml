@@ -16,20 +16,20 @@ Popup {
     signal saveAsRequested()
     signal saveSnapshotRequested()
     signal manageSnapshotsRequested()
+    signal exportRequested()
+    signal renderQueueRequested()
     signal packageRequested()
     signal saveJsonRequested()
     signal openJsonRequested()
     signal exportInterchangeRequested()
     signal importNestedRequested()
-    // Disabled: external project imports need more fixing before shipping. Re-enable the signals
-    // and ActionRows below together with the loadProject() routing in AppController.
-    // signal importPremiereRequested()
-    // signal importMogrtRequested()
-    // signal importKdenliveRequested()
-    // signal importResolveRequested()
-    // signal importEdlRequested()
-    // signal importOtioRequested()
+    signal openFolderRequested()
+    signal saveFolderRequested()
+    signal exportBundleRequested()
+    signal renderTemplateRequested()
+    signal importExportRequested()
     signal propertiesRequested()
+    signal healthRequested()
 
 
     // Shared row for current / previous projects: status dot, title (+ optional
@@ -207,14 +207,16 @@ Popup {
         RecentProjectsActionRow {
             popup: root
             glyph: Theme.icons.plus
-            text: qsTr("Initialize new project")
+            text: qsTr("New project")
+            shortcutId: "newProject"
             onTriggered: root.newProjectRequested()
         }
 
         RecentProjectsActionRow {
             popup: root
             glyph: Theme.icons.folder
-            text: qsTr("Open project…")
+            text: qsTr("Open…")
+            shortcutId: "open"
             onTriggered: root.openFileRequested()
         }
 
@@ -225,11 +227,12 @@ Popup {
             opacity: 0.5
         }
 
-        // --- Project utilities -----------------------------------------------
+        // --- Save and export -------------------------------------------------
         RecentProjectsActionRow {
             popup: root
             glyph: Theme.icons.copy
             text: qsTr("Save as…")
+            shortcutId: "saveAs"
             onTriggered: root.saveAsRequested()
         }
 
@@ -256,16 +259,16 @@ Popup {
 
         RecentProjectsActionRow {
             popup: root
-            glyph: Theme.icons.download
-            text: qsTr("Save as JSON…")
-            onTriggered: root.saveJsonRequested()
+            glyph: Theme.icons.upload
+            text: qsTr("Export video…")
+            onTriggered: root.exportRequested()
         }
 
         RecentProjectsActionRow {
             popup: root
-            glyph: Theme.icons.upload
-            text: qsTr("Open JSON…")
-            onTriggered: root.openJsonRequested()
+            glyph: Theme.icons.layers
+            text: qsTr("Render queue…")
+            onTriggered: root.renderQueueRequested()
         }
 
         RecentProjectsActionRow {
@@ -282,49 +285,77 @@ Popup {
             onTriggered: root.importNestedRequested()
         }
 
-        // Disabled: external project imports (Premiere Pro, DaVinci Resolve/FCPXML,
-        // Kdenlive/Shotcut, .mogrt, EDL, OTIO). Uncomment to re-enable once the readers are stable.
-        // ActionRow {
-        //     glyph: Theme.icons.film
-        //     text: qsTr("Import Premiere project…")
-        //     onTriggered: root.importPremiereRequested()
-        // }
-        //
-        // ActionRow {
-        //     glyph: Theme.icons.layers
-        //     text: qsTr("Import Motion Graphics (.mogrt)…")
-        //     onTriggered: root.importMogrtRequested()
-        // }
-        //
-        // ActionRow {
-        //     glyph: Theme.icons.film
-        //     text: qsTr("Import Kdenlive / Shotcut project…")
-        //     onTriggered: root.importKdenliveRequested()
-        // }
-        //
-        // ActionRow {
-        //     glyph: Theme.icons.film
-        //     text: qsTr("Import DaVinci Resolve project / FCPXML…")
-        //     onTriggered: root.importResolveRequested()
-        // }
-        //
-        // ActionRow {
-        //     glyph: Theme.icons.list
-        //     text: qsTr("Import Edit Decision List (.edl)…")
-        //     onTriggered: root.importEdlRequested()
-        // }
-        //
-        // ActionRow {
-        //     glyph: Theme.icons.share2
-        //     text: qsTr("Import OpenTimelineIO (.otio)…")
-        //     onTriggered: root.importOtioRequested()
-        // }
+        RecentProjectsActionRow {
+            id: importExportRow
+            popup: root
+            glyph: Theme.icons.download
+            text: qsTr("Import / Export")
+            hasSubmenu: true
+            onTriggered: importExportMenu.popup(importExportRow, importExportRow.width - Theme.spacingMd, 0)
 
+            ThemedContextMenu {
+                id: importExportMenu
+                implicitWidth: 280
+
+                ThemedMenuItem {
+                    text: qsTr("Save project as JSON…")
+                    onTriggered: { root.close(); root.saveJsonRequested() }
+                }
+
+                ThemedMenuItem {
+                    text: qsTr("Open project from JSON…")
+                    onTriggered: { root.close(); root.openJsonRequested() }
+                }
+
+                ThemedMenuItem {
+                    text: qsTr("Open project folder…")
+                    onTriggered: { root.close(); root.openFolderRequested() }
+                }
+
+                ThemedMenuItem {
+                    text: qsTr("Save as project folder…")
+                    onTriggered: { root.close(); root.saveFolderRequested() }
+                }
+
+                ThemedMenuItem {
+                    text: qsTr("Export .drift bundle…")
+                    onTriggered: { root.close(); root.exportBundleRequested() }
+                }
+
+                ThemedMenuItem {
+                    text: qsTr("Render with data…")
+                    visible: EditorState.projectFile.folder.isTemplate
+                    height: visible ? implicitHeight : 0
+                    onTriggered: { root.close(); root.renderTemplateRequested() }
+                }
+
+                ThemedMenuItem {
+                    text: qsTr("Import/Export…")
+                    onTriggered: { root.close(); root.importExportRequested() }
+                }
+            }
+        }
+
+        Rectangle {
+            width: parent.width
+            height: Theme.c.recentProjectsPopup.borderWidth
+            color: Theme.c.recentProjectsPopup.divider
+            opacity: 0.5
+        }
+
+        // --- Project utilities -----------------------------------------------
         RecentProjectsActionRow {
             popup: root
             glyph: Theme.icons.fileText
             text: qsTr("Project properties…")
             onTriggered: root.propertiesRequested()
+        }
+
+        RecentProjectsActionRow {
+            popup: root
+            glyph: Theme.icons.warning
+            text: qsTr("Check for missing media…")
+            onTriggered: root.healthRequested()
         }
 
         Rectangle {

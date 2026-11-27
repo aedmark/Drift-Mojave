@@ -1,24 +1,30 @@
 #include "app/editor/ProjectFileController.h"
+#include "app/editor/ProjectFolderController.h"
 #include "app/mcp/McpController.h"
 #include "app/bin/MediaBinController.h"
 #include "app/editor/PreferencesController.h"
 #include "app/editor/sessions/MaskingController.h"
 
 #include "app/editor/AppController.h"
+#include "ui/preview/PreviewController.h"
 
 #include "app/bin/AssetLibrary.h"
 #include "app/platform/RunningInstances.h"
-#include "core/interchange/EdlReader.h"
 #include "core/project/media/ImageSequence.h"
+#include "core/interchange/EdlReader.h"
 #include "core/interchange/KdenliveReader.h"
 #include "core/interchange/premiere/MogrtReader.h"
 #include "core/interchange/OtioReader.h"
 #include "core/interchange/premiere/PrprojReader.h"
 #include "core/interchange/ResolveReader.h"
 #include "core/interchange/VegasReader.h"
+#include "core/interchange/InterchangeFormats.h"
 #include "engine/addons/AddonRegistry.h"
+#include "app/editor/AppControllerDetail.h"
+#include "engine/decode/probe/MediaProbe.h"
 #include "engine/platform/AndroidUri.h"
 #include "engine/encode/writers/AudioFileWriter.h"
+#include "engine/packages/animations/AnimationCatalog.h"
 #include "engine/packages/effects/EffectCatalog.h"
 #include "engine/encode/export/Exporter.h"
 #include "engine/project/ProjectDependencies.h"
@@ -72,6 +78,7 @@ ProjectFileController::ProjectFileController(AppController *app, QObject *parent
     : QObject(parent)
     , m_app(app)
 {
+    m_folder = new ProjectFolderController(this, this);
     // The state a fresh controller starts clean in, until the first save, load or new project.
     m_savedProject = std::make_shared<const drift::Project>(m_app->m_project);
     // Periodically snapshot unsaved work to a recovery file so a crash doesn't
@@ -151,7 +158,7 @@ void collectJsonStrings(const QJsonValue &value, QSet<QString> *out)
 }
 } // namespace
 
-// Every packaged project ever opened leaves its media unpacked under <AppData>/projects/<id>. Drop
+// Every packaged project ever opened leaves its media unpacked under <AppData>/projects/<projectPathKey(id)>. Drop
 // the ones no project in the recents list can still be pointing at, old stabilized renders nothing
 // points at, and on Android the derived artifacts nothing points at either.
 void ProjectFileController::sweepExtractionDirs()
@@ -203,6 +210,7 @@ void ProjectFileController::sweepExtractionDirs()
             continue;
         }
         live.insert(info->projectId);
+        live.insert(drift::bundleMediaKey(info->projectId, path));
         for (const drift::bundle::MediaEntry &media : info->media) {
             // Only referencing entries name a path on this machine; an embedded one records where
             // the file was on whatever machine packed it, and keepOwnerOf simply will not match.
@@ -224,9 +232,12 @@ void ProjectFileController::sweepExtractionDirs()
     liveFiles.unite(m_app->historyMediaPaths());
 #ifdef Q_OS_ANDROID
     const QString recoveryId = recovery.value(QStringLiteral("id")).toString();
-    if (!recoveryId.isEmpty())
+    if (!recoveryId.isEmpty()) {
         live.insert(recoveryId);
+        live.insert(drift::projectPathKey(recoveryId));
+    }
     live.insert(m_app->m_project.id());
+    live.insert(drift::projectPathKey(m_app->m_project.id()));
 #endif
 
     // A recent project whose manifest can't be read right now (a Flatpak document-portal path
@@ -391,12 +402,18 @@ void ProjectFileController::reportMissingCatalogEntries()
 {
     QSet<QString> missingEffects;
     QSet<QString> missingTransitions;
+    QSet<QString> missingAnimations;
 
     for (const drift::Track &track : m_app->m_project.tracks()) {
         for (const drift::Clip &clip : track.clips) {
             for (const drift::Effect &effect : clip.effects) {
                 if (!effect.catalogId.isEmpty() && !effectDefForId(effect.catalogId))
                     missingEffects.insert(effect.catalogId);
+            }
+            for (const drift::ClipAnimation *anim : {&clip.animIn, &clip.animOut}) {
+                if (!anim->isNone() && !drift::isBuiltinClipAnimation(anim->kindId)
+                    && !animationDefForId(anim->kindId))
+                    missingAnimations.insert(anim->kindId);
             }
         }
         for (const drift::Transition &transition : track.transitions) {
@@ -405,19 +422,20 @@ void ProjectFileController::reportMissingCatalogEntries()
         }
     }
 
-    const int total = missingEffects.size() + missingTransitions.size();
+    const int total = missingEffects.size() + missingTransitions.size() + missingAnimations.size();
     if (total == 0)
         return;
 
     QStringList names = QStringList(missingEffects.begin(), missingEffects.end())
-                        + QStringList(missingTransitions.begin(), missingTransitions.end());
+                        + QStringList(missingTransitions.begin(), missingTransitions.end())
+                        + QStringList(missingAnimations.begin(), missingAnimations.end());
     names.sort();
     const QString sample = names.mid(0, 3).join(QStringLiteral(", "));
 
     m_app->setLastMessage(total == 1
                        ? tr("This project uses \"%1\", which isn’t installed — it "
                             "won’t show. Open Extras to install it.").arg(sample)
-                       : tr("This project uses %1 effects or transitions that aren’t "
+                       : tr("This project uses %1 effects, transitions or animations that aren’t "
                             "installed (%2%3) — they won’t show. Open Extras to install them.")
                              .arg(total)
                              .arg(sample, names.size() > 3 ? tr(", …") : QString()));
@@ -723,6 +741,12 @@ void ProjectFileController::writeProjectBundle(const QUrl &url, const std::optio
         m_app->setLastMessage(tr("That save location isn’t valid"), QStringLiteral("error"));
         return;
     }
+    if (m_folder->active() && !adopt && QDir::cleanPath(path) == m_folder->folderPath()) {
+        m_folder->flushNow();
+        m_app->setLastMessage(tr("Project saved"), QStringLiteral("success"));
+        emit projectSaved(true);
+        return;
+    }
     if (m_packaging) {
         m_app->setLastMessage(tr("Already saving"), QStringLiteral("warning"));
         return;
@@ -1006,15 +1030,17 @@ std::optional<AppController::ParsedProject> readRecoveryFile(const QString &path
 
 struct ProjectFileController::LoadResult
 {
-    enum class Kind { Bundle, Json, Recovery, Vegas };
+    enum class Kind { Bundle, Json, Recovery, Vegas, Interchange };
 
     QString error;
     Kind kind = Kind::Bundle;
     // Empty on failure, with `error` saying why.
     std::optional<AppController::ParsedProject> parsed;
-    QString projectName;
     // Recovery loads only: the file the snapshot was taken of.
     QString originalPath;
+    QString projectName;
+    // Interchange imports only: items the reader left out.
+    int skipped = 0;
     // Bundle loads only.
     drift::bundle::BundleInfo bundle;
     QHash<QString, QString> remap;
@@ -1507,6 +1533,30 @@ void ProjectFileController::cancelCollectMedia()
 
 void ProjectFileController::loadProject(const QUrl &url)
 {
+    if (url.isLocalFile() && QFileInfo(url.toLocalFile()).isDir()) {
+        loadProjectFolder(url.toLocalFile());
+        return;
+    }
+    {
+        const QString local = AndroidUri::filePath(url);
+        const QString suffix = QFileInfo(local).suffix().toLower();
+        const QString formatId = suffix == QLatin1String("drift") || suffix == QLatin1String("json")
+            ? QString()
+            : drift::interchange::detectImportFormat(local);
+        if (!formatId.isEmpty()) {
+            QString formatName;
+            for (const drift::interchange::InterchangeFormat &format : drift::interchange::interchangeFormats()) {
+                if (format.canImport && format.id == formatId) {
+                    formatName = QCoreApplication::translate("Interchange", format.displayName.toUtf8().constData());
+                    break;
+                }
+            }
+            const QString message = tr("%1 files open from File › Import/Export…").arg(formatName);
+            m_app->setLastMessage(message, QStringLiteral("error"));
+            emit projectLoadFinished(false, message);
+            return;
+        }
+    }
     if (!beginProjectLoad()) {
         m_app->setLastMessage(tr("Still opening a project — try again in a moment."),
                        QStringLiteral("warning"));
@@ -1535,50 +1585,6 @@ void ProjectFileController::loadProject(const QUrl &url)
             deliver();
             return;
         }
-
-        // Disabled: external project imports (Premiere Pro, DaVinci Resolve/FCPXML, Kdenlive/Shotcut,
-        // .mogrt, EDL, OTIO) landed in the last two weeks but need more fixing before they ship. Leave
-        // the branches commented out; uncomment to re-enable once the readers are stable.
-        // This is the load worker now and those importers apply on the spot, so hop them back to
-        // the GUI thread when they return.
-        // if (path.endsWith(QLatin1String(".prproj"), Qt::CaseInsensitive)
-        //     || path.endsWith(QLatin1String(".xml"), Qt::CaseInsensitive)
-        //     || drift::prproj::isPremiereProject(path)) {
-        //     loadPremiereProject(url);
-        //     return;
-        // }
-        //
-        // if (path.endsWith(QLatin1String(".drp"), Qt::CaseInsensitive)
-        //     || path.endsWith(QLatin1String(".fcpxml"), Qt::CaseInsensitive)
-        //     || drift::resolve::isResolveProject(path)) {
-        //     loadResolveProject(url);
-        //     return;
-        // }
-        //
-        // if (path.endsWith(QLatin1String(".mogrt"), Qt::CaseInsensitive)
-        //     || drift::mogrt::isMogrtFile(path)) {
-        //     importMogrt(url);
-        //     return;
-        // }
-        //
-        // if (path.endsWith(QLatin1String(".kdenlive"), Qt::CaseInsensitive)
-        //     || path.endsWith(QLatin1String(".mlt"), Qt::CaseInsensitive)
-        //     || drift::kdenlive::isKdenliveProject(path)) {
-        //     loadKdenliveProject(url);
-        //     return;
-        // }
-        //
-        // if (path.endsWith(QLatin1String(".edl"), Qt::CaseInsensitive)
-        //     || drift::edl::isEdlTimeline(path)) {
-        //     loadEdlTimeline(url);
-        //     return;
-        // }
-        //
-        // if (path.endsWith(QLatin1String(".otio"), Qt::CaseInsensitive)
-        //     || drift::otio::isOtioTimeline(path)) {
-        //     loadOtioTimeline(url);
-        //     return;
-        // }
 
         if (path.endsWith(QLatin1String(".veg"), Qt::CaseInsensitive)
             || drift::vegas::isVegasProject(path)) {
@@ -1634,8 +1640,8 @@ void ProjectFileController::loadProject(const QUrl &url)
             };
             // Named by the project's own id, which survives the round-trip, so reopening the same
             // bundle lands on the files it already unpacked.
-            const QString destDir =
-                QDir(base).filePath(QStringLiteral("projects/%1/media").arg(info->projectId));
+            const QString destDir = QDir(base).filePath(
+                QStringLiteral("projects/%1/media").arg(drift::bundleMediaKey(info->projectId, path)));
             if (!drift::bundle::extract(path, destDir, progress, &result->remap, &result->error)) {
                 deliver();
                 return;
@@ -1645,6 +1651,31 @@ void ProjectFileController::loadProject(const QUrl &url)
         result->parsed = AppController::parseProjectJson(info->document, &result->error);
         deliver();
     });
+}
+
+bool ProjectFileController::loadInterchangeProject(const drift::Project &project,
+                                                   const drift::interchange::InterchangeReport &report)
+{
+    if (!beginProjectLoad()) {
+        m_app->setLastMessage(tr("Still opening a project — try again in a moment."),
+                       QStringLiteral("warning"));
+        return false;
+    }
+
+    const int generation = ++m_loadGeneration;
+    const int dropped = report.droppedCount();
+    (void)QtConcurrent::run([this, project, dropped, generation]() {
+        auto result = std::make_shared<LoadResult>();
+        result->kind = LoadResult::Kind::Interchange;
+        result->skipped = dropped;
+        result->projectName = project.name();
+        const QByteArray data = QJsonDocument(project.toJson()).toJson(QJsonDocument::Compact);
+        result->parsed = AppController::parseProjectJson(data, &result->error);
+        QMetaObject::invokeMethod(
+            this, [this, generation, result]() { finishLoad(generation, QUrl(), result); },
+            Qt::QueuedConnection);
+    });
+    return true;
 }
 
 void ProjectFileController::finishLoad(int generation, const QUrl &url,
@@ -1675,20 +1706,149 @@ void ProjectFileController::finishLoad(int generation, const QUrl &url,
         return;
     }
 
+    // Remap non-edit-friendly camera sources to ProRes .mov transcodes kept in Transcodes_ProRes/
+    // next to the source, in ../Transcodes_ProRes/<dir>/, or under the project's own
+    // Transcodes_ProRes/. A candidate counts only when it probes as ProRes of the same length.
+    // Returns how many assets were relinked.
+    const auto autoRelinkCoLocatedProRes = [this](const QString &projectFile) -> int {
+        const QString projectDir =
+            QFileInfo(projectFile).isFile() ? QFileInfo(projectFile).absolutePath() : QString();
+        struct Relink
+        {
+            QString assetId;
+            QString from;
+            QString to;
+            MediaInfo info;
+        };
+        QList<Relink> relinks;
+        for (const auto &asset : m_app->m_project.assets()) {
+            if (asset.kind != drift::MediaKind::Video || asset.editFriendly || asset.path.isEmpty()
+                || m_embeddedSources.contains(asset.path))
+                continue;
+            const QFileInfo info(asset.path);
+            if (info.suffix().compare(QLatin1String("mov"), Qt::CaseInsensitive) == 0)
+                continue;
+
+            const QDir dir(info.absolutePath());
+            const QString movName = info.completeBaseName() + QStringLiteral(".mov");
+            QStringList candidates;
+            if (!projectDir.isEmpty()) {
+                const QString relDir = QDir(projectDir).relativeFilePath(dir.absolutePath());
+                if (relDir != QLatin1String("..") && !relDir.startsWith(QLatin1String("../")))
+                    candidates << QDir::cleanPath(projectDir + QStringLiteral("/Transcodes_ProRes/")
+                                                  + relDir + QLatin1Char('/') + movName);
+            }
+            candidates << dir.filePath(QStringLiteral("Transcodes_ProRes/") + movName)
+                       << dir.filePath(QStringLiteral("../Transcodes_ProRes/") + dir.dirName()
+                                       + QLatin1Char('/') + movName);
+            for (const QString &candidate : std::as_const(candidates)) {
+                const QFileInfo movInfo(candidate);
+                if (!movInfo.isFile() || movInfo.size() <= 0)
+                    continue;
+                const MediaInfo probed = MediaProbe::probe(movInfo.absoluteFilePath());
+                if (!probed.ok || qAbs(probed.durationUs - asset.durationUs) > 500'000)
+                    continue;
+                const bool prores = std::any_of(
+                    probed.streams.cbegin(), probed.streams.cend(), [](const StreamInfo &stream) {
+                        return stream.type == StreamInfo::Type::Video && !stream.attachedPicture
+                            && stream.codecName == QLatin1String("prores");
+                    });
+                if (!prores)
+                    continue;
+                relinks.append({asset.id, asset.path, movInfo.absoluteFilePath(), probed});
+                break;
+            }
+        }
+        if (relinks.isEmpty())
+            return 0;
+
+        QHash<QString, QString> remap;
+        for (const Relink &relink : std::as_const(relinks))
+            remap.insert(relink.from, relink.to);
+        remapProjectPaths(remap);
+        for (const Relink &relink : std::as_const(relinks)) {
+            drift::MediaAsset *asset = m_app->m_project.asset(relink.assetId);
+            if (!asset)
+                continue;
+            const int oldBinCorrection = drift::rotationCorrectionOf(*asset);
+            for (const StreamInfo &stream : relink.info.streams) {
+                if (stream.type != StreamInfo::Type::Video || stream.attachedPicture)
+                    continue;
+                asset->width = stream.width;
+                asset->height = stream.height;
+                asset->fps = stream.fps;
+                asset->rotationDegrees = stream.rotationDegrees;
+                asset->codecName = stream.codecName;
+                break;
+            }
+            asset->durationUs = relink.info.durationUs;
+            asset->frameRateKnown = true;
+            asset->variableFrameRate = false;
+            asset->editFriendly = true;
+            const int newBinCorrection = drift::rotationCorrectionOf(*asset);
+            m_app->m_project.forEachTrackList([&](QList<drift::Track> &tracks) {
+                for (drift::Track &track : tracks) {
+                    for (drift::Clip &clip : track.clips) {
+                        if (clip.assetId != relink.assetId)
+                            continue;
+                        clip.rotationCorrection =
+                            ((clip.rotationCorrection - oldBinCorrection + newBinCorrection) % 360 + 360) % 360;
+                        drift::appdetail::refreshClipFrame(m_app->m_project, clip);
+                    }
+                }
+            });
+        }
+        if (m_app->m_assetLibrary)
+            m_app->m_assetLibrary->setProject(&m_app->m_project);
+        m_app->notifyTracksChanged();
+        return int(relinks.size());
+    };
+    const auto withRelinkNote = [this](const QString &message, int relinked) {
+        if (relinked <= 0)
+            return message;
+        setDirty(true);
+        return QStringLiteral("%1. %2")
+            .arg(message, tr("Relinked %n clip(s) to ProRes transcodes", nullptr, relinked));
+    };
+    if (result->kind == LoadResult::Kind::Interchange) {
+        m_app->applyParsedProject(std::move(*result->parsed));
+        m_embeddedSources.clear();
+        setCurrentProjectPath(QString());
+        setDirty(true);
+        deleteRecoveryFile();
+        m_app->setProjectLayoutChosen(true);
+        if (m_app->m_assetLibrary)
+            m_app->m_assetLibrary->setProject(&m_app->m_project);
+        const int missing = m_app->m_assetLibrary ? m_app->m_assetLibrary->missingCount() : 0;
+        const QString name = result->projectName.isEmpty() ? projectNameForUrl(url) : result->projectName;
+        QString message = result->skipped > 0
+            ? tr("Imported %1 — %n item(s) left out. See Import/Export for details.", nullptr, result->skipped)
+                  .arg(name)
+            : tr("Imported %1").arg(name);
+        if (missing > 0)
+            message += QLatin1Char(' ') + tr("%n media file(s) could not be found.", nullptr, missing);
+        m_app->setLastMessage(message, missing > 0 || result->skipped > 0 ? QStringLiteral("warning")
+                                                                           : QStringLiteral("success"));
+        finishProjectLoad(true, message);
+        return;
+    }
+
     if (result->kind == LoadResult::Kind::Json) {
         m_app->applyParsedProject(std::move(*result->parsed));
         // Referenced media only — a previous packaged project's extraction paths must not hitch a
         // ride into the next Save.
         m_embeddedSources.clear();
+        const int relinked = autoRelinkCoLocatedProRes(QString());
         // Untitled: Save must not write a .drift bundle over this .json, and recents stay .drift.
         setCurrentProjectPath(QString());
         setDirty(true);
         deleteRecoveryFile();
         m_app->setProjectLayoutChosen(true);
         const int missing = m_app->m_assetLibrary->missingCount();
-        const QString message = missing > 0
-            ? tr("Project JSON loaded, but %n media file(s) could not be found", nullptr, missing)
-            : tr("Project JSON loaded");
+        const QString message = withRelinkNote(
+            missing > 0 ? tr("Project JSON loaded, but %n media file(s) could not be found", nullptr, missing)
+                        : tr("Project JSON loaded"),
+            relinked);
         m_app->setLastMessage(message, missing > 0 ? QStringLiteral("warning") : QStringLiteral("success"));
         finishProjectLoad(true, message);
         return;
@@ -1830,14 +1990,16 @@ void ProjectFileController::finishLoad(int generation, const QUrl &url,
     // Save-in-place has to write back to the document the user actually opened. projectLocation
     // upgrades the picker's one-shot grant to a persistable read+write one on the way.
     const QString location = projectLocation(url);
+    const int relinked = autoRelinkCoLocatedProRes(location);
     setCurrentProjectPath(location);
     addRecentProject(location);
     deleteRecoveryFile();
     m_app->setProjectLayoutChosen(true);
     const int missing = m_app->m_assetLibrary->missingCount();
-    const QString message = missing > 0
-        ? tr("Project loaded, but %n media file(s) could not be found", nullptr, missing)
-        : tr("Project loaded");
+    const QString message = withRelinkNote(
+        missing > 0 ? tr("Project loaded, but %n media file(s) could not be found", nullptr, missing)
+                    : tr("Project loaded"),
+        relinked);
     m_app->setLastMessage(message, missing > 0 ? QStringLiteral("warning") : QStringLiteral("success"));
     reportMissingAddons(bundle.addons);
     finishProjectLoad(true, message);
@@ -2088,6 +2250,197 @@ void ProjectFileController::openRecentProject(const QString &path)
     loadProject(m_app->fileUrl(path));
 }
 
+void ProjectFileController::notify(const QString &message, const QString &kind)
+{
+    m_app->setLastMessage(message, kind);
+}
+
+ProjectFileController::FolderCapture ProjectFileController::captureFolder() const
+{
+    FolderCapture capture;
+    capture.project = std::make_shared<const drift::Project>(m_app->m_project.detachedCopy());
+    capture.guides = m_app->sessionJson().value(QStringLiteral("guides")).toObject();
+    capture.revision = m_dirtyRevision;
+    return capture;
+}
+
+QJsonObject ProjectFileController::currentDocument() const
+{
+    return m_app->m_project.toJson(true);
+}
+
+void ProjectFileController::markFolderClean(const std::shared_ptr<const drift::Project> &project)
+{
+    markClean(project);
+    deleteRecoveryFile();
+}
+
+void ProjectFileController::loadProjectFolder(const QString &path)
+{
+    if (!beginProjectLoad()) {
+        m_app->setLastMessage(tr("Still opening a project — try again in a moment."),
+                              QStringLiteral("warning"));
+        return;
+    }
+    const QString root = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    const ProjectFolderController::Composed composed = ProjectFolderController::compose(root);
+    QString error;
+    std::optional<AppController::ParsedProject> parsed;
+    if (composed.contents.project.isEmpty()) {
+        error = tr("%1 isn’t a project folder (there is no project.json in it)").arg(QFileInfo(root).fileName());
+    } else if (!composed.ok) {
+        for (const drift::projdir::Problem &p : composed.problems) {
+            if (p.severity == QLatin1String("error")) {
+                error = QStringLiteral("%1:%2:%3: %4").arg(p.file).arg(p.line).arg(p.column).arg(p.message);
+                break;
+            }
+        }
+    } else {
+        parsed = AppController::parseProjectJson(composed.doc, &error);
+    }
+    if (!parsed) {
+        m_app->setLastMessage(error, QStringLiteral("error"));
+        finishProjectLoad(false, error);
+        return;
+    }
+    ++m_loadGeneration;
+    m_app->applyParsedProject(std::move(*parsed));
+    m_embeddedSources.clear();
+    setCurrentProjectPath(root);
+    addRecentProject(root);
+    deleteRecoveryFile();
+    m_app->setProjectLayoutChosen(true);
+    m_folder->activate(root, composed);
+    // Scripts changed since the files were last written: the open project is ahead of the folder.
+    if (composed.scriptsChangedDoc)
+        m_folder->scheduleWrite();
+    const int missing = m_app->m_assetLibrary->missingCount();
+    const QString message = missing > 0
+        ? tr("Project folder loaded, but %n media file(s) could not be found", nullptr, missing)
+        : tr("Project folder loaded");
+    m_app->setLastMessage(message, missing > 0 ? QStringLiteral("warning") : QStringLiteral("success"));
+    finishProjectLoad(true, message);
+}
+
+void ProjectFileController::detachGenerated(const QString &clipId, const QString &script)
+{
+    const drift::Project before = m_app->m_project;
+    drift::Project after = before;
+    int changed = 0;
+    after.forEachTrackList([&](QList<drift::Track> &tracks) {
+        for (drift::Track &track : tracks) {
+            bool touched = false;
+            for (drift::Clip &clip : track.clips) {
+                const bool match = !clip.generatedBy.isEmpty()
+                    && (clipId.isEmpty() ? (script.isEmpty() || clip.generatedBy == script) : clip.id == clipId);
+                if (!match)
+                    continue;
+                clip.generatedBy.clear();
+                touched = true;
+                ++changed;
+            }
+            // A generated track holding a detached clip would be removed with the rest of its script's
+            // output, taking the clip with it.
+            if (!track.generatedBy.isEmpty() && (touched || (clipId.isEmpty() && (script.isEmpty() || track.generatedBy == script))))
+                track.generatedBy.clear();
+        }
+    });
+    if (clipId.isEmpty()) {
+        for (auto it = after.assets().begin(); it != after.assets().end(); ++it) {
+            if (!it->generatedBy.isEmpty() && (script.isEmpty() || it->generatedBy == script)) {
+                it->generatedBy.clear();
+                ++changed;
+            }
+        }
+    }
+    if (!changed)
+        return;
+    m_app->m_undoStack.push(new drift::ProjectSnapshotCommand(
+        &m_app->m_project, before, std::move(after), clipId.isEmpty() ? tr("Detach generated items") : tr("Detach clip")));
+    m_app->notifyTracksChanged();
+}
+
+void ProjectFileController::applyFolderProject(drift::Project project, const QJsonObject &root,
+                                               const QString &label)
+{
+    const drift::Project before = m_app->m_project;
+    const auto transcripts = project.transcripts();
+    // The command's redo() assigns the snapshot, which keeps the live transcripts rather than the
+    // new project's, so those are put back afterwards.
+    m_app->m_undoStack.push(new drift::ProjectSnapshotCommand(&m_app->m_project, before, std::move(project), label));
+    m_app->m_project.setTranscripts(transcripts);
+
+    if (root.contains(QStringLiteral("guides"))) {
+        const QJsonObject guides = root.value(QStringLiteral("guides")).toObject();
+        m_app->m_preview->restoreGuidesEnabled(guides.value(QStringLiteral("enabled")).toBool(false));
+        m_app->m_projectGuideSets.clear();
+        for (const QJsonValue &value : guides.value(QStringLiteral("sets")).toArray()) {
+            drift::GuideSet set = drift::guideSetFromJson(value.toObject());
+            if (!set.id.isEmpty())
+                m_app->m_projectGuideSets.append(set);
+        }
+        m_app->m_activeGuideSets.clear();
+        for (const QJsonValue &value : guides.value(QStringLiteral("active")).toArray()) {
+            const QString id = value.toString();
+            if (m_app->findGuideSet(id) && !m_app->m_activeGuideSets.contains(id))
+                m_app->m_activeGuideSets.append(id);
+        }
+        emit m_app->guidesChanged();
+    }
+    if (m_app->m_assetLibrary) {
+        m_app->m_assetLibrary->syncToProject();
+        m_app->m_assetLibrary->ensureAllMedia();
+    }
+    m_app->notifyTracksChanged();
+    if (m_app->mcp()) {
+        m_app->mcp()->setPendingChangeLabel(label);
+        m_app->mcp()->bumpEditRevision();
+    }
+    m_app->setLastMessage(label);
+    emit projectNameChanged();
+    emit backgroundChanged();
+}
+
+void ProjectFileController::adoptFolder(const QString &path, const drift::projdir::FileMap &files,
+                                        const std::shared_ptr<const drift::Project> &project)
+{
+    const QString root = QDir::cleanPath(path);
+    m_embeddedSources.clear();
+    setCurrentProjectPath(root);
+    addRecentProject(root);
+    ProjectFolderController::Composed composed;
+    composed.contents.project = files;
+    m_folder->activate(root, composed);
+    markClean(project);
+    deleteRecoveryFile();
+}
+
+void ProjectFileController::exportBundleCopy(const QUrl &url)
+{
+    const QString path = writeTargetPath(url);
+    if (path.isEmpty()) {
+        m_app->setLastMessage(tr("That save location isn’t valid"), QStringLiteral("error"));
+        return;
+    }
+    auto capture = std::make_shared<SaveCapture>(captureSave(/*embedSource=*/false));
+    (void)QtConcurrent::run([this, path, url, capture]() {
+        QList<drift::bundle::MediaEntry> media;
+        QString error;
+        bool ok = writeBundle(path, *capture, {}, &media, &error);
+        if (ok)
+            ok = commitWriteTarget(path, url, {}, &error);
+        else
+            discardWriteTarget(path, url);
+        QMetaObject::invokeMethod(
+            this,
+            [this, ok, error, path]() {
+                m_app->setLastMessage(ok ? tr("Exported %1").arg(QFileInfo(path).fileName()) : error,
+                                      ok ? QStringLiteral("success") : QStringLiteral("error"));
+            },
+            Qt::QueuedConnection);
+    });
+}
+
 QVariantList ProjectFileController::recentProjects() const
 {
     QSettings settings;
@@ -2100,7 +2453,7 @@ QVariantList ProjectFileController::recentProjects() const
     for (const QString &path : paths) {
         const bool isContent = path.startsWith(QLatin1String("content://"), Qt::CaseInsensitive);
         QString id = ids.value(path).toString();
-        if (id.isEmpty() && !isContent && QFileInfo::exists(path)) {
+        if (id.isEmpty() && !isContent && QFileInfo(path).isFile()) {
             QString error;
             if (const auto manifest = drift::bundle::readManifest(path, &error)) {
                 id = manifest->projectId;
@@ -2108,7 +2461,7 @@ QVariantList ProjectFileController::recentProjects() const
                 idsChanged = true;
             }
         }
-        const QString thumbPath = id.isEmpty() ? QString() : QDir(thumbDir).filePath(id + QStringLiteral(".jpg"));
+        const QString thumbPath = id.isEmpty() ? QString() : QDir(thumbDir).filePath(drift::projectPathKey(id) + QStringLiteral(".jpg"));
         const QString thumbnail =
             !thumbPath.isEmpty() && QFileInfo::exists(thumbPath) ? QUrl::fromLocalFile(thumbPath).toString()
                                                                  : QString();
@@ -2150,7 +2503,10 @@ void ProjectFileController::queueSaveThumbnail(const QString &location)
     if (base.isEmpty())
         return;
     const QString projectId = m_app->m_project.id();
-    const QString outPath = QDir(base).filePath(QStringLiteral("thumbs/%1.jpg").arg(projectId));
+    const QString key = drift::projectPathKey(projectId);
+    if (key.isEmpty())
+        return;
+    const QString outPath = QDir(base).filePath(QStringLiteral("thumbs/%1.jpg").arg(key));
     {
         QSettings settings;
         QVariantMap ids = settings.value(QStringLiteral("recentProjectIds")).toMap();
@@ -2252,6 +2608,7 @@ void ProjectFileController::setDirty(bool dirty)
         return;
     }
     ++m_dirtyRevision;
+    emit documentEdited();
     if (m_dirty)
         return;
     m_dirty = true;
@@ -2262,6 +2619,8 @@ void ProjectFileController::setCurrentProjectPath(const QString &path)
 {
     if (m_currentProjectPath == path)
         return;
+    if (m_folder->active() && QDir::cleanPath(path) != m_folder->folderPath())
+        m_folder->close();
     m_currentProjectPath = path;
     // Cleared by newProject(); set after load/save/package so next launch can reopen.
     if (!m_isolatedSession)

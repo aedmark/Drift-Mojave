@@ -25,6 +25,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace drift {
 struct GpuEffectDefinition;
@@ -69,6 +70,17 @@ enum class MaskViewMode : quint8 { Off, Overlay, Matte };
 // GPU until the importer); then `vector`, drawn by Skia straight into the layer
 // target; otherwise `source` is CPU RGBA (still image, or a QPainter raster of a
 // text/shape clip). The GPU does the scaling, rotation, masking and blending.
+// A shader-based clip in/out animation to run over the layer's isolated result. `params` already
+// holds the fixed and instance values plus u_direction.
+struct GpuShaderAnim
+{
+    QString cacheKey;
+    const drift::GpuEffectDefinition *gpu = nullptr;
+    QMap<QString, QVariant> params;
+    double progress = 0.0;
+    drift::TimeUs timeUs = 0;
+};
+
 struct GpuLayer
 {
     QImage source; // null => fully transparent layer (unless video or vector is set)
@@ -88,6 +100,9 @@ struct GpuLayer
     // A composite clip's nested timeline, composed into a canvas-sized layer target.
     std::shared_ptr<const struct GpuScene> nested;
     QList<drift::Effect> effects;
+    // The clip's shader intro and outro, in that order, active at this frame. Run on the isolated
+    // layer, after its transform, effects, masks, opacity and camera.
+    QList<GpuShaderAnim> shaderAnims;
     QList<drift::Mask> masks;
     // Index-parallel with `masks`: this frame's decoded coverage map for each Media entry, null
     // for parametric ones. Decoded by FrameCompositor, which is the only place that knows the time.
@@ -106,6 +121,10 @@ struct GpuLayer
     QHash<QString, std::shared_ptr<const AudioFrame>> audioInputs;
     std::shared_ptr<const AudioFrame> globalAudio;
     QRectF rect;             // destination rect on the canvas, in canvas pixels
+    // Pixels a "padding" effect added to each side of the layer target (x on the left and right, y on
+    // top and bottom); `rect` already includes them. Set on the copy drawn after buildLayerTarget,
+    // never by the scene builder.
+    QPoint contentPad;
     double rotation = 0.0;   // degrees, clockwise, about the rect centre
     drift::ClipPose3d pose3d; // tilt and depth on top of rect/rotation, in canvas pixels
     bool flipH = false;
@@ -145,6 +164,24 @@ struct GpuLayer
     // that wants the previous frame (optical-flow motion blur) sets 1 and fetches it with
     // pastSourceFrame(rt, layer.historyScope, layer.historyKey) once buildLayerTarget has run.
     int sourceHistoryFrames = 0;
+    // Source frames before the current one, oldest first (the last is one project frame back),
+    // decoded for a "historyExact" effect when the history ring could not hold them. Fewer than
+    // asked at the start of the clip; empty when the ring already has them.
+    std::vector<PreviewVideoFrame> pastVideo;
+    // Source frames after the current one, nearest first (the first is one project frame ahead),
+    // decoded for a "future" effect. Fewer than asked at the clip's end; empty while scrubbing.
+    std::vector<PreviewVideoFrame> futureVideo;
+    // For "historyUnits": "source" effects: the media's own frames around the one shown, as decoded
+    // (oldest past first, then the future nearest first; `neighbourPast` of the first and
+    // `neighbourFuture` of the rest, in playback order). Empty while scrubbing.
+    std::vector<PreviewVideoFrame> neighbourVideo;
+    int neighbourPast = 0;
+    int neighbourFuture = 0;
+    // The media's frame rate (0 when unknown), how far between the source frame shown and the next one in
+    // playback order this frame falls (0..1), and how many source frames one project frame advances.
+    float sourceFps = 0.f;
+    float sourcePhase = 0.f;
+    float sourceStep = 1.f;
     // This frame's baked face anchors, one per tracked slot, sampled by FrameCompositor. Carried
     // by value: the scene outlives the cache lookup that produced them.
     QList<drift::FaceAnchors> faceSlots;

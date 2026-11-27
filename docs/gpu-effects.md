@@ -25,8 +25,12 @@ Search order: `DRIFT_EFFECTS_DIR`, `<applicationDir>/effects`, `<AppDataLocation
 | `fixedParams` | Hidden uniforms (colors as `#rrggbb`, enums as strings) |
 | `requires` | `"face"` to receive the baked face anchors, `"depth"` to receive the clip's depth map (see below), or an array of both. Any other value is a parse error. `"depth"` is `gpu` backend only |
 | `history` | Whole number 1–32: the effect samples that many of the clip's earlier source frames (see "Time effects" below). `gpu` backend only |
+| `historyExact` | Whole number 1–2, no more than `history`: the engine decodes that many earlier source frames on demand when its ring lacks them (see "Time effects"). `gpu` backend only; `nextFeatures` name `history:exact` |
+| `historyUnits` | `"project"` (default) or `"source"`. With `"source"`, `historyExact` and `future` count the media's own frames (up to 4 each) instead of project frames; `history` is ignored. `gpu` backend only; `nextFeatures` name `history:source-units` |
+| `future` | Whole number 1–2 (1–4 with `historyUnits: "source"`): the engine decodes that many of the clip's following source frames for each composite (see "Time effects"). `gpu` backend only; `nextFeatures` name `history:future` |
+| `padding` | A number above 0 and up to 1 (`nextFeatures`: `layout:padding`): the clip's frame grows by that fraction of its width and height on every side, transparent where the clip is not, before this effect runs, so it can draw past the frame (a shadow). The layer is drawn at the larger size around the same centre. `u_contentRect` (`vec4`, uv x0, y0, x1, y1, engine-bound) is where the clip sits in the grown frame; `(0, 0, 1, 1)` when the effect runs without padding (thumbnails, the CPU compositor). With several padding effects on a clip the largest wins. Effects after it, and masks, work on the grown frame; history, future and `requires: mask` effects in the same chain see the unpadded uv space and should not follow it |
 | `previousOutput` | `true`: the effect can read its own output from the previous frame (see "Time effects"). `gpu` backend only |
-| `pipeline` | `intermediateBuffers` + `passes` |
+| `pipeline` | `intermediateBuffers` + `passes`. A buffer is `{"id", "scale", "format"}`; `format` is optional: `"rgba8"` (default), `"rgba16f"` or `"rg16f"` (half-float: values outside 0..1 and negatives survive between passes). Any other value is a parse error. A package using a half-float format lists `buffer:float` in `nextFeatures`. See "Float intermediate buffers" |
 
 ### Parameter types
 
@@ -127,7 +131,7 @@ See `effects/face_retouch` for lipstick and blush templates drawn this way, and
 ## GLSL
 
 - `#version 330 core`
-- Reserved: `u_currentTexture`, `u_textureN`, `u_resolution`, `u_time`, `u_timeUs`, `u_frameIndex`, `u_frameRate`, `u_progress`, `u_fromTexture`, `u_toTexture`, `u_depth*`, `u_hasDepth`, `u_history*`, `u_prevOutput`, `u_templateBounds`, `u_meshAspect`, `u_face*`
+- Reserved: `u_currentTexture`, `u_textureN`, `u_resolution`, `u_time`, `u_timeUs`, `u_frameIndex`, `u_frameRate`, `u_progress`, `u_fromTexture`, `u_toTexture`, `u_depth*`, `u_hasDepth`, `u_history*`, `u_future*`, `u_sourceFps`, `u_sourcePhase`, `u_sourceStep`, `u_projectFps`, `u_prevOutput`, `u_templateBounds`, `u_meshAspect`, `u_face*`
 
 **Grace mode:** compile/GL failure → passthrough.
 
@@ -239,10 +243,10 @@ A transition with `"requires": "mask"` reads the **outgoing** clip's masks, laid
 where that clip is drawn, and that side is drawn whole for the transition. Neither is applied on the
 CPU compositor, where the package runs with `u_hasClipMask = 0` and the clip is still cut out.
 
-## Time effects (`history`, `previousOutput`)
+## Time effects (`history`, `previousOutput`, `future`)
 
-An effect can look back in time. Two independent top-level fields in `effect.json` say how, and a
-package may set both. Each also has a `nextFeatures` name (`history:source`,
+An effect can look back in time, and with `future` ahead too. Independent top-level fields in `effect.json`
+say how (`history` and `previousOutput` below; `future` after them), and a package may set several. Each also has a `nextFeatures` name (`history:source`,
 `history:previous-output`) so an older Drift rejects the package with "needs a newer Drift" instead
 of failing to compile it.
 
@@ -275,12 +279,25 @@ Behaviour, shared by both:
 - **Stepping.** Each composite looks at the clip's time in project frames
   (`round(clipTime * fps)`). The same frame again (a paused re-render after an edit) replaces what
   was recorded for it; the next frame — or the one after, when playback dropped a frame — appends;
-  anything else (a seek, a scrub, a loop, a trim) clears the history. Until it fills an effect
+  anything else (a seek, a scrub, a loop, a trim) clears the history (unless the package sets
+  `historyExact`, below). Until it fills an effect
   shows something sensible: `historyFrame` clamps to the oldest frame recorded and a transparent
   `u_prevOutput` leaves the live picture alone.
+- **`"historyExact": N` (1–2, `history` must be at least N, `nextFeatures`: `history:exact`).** When
+  the ring does not already hold the previous N frames (after a seek, on a paused frame the ring
+  never saw, at the first frame of an export range) the compositor decodes frames `t - k` for
+  k = N..1 from the clip's own reader and seeds the ring, so the effect sees them from the first
+  frame. The times go through the clip's speed, ramp and reverse mapping, so "previous" is the
+  temporal previous frame. Normal playback already has them and decodes nothing extra. Not done
+  while scrubbing (the approximate-seek read), for frames before the clip's start, for clips of
+  composite, still-image, procedural or cutout layers, which keep the ring behaviour, or by the
+  single-image executor. The seeded frames are cropped and straightened like the live one. Each
+  extra frame is one more held decoder surface until the frame has rendered, which is why
+  `kHwExtraFrames` has two spare.
 - **Export is deterministic.** It composes frame after frame in order, so each frame is built from
   exactly the frames before it, and the history is empty at the start of the file or range.
-  Starting an export mid-clip begins with an empty history at the range's first frame.
+  Starting an export mid-clip begins with an empty history at the range's first frame, except for
+  `historyExact` packages, which decode the frames before it.
 - **Memory is bounded.** The source ring is one atlas texture per clip, scaled down in steps when
   N full-size frames would not fit (the frames sampled by `historyFrame` can therefore be softer
   than the live one on long rings and large canvases), and the whole store is capped (768 MiB
@@ -290,10 +307,92 @@ Behaviour, shared by both:
   history, and the single-image executor (`GpuEffectExecutor`: effect thumbnails and the CPU
   compositor) always runs with an empty one, so there a time effect shows the current frame.
 
-`effects/motion_blur` (`motion.blur`) is a plain `history: 1` package: it estimates optical flow
-between `historyFrame(1.0, uv)` and the current frame on a luma pyramid (quarter and sixteenth size, block
-matching, then a flow-aware smoothing pass) and averages the picture along the flow scaled by
-`shutter / 360`, capped by `maxBlur`. It passes the picture through while `historyCount()` is 0.
+**Future frames** (`"future": N`, 1–2, `nextFeatures`: `history:future`). After reading the clip's current
+frame the compositor decodes the N frames after it (`t + k` project frames, `k = 1..N`, through the clip's
+speed, ramp and reverse mapping, from the clip's own reader) and uploads them for the effect every composite.
+They are the clip's source frames before its effect chain, cropped and straightened like the live one. The
+prelude gives every pass:
+
+| Name | Kind | Notes |
+|---|---|---|
+| `vec4 futureFrame(float ahead, vec2 uv)` | helper | The source frame `ahead` project frames later at `uv` (1 = the next frame). Rounded and clamped to what is available; with none available it reads the effect's own input |
+| `float futureCount()` | helper | How many following frames are available: 0 at the end of the clip, when a decode fails, and while scrubbing (the approximate-seek read decodes nothing extra) |
+| `u_futureTexture1`, `u_futureTexture2`, `u_futureCount` | engine-bound | The frames behind `futureFrame`, on units 13 and 12 (so a `future` package keeps at most two sampler params clear of them). Reserved (`u_future*`) |
+
+Nothing is kept between composites, so a frame rendered cold, paused or in sequence sees the same future
+frames. During playback the frame decoded as `t + 1` is the next composite's current frame and comes from
+the reader's cache. Only video clips with a decoded source frame get them: nested, still-image, procedural
+and cutout layers, the single-image executor and standalone adjustment clips see `futureCount() == 0`.
+Each future frame is one more decoder surface held until the frame has rendered, which is why `kHwExtraFrames`
+has two more spare.
+
+**Source-unit neighbours** (`"historyUnits": "source"`, `nextFeatures`: `history:source-units`). Project frames are
+the wrong unit for footage whose rate differs from the timeline's: 120 fps footage on a 30 fps timeline skips
+three of every four frames, and 24 fps footage on a 60 fps one repeats them. With this field `historyExact: N` and
+`future: N` (1–4 each) mean the N media frames before and after the one shown, whatever the project rate. The
+ring is bypassed entirely, because it records one frame per project frame (a package with this field records
+nothing and `history` is ignored): the frames are decoded from the clip's own reader by stepping the shown frame's
+pts by the stream's frame duration (`PreviewVideoFrame::ptsUs` / `frameDurUs`), through the same speed, reverse
+and reverse-proxy mapping as the shown frame, and are cache hits during playback. Cold, paused, sequential and
+export renders therefore agree. They are not decoded while scrubbing, and not beyond the clip's trim. To bound the
+cost only as many are decoded each side as one project frame spans, `max(1, ceil(sourceStep()))`, so 30 fps footage
+on a 30 fps timeline gets one each side even for a package asking for four; `historyCount()` and `futureCount()`
+report what was decoded. The frames share one atlas (past slots first, then future), sampled by the unchanged
+`historyFrame(age, uv)` and a `futureFrame(ahead, uv)` that reads the slots after them, so a package keeps its
+sampler units (`historyFrame` on 14, no unit 12 or 13); tiles shrink with the same plan as the ring when they
+would not fit. Each decoded frame is one decoder surface held until the frame renders: `kHwExtraFrames` covers all
+eight. The prelude adds:
+
+| Name | Kind | Notes |
+|---|---|---|
+| `float sourceFrameRate()` | helper | The media's frame rate (the stream's), in frames per second; the project's when unknown |
+| `float projectFrameRate()` | helper | The project's frame rate |
+| `float sourceStep()` | helper | How many media frames one project frame advances: media rate / project rate times the clip's speed (0 for a frozen frame) |
+| `float sourcePhase()` | helper | 0..1: how far this instant is between the shown media frame and the next one in playback order. Frame `j` (0 = shown) holds from `j - sourcePhase()` to `j + 1 - sourcePhase()` source frames from the instant |
+| `u_sourceFps`, `u_sourcePhase`, `u_sourceStep`, `u_projectFps`, `u_futureCount`, `u_futureSlot` | engine-bound | Behind the helpers. Reserved |
+
+`effects/motion_blur` (`motion.blur`) is a `historyUnits: "source"`, `historyExact: 4`, `future: 4` package. Its
+`mode` choice (Auto, Optical flow, Frame blend) picks between two methods; Auto blends when `sourceStep() >= 2`
+(at least two real frames per project frame, counting the clip's speed) and uses flow otherwise. Frame blend
+averages the media's frames over a shutter centred on the instant and `shutter / 360 * strength` project frames
+long: each frame counts by how much of its one-frame hold lies inside, and frames that were not decoded count
+nothing. In blend mode `luma4.frag` writes zeros, so the matching passes find nothing to search and stay cheap,
+and `blur.frag` does the average. Flow mode runs on the adjacent media frames and scales the flow by
+`sourceStep()` to a project frame. Flow, in either unit, works like this: it estimates
+optical flow from the current frame to both neighbours (`historyFrame(1.0, uv)` and `futureFrame(1.0, uv)`) on
+a three-level luma pyramid (1/64, 1/16 and 1/4 size; the three frames' luma share one buffer's R, G and B;
+block matching with each level refining the coarser one, sub-pixel at the finest, and a relative accept test
+so flat-ish areas keep their motion), then a flow-aware smoothing pass per direction that also fills the flat
+inside of a moving object. A tile-max pass (1/16 size, over both directions' magnitudes) and a 3x3
+neighbour-max pass give each pixel the longest velocity near it, and the final pass samples after McGuire et
+al.'s reconstruction filter, weighting each tap by whether its own velocity reaches the pixel, so a moving
+object smears past its outline onto the background. The shutter is centred on the frame: its earlier half
+follows the flow towards the previous frame and its later half the flow towards the next, so accelerating
+or curving motion bends the smear. Where the two flows disagree by more than acceleration explains
+(an occlusion), the direction that matches the footage better is mirrored for the whole shutter; with a frame
+missing on one side (the clip's first or last frame, a scrub) the other direction is mirrored. Taps are jittered
+per pixel. The smear length is the flow scaled by `shutter / 360 * strength * sourceStep()`, capped by `maxBlur`; `strength`
+above 1 exaggerates beyond a real shutter. It passes the picture through only when neither neighbour exists.
+It runs 14 passes over 13 buffers (`luma4/16/64`, `flow64/16/4` and `flow4s` for backward flow, the same with
+an `f` suffix for forward flow, `tile16`, `nbr16`; flows are `rg16f`).
+
+`effects/motion_smooth` (`motion.smooth`, "Motion Smoothing") is a `historyUnits: "source"`, `future: 1` package that
+invents the frames between the media's own. Its `multiplier` choice (x2, x3, x4, x5, x8) makes the output behave like
+footage at the media rate times the multiplier: `sourcePhase()` is quantised down to a multiple of 1/multiplier, and
+phase 0 (the shown frame itself), the clip's last frame and scrubbing pass the shown frame through untouched. The
+frames interpolated are the shown frame `u_currentTexture` (A) and `futureFrame(1.0, uv)` (B), the media's next
+frame; B is the raw source, so effects above Motion Smoothing in the stack are not in it and it belongs first. Flow
+is measured both ways (A to B and B to A) on the Motion Blur pyramid (`luma4/16/64` hold A in R and B in G;
+`match*` and `match*r` are the two directions; `smooth` as there; flows are `rg16f`), 12 passes. `interpolate.frag`
+then looks x up in A at the `a` solving `a + p * AB(a) = x` and in B at the `b` solving `b + (1 - p) * BA(b) = x`
+(three fixed-point steps), and blends them by `(1 - p)` and `p` times a confidence: the flow's round trip
+(A to B and back) must land within a pixel or two of where it started and the two ends must agree in colour, so a
+side that is being covered or uncovered counts for little. With both sides unreliable the nearer frame is shown
+unwarped. It only helps when the media's frame rate times the clip's speed is below the project's; the
+description says so and the Effects inspector shows a notice (`framesCoverProject` in the clip map, from
+`drift::framesAlreadyCoverProject`) when it is not. The reader's cache answers with the nearest frame, so
+`fillGpuLayerSourceNeighbours` steps back to the frame at or before the instant when the cache returned the one
+after it; without that the phase would be clamped to 0 and the effect would do nothing on half the frames.
 
 Compositor code that wants the previous source frame of a clip sets `GpuLayer::sourceHistoryFrames` and, after `buildLayerTarget` has run for the layer, calls
 `drift::gl::pastSourceFrame(rt, layer.historyScope, layer.historyKey, age)` (FrameHistory.h). The
@@ -302,6 +401,26 @@ result is a texture plus the `uv` rectangle of that frame inside it.
 The Time effects in the Trending Effects addon (Feedback, Trails, Time Echo, Frame Delay, Slit
 Scan) use the `time` category. The catalog has no fixed list beyond its five built-ins: any other
 category slug appears as an extra group, labelled with the capitalised slug.
+
+## Float intermediate buffers
+
+`"format": "rgba16f" | "rg16f"` on an `intermediateBuffers` entry allocates it as RGBA16F, so a pass can
+store signed or large values (flow vectors, accumulators) without packing them into 8 bits. `rg16f` is
+allocated as RGBA16F too (Qt's framebuffer object has no two-channel half-float), so it saves no memory.
+The buffer pool keys on the format, so 8-bit and half-float targets never mix.
+
+Where the context cannot render to half float (a GLES 3.0/3.1 or WebGL2 context without
+`EXT_color_buffer_float` or `EXT_color_buffer_half_float`, or an allocation that fails), every
+buffer of the pipeline is allocated as RGBA8 instead and a single `qInfo` is logged. A shader
+must therefore work either way. A package with a half-float buffer gets this prelude:
+
+- `uniform float u_floatBuffers`: 1 when the buffers are half float, 0 on the fallback.
+- `vec4 packFlow(vec2 v)` / `vec2 unpackFlow(vec4 texel)`: store and read a signed vec2 in
+  [-0.5, 0.5]. Half float keeps it as is in `.rg`; the fallback keeps 16 bits per component in the
+  `.rg` and `.ba` byte pairs. Use them for every read and write of such a buffer and the same shader
+  runs on both paths. A shader that needs a different range tests `u_floatBuffers` itself.
+
+`effects/motion_blur` keeps all its flow, tile-max and neighbour-max buffers as `rg16f` through these helpers.
 
 ## 3D face mesh (`backend: "model3d"`)
 

@@ -56,6 +56,45 @@
     </message>
 </context>
 <context>
+    <name>AccentSwatches</name>
+    <message>
+        <source>Amber</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orange</source>
+        <translation type="unfinished">Arancione</translation>
+    </message>
+    <message>
+        <source>Red</source>
+        <translation type="unfinished">Rosso</translation>
+    </message>
+    <message>
+        <source>Pink</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Purple</source>
+        <translation type="unfinished">Viola</translation>
+    </message>
+    <message>
+        <source>Blue</source>
+        <translation type="unfinished">Blu</translation>
+    </message>
+    <message>
+        <source>Teal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Green</source>
+        <translation type="unfinished">Verde</translation>
+    </message>
+    <message>
+        <source>Theme default</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AddonManager</name>
     <message>
         <source>Automatic (recommended)</source>
@@ -435,10 +474,6 @@
         <translation>Regola %1</translation>
     </message>
     <message>
-        <source>Reset</source>
-        <translation>Reimposta</translation>
-    </message>
-    <message>
         <source>Reset %1</source>
         <translation>Reimposta %1</translation>
     </message>
@@ -480,6 +515,10 @@
     <message>
         <source>Fade curve</source>
         <translation>Curva di dissolvenza</translation>
+    </message>
+    <message>
+        <source>Curve</source>
+        <translation type="unfinished">Curva</translation>
     </message>
     <message>
         <source>Animation</source>
@@ -592,14 +631,6 @@
         <translation>Stile testo</translation>
     </message>
     <message>
-        <source>Text settings</source>
-        <translation>Impostazioni testo</translation>
-    </message>
-    <message>
-        <source>Text animation</source>
-        <translation>Animazione testo</translation>
-    </message>
-    <message>
         <source>Subtitles</source>
         <translation>Sottotitoli</translation>
     </message>
@@ -657,14 +688,6 @@
 </context>
 <context>
     <name>AndroidClipRangeBar</name>
-    <message>
-        <source>Pause</source>
-        <translation>Pausa</translation>
-    </message>
-    <message>
-        <source>Play</source>
-        <translation>Riproduci</translation>
-    </message>
     <message>
         <source>Seek</source>
         <translation>Cerca</translation>
@@ -774,6 +797,10 @@
 <context>
     <name>AndroidCropOverlay</name>
     <message>
+        <source>Crop canvas</source>
+        <translation type="unfinished">Ritaglia area di disegno</translation>
+    </message>
+    <message>
         <source>Reset</source>
         <translation>Reimposta</translation>
     </message>
@@ -789,20 +816,16 @@
 <context>
     <name>AndroidCropPage</name>
     <message>
-        <source>Free</source>
-        <translation>Libero</translation>
-    </message>
-    <message>
-        <source>Original</source>
-        <translation>Originale</translation>
-    </message>
-    <message>
         <source>Clip</source>
         <translation>Clip</translation>
     </message>
     <message>
         <source>Video</source>
         <translation>Video</translation>
+    </message>
+    <message>
+        <source>Straighten</source>
+        <translation type="unfinished">Raddrizza</translation>
     </message>
     <message>
         <source>Rotate</source>
@@ -894,18 +917,6 @@
         <translation>Aggiungi testo</translation>
     </message>
     <message>
-        <source>Text style</source>
-        <translation>Stile testo</translation>
-    </message>
-    <message>
-        <source>Text settings</source>
-        <translation>Impostazioni testo</translation>
-    </message>
-    <message>
-        <source>Text animation</source>
-        <translation>Animazione testo</translation>
-    </message>
-    <message>
         <source>Animation</source>
         <translation>Animazione</translation>
     </message>
@@ -990,12 +1001,16 @@
         <translation>La timeline è vuota</translation>
     </message>
     <message>
-        <source>Import media or open the Media library to start editing.</source>
-        <translation>Importa elementi multimediali o apri la libreria multimediale per iniziare a modificare.</translation>
+        <source>Clips you add appear here as layers.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Open Media</source>
-        <translation>Apri elementi multimediali</translation>
+        <source>Create a new folder here</source>
+        <translation type="unfinished">Crea una nuova cartella qui</translation>
+    </message>
+    <message>
+        <source>Create an empty timeline and open it</source>
+        <translation type="unfinished">Crea una timeline vuota e aprila</translation>
     </message>
 </context>
 <context>
@@ -1119,6 +1134,13 @@
     <message>
         <source>Nothing here yet — projects you save will show up in this list.</source>
         <translation>Ancora niente qui — i progetti salvati verranno mostrati in questo elenco.</translation>
+    </message>
+</context>
+<context>
+    <name>AndroidInfoButton</name>
+    <message>
+        <source>Information</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1323,6 +1345,41 @@
     <message>
         <source>Marketplace</source>
         <translation>Marketplace</translation>
+    </message>
+</context>
+<context>
+    <name>AndroidMaskPage</name>
+    <message>
+        <source>Rectangle</source>
+        <translation type="unfinished">Rettangolo</translation>
+    </message>
+    <message>
+        <source>Ellipse</source>
+        <translation type="unfinished">Ellisse</translation>
+    </message>
+    <message>
+        <source>Polygon</source>
+        <translation type="unfinished">Poligono</translation>
+    </message>
+    <message>
+        <source>Brush</source>
+        <translation type="unfinished">Pennello</translation>
+    </message>
+    <message>
+        <source>AI select</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation type="unfinished">Traccia</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation type="unfinished">Modifica</translation>
+    </message>
+    <message>
+        <source>Needs AI Engine</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1693,6 +1750,14 @@
         <translation>Chiudi spazio dopo la clip</translation>
     </message>
     <message>
+        <source>Close gap on all tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close the gap after the clip on every free track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Audio</source>
         <translation>Audio</translation>
     </message>
@@ -1794,6 +1859,17 @@
     </message>
 </context>
 <context>
+    <name>AndroidMotionPage</name>
+    <message>
+        <source>Not an animation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Motion settings apply to Lottie and SVG clips.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AndroidMyVideosTab</name>
     <message>
         <source>Video actions</source>
@@ -1826,6 +1902,18 @@
 <context>
     <name>AndroidPreview</name>
     <message>
+        <source>No media yet</source>
+        <translation type="unfinished">Nessun elemento multimediale finora</translation>
+    </message>
+    <message>
+        <source>Add a video, photo or audio file to start.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Seek</source>
         <translation>Cerca</translation>
     </message>
@@ -1855,6 +1943,14 @@
     <message>
         <source>Quality: %1</source>
         <translation>Qualità: %1</translation>
+    </message>
+    <message>
+        <source>Hardware</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>3D view</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Guides</source>
@@ -1959,8 +2055,8 @@
         <translation>Ritaglia dimensioni video</translation>
     </message>
     <message>
-        <source>Drag the preview edges to change what’s included</source>
-        <translation>Trascina i bordi dell&apos;anteprima per modificare cosa includere</translation>
+        <source>Trim the frame to a smaller area</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Project properties</source>
@@ -1977,6 +2073,14 @@
     <message>
         <source>Sync and switch between angles</source>
         <translation>Sincronizza e passa da un&apos;angolazione all&apos;altra</translation>
+    </message>
+    <message>
+        <source>Notifications</source>
+        <translation type="unfinished">Notifiche</translation>
+    </message>
+    <message>
+        <source>Recent messages and finished jobs</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Extras</source>
@@ -2082,6 +2186,93 @@
     </message>
 </context>
 <context>
+    <name>AndroidRemotePage</name>
+    <message>
+        <source>Remote</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reconnect to your desktop, or pair again with a new code.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On your desktop open Settings, Control surfaces, then Pair phone. Type the code shown there, in the form 192.168.1.20:47890/ABCD2345.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pairing code</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connecting…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That is not a pairing code.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reconnect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forget desktop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connected to %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disconnect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation type="unfinished">Indietro</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation type="unfinished">Pausa</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation type="unfinished">Riproduci</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Interrompi</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation type="unfinished">Avanti</translation>
+    </message>
+    <message>
+        <source>Shadows</source>
+        <translation type="unfinished">Ombre</translation>
+    </message>
+    <message>
+        <source>Midtones</source>
+        <translation type="unfinished">Mezzitoni</translation>
+    </message>
+    <message>
+        <source>Highlights</source>
+        <translation type="unfinished">Alte luci</translation>
+    </message>
+    <message>
+        <source>Look pad: drag to turn the 3D view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Steer with the gyroscope</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AndroidShareTargetSheet</name>
     <message>
         <source>Add shared media</source>
@@ -2116,10 +2307,10 @@
     </message>
 </context>
 <context>
-    <name>AndroidSpeedPage</name>
+    <name>AndroidSliderRow</name>
     <message>
-        <source>Speed curve</source>
-        <translation>Curva di velocità</translation>
+        <source>Reset</source>
+        <translation type="unfinished">Reimposta</translation>
     </message>
 </context>
 <context>
@@ -2184,10 +2375,30 @@
     </message>
 </context>
 <context>
-    <name>AndroidTextPage</name>
+    <name>AndroidTextTabs</name>
     <message>
-        <source>Edit text</source>
-        <translation>Modifica testo</translation>
+        <source>Font</source>
+        <translation type="unfinished">Carattere</translation>
+    </message>
+    <message>
+        <source>Style</source>
+        <translation type="unfinished">Stile</translation>
+    </message>
+    <message>
+        <source>Effects</source>
+        <translation type="unfinished">Effetti</translation>
+    </message>
+    <message>
+        <source>Animation</source>
+        <translation type="unfinished">Animazione</translation>
+    </message>
+    <message>
+        <source>Layout</source>
+        <translation type="unfinished">Layout</translation>
+    </message>
+    <message>
+        <source>Tap to type text</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -2195,6 +2406,10 @@
     <message>
         <source>Save effect preset</source>
         <translation>Salva predefinito effetto</translation>
+    </message>
+    <message>
+        <source>Close gap on all tracks</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Convert to subtitle?</source>
@@ -2263,6 +2478,10 @@
     <message>
         <source>Variable frame rate. This clip can drift out of sync with its audio. Right-click it and choose Convert to edit-friendly format.</source>
         <translation>Frequenza dei fotogrammi variabile. Questa clip può perdere la sincronizzazione con l&apos;audio. Fai clic con il tasto destro su di essa e scegli Converti in un formato ottimizzato per la modifica.</translation>
+    </message>
+    <message>
+        <source>Media file not found. Use Replace media… on this item to point it at the file again.</source>
+        <translation type="unfinished">File multimediale non trovato. Usa Sostituisci file multimediale… su questo elemento per ricollegarlo al file.</translation>
     </message>
     <message>
         <source>Transform layer: moves, scales and turns every track its bracket covers</source>
@@ -2344,8 +2563,24 @@
         <translation>In entrata</translation>
     </message>
     <message>
+        <source>Trim start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Out</source>
         <translation>In uscita</translation>
+    </message>
+    <message>
+        <source>Trim end</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 one frame earlier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 one frame later</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -2409,31 +2644,6 @@
     </message>
 </context>
 <context>
-    <name>AndroidTransformLayerChip</name>
-    <message numerus="yes">
-        <source>%1 · %n clip(s)</source>
-        <translation>
-            <numerusform>%1 · %n clip</numerusform>
-            <numerusform>%1 · %n clip</numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>Transform</source>
-        <translation>Trasformazione</translation>
-    </message>
-</context>
-<context>
-    <name>AndroidTransformParentFrame</name>
-    <message>
-        <source>Select %1</source>
-        <translation>Seleziona %1</translation>
-    </message>
-    <message>
-        <source>Transform</source>
-        <translation>Trasformazione</translation>
-    </message>
-</context>
-<context>
     <name>AndroidTransitionPickerSheet</name>
     <message>
         <source>Transitions</source>
@@ -2461,6 +2671,14 @@
     <message>
         <source>Animation</source>
         <translation>Animazione</translation>
+    </message>
+    <message>
+        <source>Edit this animation in Forge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create a new animation in Forge</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Fade and motion combine — fade also ramps the volume.</source>
@@ -2530,6 +2748,10 @@
         <translation>Elemento multimediale rimosso</translation>
     </message>
     <message>
+        <source>A locked track would be changed or deleted. Unlock it first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Rename media</source>
         <translation>Rinomina elemento multimediale</translation>
     </message>
@@ -2571,10 +2793,6 @@
     </message>
     <message>
         <source>Ripple delete selection</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggle Auto-Ripple</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2638,40 +2856,8 @@
         <translation>Collega clip</translation>
     </message>
     <message>
-        <source>Group selected clips</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Ungroup selected clips</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Clear group</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggle ignore event grouping</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Enable or disable selected clips</source>
         <translation>Abilita o disabilita le clip selezionate</translation>
-    </message>
-    <message>
-        <source>Mute or unmute selected clips</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Lock or unlock selected clips</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggle Quantize to Frames</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggle Expanded Edit Mode</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Clear selection</source>
@@ -2700,10 +2886,6 @@
     <message>
         <source>Hide/show selected clip&apos;s track</source>
         <translation>Nascondi/mostra la traccia della clip selezionata</translation>
-    </message>
-    <message>
-        <source>3D gizmo: cycle world/local/view axes</source>
-        <translation>Gizmo 3D: scorri assi globale/locale/vista</translation>
     </message>
     <message>
         <source>Add/remove bookmark at current time</source>
@@ -2746,68 +2928,176 @@
         <translation>Strumento Selezione</translation>
     </message>
     <message>
-        <source>Slip tool</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Roll edit tool</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Slide edit tool</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Cycle timeline edit tool</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggle track volume envelope</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggle track pan envelope</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggle track composite level envelope</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggle track mute envelope</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Normalize selected audio clip</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Pitch shift selected clip up 1 semitone</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Pitch shift selected clip down 1 semitone</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Inline multicamera mode</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Open Trimmer window</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Dynamic RAM preview</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Create region from work area</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Search…</source>
         <translation>Cerca…</translation>
+    </message>
+    <message>
+        <source>Add speed point at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move selection left one second</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move selection right one second</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trim start tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Trim end tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Freeze frame at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split selected clip on beats</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swap with previous clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swap with next clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add text at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replace clip with…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move adjustment to its own track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Make composite from selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open composite</source>
+        <translation type="unfinished">Apri composizione</translation>
+    </message>
+    <message>
+        <source>Flatten composite</source>
+        <translation type="unfinished">Appiattisci composizione</translation>
+    </message>
+    <message>
+        <source>Clip speed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reverse clip</source>
+        <translation type="unfinished">Inverti clip</translation>
+    </message>
+    <message>
+        <source>Crop…</source>
+        <translation type="unfinished">Ritaglia…</translation>
+    </message>
+    <message>
+        <source>Color grade</source>
+        <translation type="unfinished">Correzione colore</translation>
+    </message>
+    <message>
+        <source>Edit keyframes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mask &amp; track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip properties</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto duck</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sync by audio</source>
+        <translation type="unfinished">Sincronizza tramite audio</translation>
+    </message>
+    <message>
+        <source>Mute/unmute selected clip&apos;s track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo/unsolo selected clip&apos;s track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lock selected clip&apos;s track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add video track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add audio track</source>
+        <translation type="unfinished">Aggiungi traccia audio</translation>
+    </message>
+    <message>
+        <source>Make selected track taller</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Make selected track shorter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start/stop voiceover recording</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cut tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zoom timeline to fit project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle snapping</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle ripple editing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle clip overlap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle auto-select under playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle audio mixer strip</source>
+        <translation type="unfinished">Mostra/Nascondi striscia del mixer audio</translation>
+    </message>
+    <message>
+        <source>Toggle keyframe strip</source>
+        <translation type="unfinished">Alterna striscia dei fotogrammi chiave</translation>
+    </message>
+    <message>
+        <source>Toggle timeline overview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle preview fullscreen</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Restore Workspace Windows</source>
@@ -2856,6 +3146,338 @@
     <message>
         <source>Workspace 9</source>
         <translation>Area di lavoro 9</translation>
+    </message>
+    <message>
+        <source>Add or remove keyframe at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fit view to the selected keys, or all</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fit view to the whole clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Go to previous keyframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Go to next keyframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected keys one frame earlier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected keys one frame later</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected keys ten frames earlier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected keys ten frames later</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected keys up in the curves</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected keys down in the curves</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected keys ten steps up in the curves</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected keys ten steps down in the curves</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rectangle mask tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ellipse mask tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Decrease brush hardness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Increase brush hardness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Brush: switch between paint and erase</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pen tool: add points to a path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Convert point between corner and smooth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete point without keeping the curve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tracker tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected cues earlier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected cues later</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected cues 0.1 s earlier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge selected cues 0.1 s later</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Find in cues</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop shuttle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle before/after compare</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Favorite the selected ranges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reject the selected ranges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove the selected ranges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bypass color grade</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gizmo: move</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gizmo: rotate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gizmo: scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gizmo: cycle world/local/view axes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame the selection</source>
+        <translation type="unfinished">Inquadra la selezione</translation>
+    </message>
+    <message>
+        <source>Frame everything</source>
+        <translation type="unfinished">Inquadra tutto</translation>
+    </message>
+    <message>
+        <source>Reset the view</source>
+        <translation type="unfinished">Reimposta la vista</translation>
+    </message>
+    <message>
+        <source>Fly mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle orthographic projection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Record camera or motion on play</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look through the scene camera</source>
+        <translation type="unfinished">Guarda attraverso la telecamera della scena</translation>
+    </message>
+    <message>
+        <source>Front view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Top view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bottom view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orbit left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orbit right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orbit up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orbit down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dolly in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dolly out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly forward</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly backward</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Land (finish flying)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Redo (alternate)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select all nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paste nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duplicate nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel the pending connection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fit all nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zoom in (alternate)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hold to pan, tap for quick add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 5</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 6</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 7</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 8</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to angle 9</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set in point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set out point</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>System default</source>
@@ -2970,6 +3592,60 @@
         <translation>Ritaglio aggiornato</translation>
     </message>
     <message>
+        <source>%1 is an adjustment track; its clips follow the clips they apply to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No gap at %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>a clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track %1 is locked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is locked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip %1 sits in the gap on track %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 sits in the gap on %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Closing would push clip %1 onto another</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Closing would push %1 onto another clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close gap on all tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Gap closed on %n track(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Gap closed on %n track(s). Not moved: %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Clip duplicated</source>
         <translation>Clip duplicata</translation>
     </message>
@@ -2998,12 +3674,84 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Detect beats first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split on beats</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No beats fall inside the clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Split on %n beat(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No cuts were made</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Snapped %n clip(s) to the beat</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No clips were close enough to a beat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Beat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n marker(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No new markers to add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No gaps to close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gaps are blocked by linked clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Closed %n gap(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Your text here</source>
         <translation>Inserisci qui il testo</translation>
     </message>
     <message>
         <source>Text clip added</source>
         <translation>Clip di testo aggiunta</translation>
+    </message>
+    <message>
+        <source>Edit text script</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text script updated</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Subtitle clip added</source>
@@ -3295,8 +4043,68 @@
         <translation>Indietro di un fotogramma</translation>
     </message>
     <message>
+        <source>Import media to timeline…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export…</source>
+        <translation type="unfinished">Esporta…</translation>
+    </message>
+    <message>
+        <source>Render queue…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open keyboard shortcuts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask (editing command)…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Deselect all</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select clip at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select next clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select previous clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove all effects from clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename clip…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop and reset speed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Step forward one frame</source>
         <translation>Avanti di un fotogramma</translation>
+    </message>
+    <message>
+        <source>Step back five frames</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Step forward five frames</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Jump back 1 second</source>
@@ -3319,6 +4127,38 @@
         <translation>Vai all&apos;inizio della timeline</translation>
     </message>
     <message>
+        <source>Mark work area to selected clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear work area in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear work area out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename bookmark at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete bookmark at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete all bookmarks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split selection, or every track, at current time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split every track at current time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Delete left of the playhead</source>
         <translation>Elimina a sinistra della testina di riproduzione</translation>
     </message>
@@ -3335,24 +4175,24 @@
         <translation>Riduci la velocità di riproduzione</translation>
     </message>
     <message>
-        <source>3D gizmo: move / Tracker tool</source>
-        <translation>Gizmo 3D: sposta / Strumento tracciatore</translation>
-    </message>
-    <message>
-        <source>3D gizmo: rotate / Rectangle mask</source>
-        <translation>Gizmo 3D: ruota / Maschera rettangolare</translation>
-    </message>
-    <message>
-        <source>3D gizmo: scale / Ellipse mask</source>
-        <translation>Gizmo 3D: ridimensiona / Maschera ellittica</translation>
-    </message>
-    <message>
-        <source>Cut tool / Brush mask</source>
-        <translation>Strumento taglierina / Maschera pennello</translation>
-    </message>
-    <message>
         <source>Polygon mask tool</source>
         <translation>Strumento maschera poligonale</translation>
+    </message>
+    <message>
+        <source>Brush mask tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lasso mask tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Intelligent scissors mask tool</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Magic wand mask tool</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>AI object mask tool</source>
@@ -3365,10 +4205,6 @@
     <message>
         <source>Increase brush size</source>
         <translation>Aumenta dimensione pennello</translation>
-    </message>
-    <message>
-        <source>Brush: switch paint / erase</source>
-        <translation>Pennello: alterna dipingi / cancella</translation>
     </message>
     <message>
         <source>Track forward</source>
@@ -3511,6 +4347,10 @@
         <translation>Queste clip si sovrappongono nel tempo — crea i sottotitoli separatamente</translation>
     </message>
     <message>
+        <source>Speed point added</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Transition curve</source>
         <translation>Curva di transizione</translation>
     </message>
@@ -3533,6 +4373,21 @@
     <message>
         <source>Add adjustment layer</source>
         <translation>Aggiungi livello di regolazione</translation>
+    </message>
+    <message numerus="yes">
+        <source>Imported “%1” (%n sticker(s))</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Sticker pack removed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>My shapes</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Adjustment layer added</source>
@@ -3599,6 +4454,62 @@
         <translation>La telecamera usa la propria rotazione</translation>
     </message>
     <message>
+        <source>Push in (zoom)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pull out (zoom)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pan left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pan right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tilt up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tilt down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Truck left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Truck right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crane up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crane down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Camera move</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That move changes nothing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a camera clip first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The camera clip does not cover that span</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Edit clip</source>
         <translation>Modifica clip</translation>
     </message>
@@ -3633,6 +4544,10 @@
     <message>
         <source>Rotate clip</source>
         <translation>Ruota clip</translation>
+    </message>
+    <message>
+        <source>Move anchor</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Turn on Auto keyframes to edit this</source>
@@ -4359,6 +5274,38 @@
         <translation>Nessun taglio tra due clip a cui aggiungere una transizione</translation>
     </message>
     <message>
+        <source>unknown generator &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generator added</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Backgrounds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Test patterns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Leaders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Particles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generator updated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Edit curve</source>
         <translation>Modifica curva</translation>
     </message>
@@ -4481,6 +5428,14 @@
     <message>
         <source>Align camera to view</source>
         <translation>Allinea telecamera alla vista</translation>
+    </message>
+    <message>
+        <source>Record camera</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Record motion</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Audio effects go on the timeline.</source>
@@ -4735,6 +5690,14 @@
     <message>
         <source>Keyframes set</source>
         <translation>Fotogrammi chiave impostati</translation>
+    </message>
+    <message>
+        <source>Reframed, but the crop enlarges the source %1x</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reframed the clip</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Reset camera</source>
@@ -5693,6 +6656,50 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Camera</source>
+        <translation type="unfinished">Telecamera</translation>
+    </message>
+    <message>
+        <source>Audio FX</source>
+        <translation type="unfinished">Effetti audio</translation>
+    </message>
+    <message>
+        <source>Mask</source>
+        <translation type="unfinished">Maschera</translation>
+    </message>
+    <message>
+        <source>Effects</source>
+        <translation type="unfinished">Effetti</translation>
+    </message>
+    <message>
+        <source>Transform %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Video %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Subtitle %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Graphic %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adjustment %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Track folder</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5817,6 +6824,14 @@
         <translation>Segnalibro aggiornato</translation>
     </message>
     <message>
+        <source>Colour bookmark</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bookmark colour changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No video at the current time</source>
         <translation>Nessun video alla posizione corrente</translation>
     </message>
@@ -5844,36 +6859,93 @@
         </translation>
     </message>
     <message>
-        <source>Drift Mojave default (S split, Ctrl+L ripple, G/U group, F5 expanded edit)</source>
+        <source>Not a valid key combination</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Original Drift defaults (B blade, V select, Shift+R roll)</source>
+        <source>Mark work area to clip</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Adobe Premiere Pro chords (Ctrl+K cut, V/C tools, Y slip, N roll)</source>
+        <source>Work area set to clip</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Blackmagic Resolve Edit page chords (Ctrl+B cut, A/B tools, T slip)</source>
+        <source>Work area in cleared</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Apple Final Cut Pro chords (Ctrl+B blade, A/B tools, V mute clip)</source>
+        <source>Work area out cleared</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>CapCut Desktop chords (Ctrl+B split, Q/W trim to playhead)</source>
+        <source>Remove all bookmarks</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>KDE Kdenlive chords (Shift+R split, S select, X razor)</source>
+        <source>Bookmarks removed</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Shotcut NLE chords (S split, Ctrl+R ripple, I/O work area)</source>
+        <source>Unknown clip</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Beats come from an audio or video clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clip is too short to find a tempo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No steady beat found in that clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add beat markers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select the video or image clips to cut together</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The music clip is gone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No beat to cut on between the start point and the end of the music</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto-cut to beat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not add a track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n beat marker(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Cut %n clip(s) to the beat; %1 did not fit the music</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Cut %n clip(s) to the beat</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <source>Exporting…</source>
@@ -6411,24 +7483,108 @@
         <source>Clear Group</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Edit shape path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape path changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animate shape path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop animating shape path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape path animated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape path static</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete shape key</source>
+        <translation type="unfinished">Elimina chiave di forma</translation>
+    </message>
+    <message>
+        <source>Shape path key removed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This shape has no outline to edit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Make shape editable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape is now editable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This shape has no outline to save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not save the shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved to My shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not import the SVG: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added to My shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown title template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Insert %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>AppSettingsMenu</name>
     <message>
-        <source>Help…</source>
-        <translation>Guida…</translation>
+        <source>Help</source>
+        <translation type="unfinished">Aiuto</translation>
+    </message>
+    <message>
+        <source>Keyboard shortcuts</source>
+        <translation type="unfinished">Scorciatoie da tastiera</translation>
+    </message>
+    <message>
+        <source>Check for updates…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Save diagnostics…</source>
         <translation>Salva diagnostica…</translation>
     </message>
     <message>
-        <source>Settings…</source>
-        <translation>Impostazioni…</translation>
+        <source>Debug info…</source>
+        <translation type="unfinished">Informazioni di debug…</translation>
     </message>
     <message>
-        <source>Multicam</source>
-        <translation>Multicam</translation>
+        <source>About Drift</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -6492,6 +7648,14 @@
     <message>
         <source>Remove from history</source>
         <translation>Rimuovi dalla cronologia</translation>
+    </message>
+    <message>
+        <source>Search</source>
+        <translation type="unfinished">Cerca</translation>
+    </message>
+    <message>
+        <source>Close search</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -6657,12 +7821,20 @@
         </translation>
     </message>
     <message>
+        <source>Couldn’t save to the proxy folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Couldn’t save files next to the media</source>
         <translation>Impossibile salvare i file accanto agli elementi multimediali</translation>
     </message>
     <message>
         <source>OK</source>
         <translation>OK</translation>
+    </message>
+    <message>
+        <source>Drift can’t write to the proxy folder below. It may be unplugged or read-only. New proxies and reversed clips go to Drift’s cache until it’s back.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Drift can’t write to the folders listed below, because of their permissions or because they are on a read-only network share. The proxies or reversed clips were saved to Drift’s cache instead.</source>
@@ -6702,6 +7874,14 @@
         <translation>Importa cartella</translation>
     </message>
     <message>
+        <source>Choose what to share in the dialog your desktop shows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1:%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Collect Media to Folder</source>
         <translation>Raccogli elementi multimediali nella cartella</translation>
     </message>
@@ -6726,6 +7906,10 @@
         <translation>Forme</translation>
     </message>
     <message>
+        <source>Generators</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Scenes</source>
         <translation>Scene</translation>
     </message>
@@ -6748,6 +7932,70 @@
     <message>
         <source>Audio FX</source>
         <translation>Effetti audio</translation>
+    </message>
+    <message>
+        <source>Your imported video, audio and images. Drag them onto the timeline.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Titles and captions with ready-made styles.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generate captions from speech, or import a subtitle file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Turn text into a voiceover, or clone a voice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emoji and stickers to place over your video.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shapes and arrows for callouts and backgrounds.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solid colours, gradients, noise, test patterns, countdowns and particle effects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Find the cuts in a long clip so you can jump to each scene.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show only part of a clip, or cut a subject out of its background.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Looks, glitches, blurs and more. Click one to apply it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ready-made effect combinations you can apply in one click.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fades, wipes and zooms between two clips.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio effects like echo, EQ and noise gate.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 — %2</source>
+        <translation type="unfinished">%1 — %2</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Interrompi</translation>
+    </message>
+    <message>
+        <source>Discard</source>
+        <translation type="unfinished">Scarta</translation>
     </message>
     <message>
         <source>New folder</source>
@@ -6829,6 +8077,18 @@
         <translation>Importa cartella…</translation>
     </message>
     <message>
+        <source>Record Screen…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Record Screen with Computer Sound…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Record Camera…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Browse Marketplace…</source>
         <translation>Sfoglia Marketplace…</translation>
     </message>
@@ -6900,6 +8160,45 @@
     <message>
         <source>Removed %1 s of silence</source>
         <translation>Rimossi %1 s di silenzio</translation>
+    </message>
+    <message>
+        <source>No audio on the other tracks under this clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Voice detection needs the Voice activity (silero.vad) addon. Install it from the addon store, or use level detection.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Voice detection could not run: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Finding speech…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto duck cancelled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation type="unfinished">Annullato</translation>
+    </message>
+    <message>
+        <source>Auto duck</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Ducked music under %n passage(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No speech found</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Synced %1 clip(s) by audio (%2 could not be matched)</source>
@@ -7024,6 +8323,10 @@
         <translation>Installa un effetto audio personalizzato o un effetto da un file .driftfx o zip creato in Drift Forge</translation>
     </message>
     <message>
+        <source>Create a new audio effect in Audio Forge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>My Audio Effects</source>
         <translation>I miei effetti audio</translation>
     </message>
@@ -7058,6 +8361,34 @@
 <context>
     <name>AudioEffectHeader</name>
     <message>
+        <source>Disable effect</source>
+        <translation type="unfinished">Disabilita effetto</translation>
+    </message>
+    <message>
+        <source>Enable effect</source>
+        <translation type="unfinished">Abilita effetto</translation>
+    </message>
+    <message>
+        <source>Move up</source>
+        <translation type="unfinished">Sposta in alto</translation>
+    </message>
+    <message>
+        <source>Move down</source>
+        <translation type="unfinished">Sposta in basso</translation>
+    </message>
+    <message>
+        <source>Copy effect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit in Forge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove effect</source>
+        <translation type="unfinished">Rimuovi effetto</translation>
+    </message>
+    <message>
         <source>%1 (not installed)</source>
         <translation>%1 (non installato)</translation>
     </message>
@@ -7085,6 +8416,10 @@
         <source>Remove audio effect</source>
         <translation>Rimuovi effetto audio</translation>
     </message>
+    <message>
+        <source>More</source>
+        <translation type="unfinished">Altro</translation>
+    </message>
 </context>
 <context>
     <name>AudioEffectPresetCard</name>
@@ -7107,6 +8442,10 @@
     <message>
         <source>Add to favorites</source>
         <translation>Aggiungi ai preferiti</translation>
+    </message>
+    <message>
+        <source>Edit in Forge</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -7132,12 +8471,20 @@
         <translation>Nessun effetto audio finora</translation>
     </message>
     <message>
+        <source>Tap Browse audio effects and pick a preset.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Drag a preset from Audio FX onto this clip, or click a preset card.</source>
         <translation>Trascina un predefinito da Effetti audio su questa clip o fai clic sulla scheda di un predefinito.</translation>
     </message>
     <message>
         <source>Browse audio effects</source>
         <translation>Sfoglia effetti audio</translation>
+    </message>
+    <message>
+        <source>Move to a time, set a value, then tap the diamond to add a keyframe. With Auto keyframes on, dragging a slider also creates them.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Move to a time, set a value, then click the diamond to add a keyframe. With Auto keyframes on, dragging a slider also creates them.</source>
@@ -7148,8 +8495,433 @@
         <translation>Fotogrammi chiave automatici</translation>
     </message>
     <message>
+        <source>Tap a diamond to keyframe a value, or let Auto add one as you drag.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Audio effect settings</source>
         <translation>Impostazioni effetto audio</translation>
+    </message>
+</context>
+<context>
+    <name>AudioForgeAuditionBar</name>
+    <message>
+        <source>Valid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n problem(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Use selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Interrompi</translation>
+    </message>
+    <message>
+        <source>Loop play</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follow selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pick an audio or video clip on the timeline to hear the pedalboard on it. Loop play repeats its first four seconds.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>AudioForgeController</name>
+    <message>
+        <source>Move nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio wiring follows pedal order. Drag a pedal to a new place or delete it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disconnect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duplicate nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paste nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add node</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit value</source>
+        <translation type="unfinished">Modifica valore</translation>
+    </message>
+    <message>
+        <source>Switch on</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bypass</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unexpose %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expose %1 as slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add lane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove last lane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove modulation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lane %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expose as slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unexpose slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove lane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit lane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit steps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit depth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cannot open %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That recording is larger than 16 MB.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Impulse responses must be WAV files.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a convolution reverb first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import impulse response</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reorder sliders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use lowercase letters, digits, underscores and dots, starting with a letter or digit.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown field.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This package was not made in Forge.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name the package</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is already installed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 already exists and is not a package folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That project is not an audio effect.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select an audio clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select an audio clip first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>AudioForgeGraphPanel</name>
+    <message>
+        <source>Audio Forge graph</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New audio effect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open a saved audio effect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation type="unfinished">Ripeti</translation>
+    </message>
+    <message>
+        <source>Install</source>
+        <translation type="unfinished">Installa</translation>
+    </message>
+    <message>
+        <source>Install it into the audio effects browser</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation type="unfinished">Esporta</translation>
+    </message>
+    <message>
+        <source>Installed “%1”</source>
+        <translation type="unfinished">“%1” installato</translation>
+    </message>
+    <message>
+        <source>Replace existing?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replace</source>
+        <translation type="unfinished">Sostituisci</translation>
+    </message>
+    <message>
+        <source>“%1” is already installed. Replace it with this version?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export .driftfx…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export .driftfx</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift package (*.driftfx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exported to %1</source>
+        <translation type="unfinished">Esportato in %1</translation>
+    </message>
+    <message>
+        <source>Export folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No saved projects yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>AudioForgeInspectorPanel</name>
+    <message>
+        <source>Audio Forge inspector</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sliders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation type="unfinished">Dettagli</translation>
+    </message>
+</context>
+<context>
+    <name>AudioForgeNodeTab</name>
+    <message>
+        <source>Select a single node in the graph to edit its settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Elimina</translation>
+    </message>
+    <message>
+        <source>The clip&apos;s sound enters the board here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Whatever reaches this node is what you hear.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mixes the lanes of its split back into one sound. It follows the split.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bypass</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Slider: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expose</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unexpose</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Modulated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import recording…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import impulse response</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>WAV audio (*.wav)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A short WAV recording of a room, spring or plate. Its length sets the reverb tail.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lane levels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add lane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove last lane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Steps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fewer steps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>More steps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Moves</source>
+        <translation type="unfinished">Spostamenti</translation>
+    </message>
+    <message>
+        <source>Moved by</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation type="unfinished">Rimuovi</translation>
+    </message>
+    <message>
+        <source>Depth</source>
+        <translation type="unfinished">Profondità</translation>
+    </message>
+</context>
+<context>
+    <name>AudioForgePalettePanel</name>
+    <message>
+        <source>Audio Forge pedals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search pedals</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -7193,6 +8965,10 @@
     <message>
         <source>Centre</source>
         <translation>Centro</translation>
+    </message>
+    <message>
+        <source>Mixer ↗</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Pitch shift</source>
@@ -7271,12 +9047,28 @@
         <translation>Rimuovi rumore…</translation>
     </message>
     <message>
+        <source>Remove noise</source>
+        <translation type="unfinished">Rimuovi rumore</translation>
+    </message>
+    <message>
+        <source>Cleans hiss, hum and background noise from speech.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Download noise removal (about 9 MB)</source>
         <translation>Scarica rimozione rumore (circa 9 MB)</translation>
     </message>
     <message>
         <source>Install AI engine first</source>
         <translation>Installa prima il motore IA</translation>
+    </message>
+    <message>
+        <source>Needs noise model</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Needs AI Engine</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Auto subtitles</source>
@@ -7326,6 +9118,22 @@
         <translation>Normalizzato a %1 LUFS</translation>
     </message>
     <message>
+        <source>%1 dB</source>
+        <translation type="unfinished">%1 dB</translation>
+    </message>
+    <message>
+        <source>%1%</source>
+        <translation type="unfinished">%1%</translation>
+    </message>
+    <message>
+        <source>%1 ms</source>
+        <translation type="unfinished">%1 ms</translation>
+    </message>
+    <message>
+        <source>Ducked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Audio Mixer</source>
         <translation>Mixer audio</translation>
     </message>
@@ -7344,6 +9152,106 @@
     <message>
         <source>Add an audio sub-bus</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ducking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lower the selected music clip while other tracks are speaking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duck against</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All other tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The tracks whose audio lowers the music</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation type="unfinished">Automatico</translation>
+    </message>
+    <message>
+        <source>Level</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Voice</source>
+        <translation type="unfinished">Voce</translation>
+    </message>
+    <message>
+        <source>Auto uses voice detection when installed, otherwise loudness. Voice ignores music and noise.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto uses loudness only. Install the Voice activity (silero.vad) addon to enable Voice detection.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preset</source>
+        <translation type="unfinished">Predefinito</translation>
+    </message>
+    <message>
+        <source>Gentle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Standard</source>
+        <translation type="unfinished">Standard</translation>
+    </message>
+    <message>
+        <source>Voiceover</source>
+        <translation type="unfinished">Voce fuori campo</translation>
+    </message>
+    <message>
+        <source>Silence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom</source>
+        <translation type="unfinished">Personalizzato</translation>
+    </message>
+    <message>
+        <source>Reduce by</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sensitivity</source>
+        <translation type="unfinished">Sensibilità</translation>
+    </message>
+    <message>
+        <source>Fade down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fade up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duck music</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lower the selected clip under the other tracks&apos; audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a music clip with other audio overlapping it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished">Annulla</translation>
     </message>
     <message>
         <source>Measuring… %1%</source>
@@ -7430,6 +9338,10 @@
     </message>
     <message>
         <source>Add audio sub-bus</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open in Audio workspace</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7731,6 +9643,10 @@
         <translation>Parlato %1  ·  Musica %2</translation>
     </message>
     <message>
+        <source>Bands</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Add speech &amp; music</source>
         <translation>Aggiungi parlato e musica</translation>
     </message>
@@ -7790,8 +9706,12 @@
 <context>
     <name>BakeController</name>
     <message>
-        <source>Set a work area to bake</source>
-        <translation>Imposta un&apos;area di lavoro per il bake</translation>
+        <source>Pre-rendered sections are of the main timeline. Switch to it to pre-render.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set a work area to pre-render</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Nothing on the timeline to preview</source>
@@ -7806,28 +9726,28 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Could not open the bake cache</source>
-        <translation>Impossibile aprire la cache di bake</translation>
+        <source>Could not open the pre-render cache</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-render cancelled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-render failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-render complete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set work area to pre-render</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Baking…</source>
         <translation>Bake in corso…</translation>
-    </message>
-    <message>
-        <source>Bake cancelled</source>
-        <translation>Bake annullato</translation>
-    </message>
-    <message>
-        <source>Bake failed</source>
-        <translation>Bake non riuscito</translation>
-    </message>
-    <message>
-        <source>Bake complete</source>
-        <translation>Bake completato</translation>
-    </message>
-    <message>
-        <source>Set work area to bake</source>
-        <translation>Imposta area di lavoro per il bake</translation>
     </message>
     <message>
         <source>Work area set</source>
@@ -7837,8 +9757,8 @@
 <context>
     <name>BakesDialog</name>
     <message>
-        <source>Bakes</source>
-        <translation>Bake</translation>
+        <source>Pre-rendered sections</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Close</source>
@@ -7865,8 +9785,59 @@
         <translation>%1s</translation>
     </message>
     <message>
-        <source>Baking %1%</source>
-        <translation>Bake al %1%</translation>
+        <source>Pre-rendering %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete all pre-rendered sections?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Re-render at current quality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set work area to pre-render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Quality for new pre-rendered sections</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-render work area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-rendered sections are of the main timeline. Switch to it to pre-render.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-render a finished part of your timeline to play and export it smoothly. Set a work area with %1 and %2, then press Pre-render.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Re-render</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete pre-rendered section</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n pre-rendered section(s) · %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Re-render all stale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete all pre-rendered sections</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Stale</source>
@@ -7877,10 +9848,6 @@
         <translation>Aggiornato</translation>
     </message>
     <message>
-        <source>Delete all bakes?</source>
-        <translation>Eliminare tutti i bake?</translation>
-    </message>
-    <message>
         <source>Delete</source>
         <translation>Elimina</translation>
     </message>
@@ -7889,28 +9856,12 @@
         <translation>La riproduzione e l&apos;esportazione effettueranno nuovamente il rendering in tempo reale di questi intervalli. Il tuo progetto non verrà modificato.</translation>
     </message>
     <message>
-        <source>Re-bake at current quality</source>
-        <translation>Esegui nuovamente il bake alla qualità attuale</translation>
-    </message>
-    <message>
-        <source>Set work area to bake</source>
-        <translation>Imposta area di lavoro per il bake</translation>
-    </message>
-    <message>
-        <source>Quality for new bakes</source>
-        <translation>Qualità per i nuovi bake</translation>
-    </message>
-    <message>
         <source>≈ %1 per minute</source>
         <translation>≈ %1 al minuto</translation>
     </message>
     <message>
         <source>Cancel</source>
         <translation>Annulla</translation>
-    </message>
-    <message>
-        <source>Bake work area</source>
-        <translation>Esegui il bake dell&apos;area di lavoro</translation>
     </message>
     <message>
         <source>Set a work area on the timeline first</source>
@@ -7923,10 +9874,6 @@
     <message>
         <source>O</source>
         <translation>O</translation>
-    </message>
-    <message>
-        <source>Bake a finished part of your timeline to play and export it smoothly. Set a work area with %1 and %2, then press Bake.</source>
-        <translation>Esegui il bake di una parte completata della timeline per riprodurla ed esportarla in modo fluido. Imposta un&apos;area di lavoro con %1 e %2, quindi premi Bake.</translation>
     </message>
     <message>
         <source>Range</source>
@@ -7949,35 +9896,57 @@
         <translation>Stato</translation>
     </message>
     <message>
-        <source>Re-bake</source>
-        <translation>Riesegui bake</translation>
-    </message>
-    <message>
         <source>More</source>
         <translation>Altro</translation>
-    </message>
-    <message>
-        <source>Delete bake</source>
-        <translation>Elimina bake</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n bake(s) · %1</source>
-        <translation>
-            <numerusform>%n bake · %1</numerusform>
-            <numerusform>%n bake · %1</numerusform>
-        </translation>
     </message>
     <message>
         <source>0 B</source>
         <translation>0 B</translation>
     </message>
+</context>
+<context>
+    <name>BeatCutDialog</name>
     <message>
-        <source>Re-bake all stale</source>
-        <translation>Riesegui il bake di tutti quelli non aggiornati</translation>
+        <source>Auto-cut to beat</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Delete all bakes</source>
-        <translation>Elimina tutti i bake</translation>
+        <source>Cut</source>
+        <translation type="unfinished">Taglia</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n selected clip(s) will be placed on a new track, one per cut.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Cut every</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n beat(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Start at the playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Otherwise the first clip starts where the music starts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cut on bar lines only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start on the first downbeat and keep every cut on the music&apos;s strong beats</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -8122,6 +10091,29 @@
     </message>
 </context>
 <context>
+    <name>BrushSideSliders</name>
+    <message>
+        <source>Size</source>
+        <translation type="unfinished">Dimensione</translation>
+    </message>
+    <message>
+        <source>Opacity</source>
+        <translation type="unfinished">Opacità</translation>
+    </message>
+    <message>
+        <source>Brush size</source>
+        <translation type="unfinished">Dimensione pennello</translation>
+    </message>
+    <message>
+        <source>Brush opacity</source>
+        <translation type="unfinished">Opacità pennello</translation>
+    </message>
+    <message>
+        <source>%1 %</source>
+        <translation type="unfinished">%1 %</translation>
+    </message>
+</context>
+<context>
     <name>Camera3dPanel</name>
     <message>
         <source>Camera</source>
@@ -8239,6 +10231,14 @@
         <translation>Zoom, lunghezza focale (pellicola 36 × 24 mm) e campo visivo rappresentano una stessa impostazione espressa in tre unità. Lo zoom non sposta la telecamera. Mentre questa telecamera è attiva sostituisce il valore Prospettiva proprio di ciascuna clip, poiché una scena ha un unico osservatore.</translation>
     </message>
     <message>
+        <source>Add camera move</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keys a named move (dolly, pan, crane, orbit…) over the work area, else this clip, from the camera&apos;s current framing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Reset camera</source>
         <translation>Reimposta telecamera</translation>
     </message>
@@ -8249,6 +10249,111 @@
     <message>
         <source>Camera position</source>
         <translation>Posizione telecamera</translation>
+    </message>
+</context>
+<context>
+    <name>CaptureController</name>
+    <message>
+        <source>The folder for recordings isn&apos;t available, so this one goes to your Movies folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the project to keep recordings beside it. This one goes to your Movies folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The computer&apos;s sound could not be recorded, so this recording has no audio.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That microphone could not be opened, so this recording has no sound.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recording</source>
+        <translation type="unfinished">Registrazione in corso</translation>
+    </message>
+    <message>
+        <source>The recording did not produce a file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recording saved and added to the bin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A recording is already running.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift cannot record the screen on this system. On Linux this needs xdg-desktop-portal and PipeWire.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Screen</source>
+        <translation type="unfinished">Scolora</translation>
+    </message>
+    <message>
+        <source>There is nowhere to save the recording.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Waiting for you to choose what to share…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting…</source>
+        <translation type="unfinished">Avvio in corso…</translation>
+    </message>
+    <message>
+        <source>No camera is connected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Camera</source>
+        <translation type="unfinished">Telecamera</translation>
+    </message>
+    <message>
+        <source>This clip has no recorded mouse activity to zoom to. Only screen recordings Drift made carry it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This clip&apos;s recorded mouse activity is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing to zoom to in this part of the recording.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zoom to clicks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n zoom keyframe(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The clip&apos;s own position and scale keyframes were replaced. Undo brings them back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>CaptureRequest</name>
+    <message>
+        <source>There is nowhere to save this recording.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pick a window to record.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag out the area to record first.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -8303,6 +10408,44 @@
     <message>
         <source>Bounce</source>
         <translation>Rimbalzo</translation>
+    </message>
+</context>
+<context>
+    <name>ClipCropOverlay</name>
+    <message>
+        <source>Crop clip</source>
+        <translation type="unfinished">Ritaglia clip</translation>
+    </message>
+    <message>
+        <source>Reset</source>
+        <translation type="unfinished">Reimposta</translation>
+    </message>
+    <message>
+        <source>Show the whole source again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished">Fatto</translation>
+    </message>
+    <message>
+        <source>Leave the crop tool (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ClipSuggestions</name>
+    <message>
+        <source>Generate captions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto reframe…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stabilize this shaky clip</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -8553,6 +10696,50 @@
         <translation>Luminanza</translation>
     </message>
     <message>
+        <source>Hue Centre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hue Width</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hue Softness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saturation Low</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saturation High</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saturation Softness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Luminance Low</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Luminance High</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Luminance Softness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invert</source>
+        <translation type="unfinished">Inverti</translation>
+    </message>
+    <message>
+        <source>Show matte</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Film Grain</source>
         <translation>Grana pellicola</translation>
     </message>
@@ -8677,6 +10864,10 @@
         <translation>Colore</translation>
     </message>
     <message>
+        <source>None. Choose one in the Looks panel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Color wheels</source>
         <translation>Ruote dei colori</translation>
     </message>
@@ -8695,6 +10886,14 @@
     <message>
         <source>Adjust hue curves</source>
         <translation>Regola curve tonalità</translation>
+    </message>
+    <message>
+        <source>Qualifier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Limit the grade to a range of colours</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Remove</source>
@@ -8719,10 +10918,6 @@
     <message>
         <source>LUT</source>
         <translation>LUT</translation>
-    </message>
-    <message>
-        <source>None. Choose one in the Color Grading LUTs panel.</source>
-        <translation>Nessuna. Scegline una nel pannello LUT di gradazione colore.</translation>
     </message>
     <message>
         <source>LUT Intensity</source>
@@ -8790,6 +10985,41 @@
     </message>
 </context>
 <context>
+    <name>CommandBarController</name>
+    <message>
+        <source>The command model took too long to answer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The Command Bar Model add-on is not installed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The command model failed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No matching command for “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t run “%1”: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 can&apos;t be undone, so it was not run.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t run: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CommunityInstaller</name>
     <message>
         <source>Starting…</source>
@@ -8814,6 +11044,13 @@
     <message>
         <source>Cancelled</source>
         <translation>Annullato</translation>
+    </message>
+</context>
+<context>
+    <name>ControllerTestView</name>
+    <message>
+        <source>No buttons held</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -8863,7 +11100,26 @@
     </message>
 </context>
 <context>
+    <name>CropFrame</name>
+    <message>
+        <source>Crop</source>
+        <translation type="unfinished">Ritaglio quadro</translation>
+    </message>
+    <message>
+        <source>Nudge crop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thirds</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CropOverlay</name>
+    <message>
+        <source>Crop canvas</source>
+        <translation type="unfinished">Ritaglia area di disegno</translation>
+    </message>
     <message>
         <source>Fit view</source>
         <translation>Adatta alla vista</translation>
@@ -8898,6 +11154,21 @@
     <message>
         <source>Middle-drag to pan</source>
         <translation>Trascina con il tasto centrale per fare una panoramica</translation>
+    </message>
+</context>
+<context>
+    <name>CropPresets</name>
+    <message>
+        <source>Free</source>
+        <translation type="unfinished">Libero</translation>
+    </message>
+    <message>
+        <source>Original</source>
+        <translation type="unfinished">Originale</translation>
+    </message>
+    <message>
+        <source>Thirds</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -8943,8 +11214,12 @@
         <translation>Ingresso %1 → Uscita %2</translation>
     </message>
     <message>
-        <source>Click to add a point. Drag to move it. Double-click or drag it off to remove.</source>
-        <translation>Fai clic per aggiungere un punto. Trascina per spostarlo. Fai doppio clic o trascinalo fuori per rimuoverlo.</translation>
+        <source>Tap to add a point. Drag to move it. Hold a point for more, or drag it off the plot to remove.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click to add a point. Drag to move it. Double-click, Delete or drag it off to remove. Esc cancels a drag.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -8983,6 +11258,40 @@
     <message>
         <source>Bezier</source>
         <translation>Bezier</translation>
+    </message>
+</context>
+<context>
+    <name>CurveGraphPointBar</name>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Elimina</translation>
+    </message>
+    <message>
+        <source>Smooth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Corner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset</source>
+        <translation type="unfinished">Reimposta</translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished">Fatto</translation>
+    </message>
+</context>
+<context>
+    <name>CurveGraphView</name>
+    <message>
+        <source>Edit curve</source>
+        <translation type="unfinished">Modifica curva</translation>
+    </message>
+    <message>
+        <source>Reset view</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -9259,6 +11568,10 @@
 </context>
 <context>
     <name>DenoisePanel</name>
+    <message>
+        <source>Remove noise</source>
+        <translation type="unfinished">Rimuovi rumore</translation>
+    </message>
     <message>
         <source>Noise Removal</source>
         <translation>Rimozione rumore</translation>
@@ -9719,6 +12032,10 @@
         <translation>Usa questa attenuazione tra ogni fotogramma chiave di %1</translation>
     </message>
     <message>
+        <source>Edit curve in graph ↗</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Rename…</source>
         <translation>Rinomina…</translation>
     </message>
@@ -9937,8 +12254,20 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Save Shareable Copy</source>
-        <translation>Salva copia condivisibile</translation>
+        <source>Open Project Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose where to create the project folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export .drift Bundle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save with media</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Project not saved</source>
@@ -10003,6 +12332,10 @@
         </translation>
     </message>
     <message>
+        <source>Effects, transitions, sound effects and stock media to add to projects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Marketplace</source>
         <translation>Marketplace</translation>
     </message>
@@ -10038,6 +12371,25 @@
     <message>
         <source>Recommended packs and updates</source>
         <translation>Pacchetti consigliati e aggiornamenti</translation>
+    </message>
+    <message>
+        <source>Optional AI engines, models and add-ons that unlock more features</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>EditorHeaderHelpButton</name>
+    <message>
+        <source>Help</source>
+        <translation type="unfinished">Aiuto</translation>
+    </message>
+    <message>
+        <source>Help and support</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Guides, keyboard shortcuts, updates and diagnostics</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -10077,20 +12429,8 @@
 <context>
     <name>EditorHeaderSearchField</name>
     <message>
-        <source>Workspace: %1</source>
-        <translation>Area di lavoro: %1</translation>
-    </message>
-    <message>
-        <source>Workspace:</source>
-        <translation>Spazio di lavoro:</translation>
-    </message>
-    <message>
-        <source>Switch workspace</source>
-        <translation>Cambia area di lavoro</translation>
-    </message>
-    <message>
-        <source>Customize layouts in Settings…</source>
-        <translation>Personalizza layout nelle Impostazioni…</translation>
+        <source>Describe an edit, e.g. “fade in over half a second”</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Search  %1</source>
@@ -10100,12 +12440,28 @@
         <source>Search</source>
         <translation>Cerca</translation>
     </message>
+    <message>
+        <source>Ask</source>
+        <translation type="unfinished">Chiedi</translation>
+    </message>
+    <message>
+        <source>Describe an edit in plain words and Drift does it, e.g. “fade in over half a second”.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thinking…</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>EditorHeaderSettingsButton</name>
     <message>
         <source>Settings</source>
         <translation>Impostazioni</translation>
+    </message>
+    <message>
+        <source>Preferences, appearance, shortcuts and workspaces</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -10115,8 +12471,106 @@
         <translation>Video</translation>
     </message>
     <message>
-        <source>Bakes, crop and video layout</source>
-        <translation>Bake, ritaglio e layout video</translation>
+        <source>Video size, crop, multicam and pre-rendered sections</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>EditorHeaderWorkspaceButton</name>
+    <message>
+        <source>Workspace: %1</source>
+        <translation type="unfinished">Area di lavoro: %1</translation>
+    </message>
+    <message>
+        <source>Switch workspace</source>
+        <translation type="unfinished">Cambia area di lavoro</translation>
+    </message>
+    <message>
+        <source>Each workspace arranges the panels for one kind of task</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Everyday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Studio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Customize layouts in Settings…</source>
+        <translation type="unfinished">Personalizza layout nelle Impostazioni…</translation>
+    </message>
+</context>
+<context>
+    <name>EditorSurfaceTargets</name>
+    <message>
+        <source>Exposure</source>
+        <translation type="unfinished">Esposizione</translation>
+    </message>
+    <message>
+        <source>Contrast</source>
+        <translation type="unfinished">Contrasto</translation>
+    </message>
+    <message>
+        <source>Highlights</source>
+        <translation type="unfinished">Alte luci</translation>
+    </message>
+    <message>
+        <source>Shadows</source>
+        <translation type="unfinished">Ombre</translation>
+    </message>
+    <message>
+        <source>Whites</source>
+        <translation type="unfinished">Bianchi</translation>
+    </message>
+    <message>
+        <source>Blacks</source>
+        <translation type="unfinished">Neri</translation>
+    </message>
+    <message>
+        <source>Temperature</source>
+        <translation type="unfinished">Temperatura</translation>
+    </message>
+    <message>
+        <source>Tint</source>
+        <translation type="unfinished">Tinta</translation>
+    </message>
+    <message>
+        <source>Saturation</source>
+        <translation type="unfinished">Saturazione</translation>
+    </message>
+    <message>
+        <source>Vibrance</source>
+        <translation type="unfinished">Vividezza</translation>
+    </message>
+    <message>
+        <source>Shadows wheel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Midtones wheel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Highlights wheel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip volume</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip opacity</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip rotation</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -10138,6 +12592,18 @@
         <translation>Cerca effetti</translation>
     </message>
     <message>
+        <source>More</source>
+        <translation type="unfinished">Altro</translation>
+    </message>
+    <message>
+        <source>Add adjustment layer</source>
+        <translation type="unfinished">Aggiungi livello di regolazione</translation>
+    </message>
+    <message>
+        <source>Import effect…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Adjustment layer</source>
         <translation>Livello di regolazione</translation>
     </message>
@@ -10156,6 +12622,10 @@
     <message>
         <source>No effects match “%1”.</source>
         <translation>Nessun effetto corrisponde a “%1”.</translation>
+    </message>
+    <message>
+        <source>Create a new effect in Forge</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Delete effect</source>
@@ -10224,6 +12694,18 @@
         <translation>Profondità e illuminazione</translation>
     </message>
     <message>
+        <source>Fix</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Privacy</source>
+        <translation type="unfinished">Privacy</translation>
+    </message>
+    <message>
+        <source>Background</source>
+        <translation type="unfinished">Sfondo</translation>
+    </message>
+    <message>
         <source>Other</source>
         <translation>Altro</translation>
     </message>
@@ -10231,12 +12713,12 @@
 <context>
     <name>EffectPresetCard</name>
     <message>
-        <source>%1 — click to apply to the selection, or drag onto a clip</source>
-        <translation>%1 — fai clic per applicare alla selezione o trascina su una clip</translation>
+        <source>Click to apply to the selection, or drag onto a clip</source>
+        <translation type="unfinished">Fai clic per applicare alla selezione, o trascina su una clip</translation>
     </message>
     <message>
-        <source>%1 — click to add as an adjustment layer, or drag onto a clip</source>
-        <translation>%1 — fai clic per aggiungere come livello di regolazione o trascina su una clip</translation>
+        <source>Click to add as an adjustment layer, or drag onto a clip</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Apply to selected clip</source>
@@ -10249,6 +12731,10 @@
     <message>
         <source>Add to favorites</source>
         <translation>Aggiungi ai preferiti</translation>
+    </message>
+    <message>
+        <source>Edit in Forge</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Delete from My Effects</source>
@@ -10437,12 +12923,20 @@
 <context>
     <name>EffectsAutoKeyHint</name>
     <message>
+        <source>Move to a time, set a value, then tap the diamond to add a keyframe. With Auto keyframes on, dragging a slider also creates them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Move to a time, set a value, then click the diamond to add a keyframe. With Auto keyframes on, dragging a slider also creates them.</source>
         <translation>Spostati su un punto temporale, imposta un valore, quindi fai clic sul rombo per aggiungere un fotogramma chiave. Con i Fotogrammi chiave automatici attivi, anche trascinare un dispositivo di scorrimento li creerà.</translation>
     </message>
     <message>
         <source>Auto keyframes</source>
         <translation>Fotogrammi chiave automatici</translation>
+    </message>
+    <message>
+        <source>Tap a diamond to keyframe a value, or let Auto add one as you drag.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -10550,6 +13044,26 @@
         <translation>Salva come predefinito…</translation>
     </message>
     <message>
+        <source>Move up</source>
+        <translation type="unfinished">Sposta in alto</translation>
+    </message>
+    <message>
+        <source>Move down</source>
+        <translation type="unfinished">Sposta in basso</translation>
+    </message>
+    <message>
+        <source>Copy effect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open in Color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit in Forge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>%1 (not installed)</source>
         <translation>%1 (non installato)</translation>
     </message>
@@ -10560,6 +13074,10 @@
     <message>
         <source>Move effect down</source>
         <translation>Sposta effetto verso il basso</translation>
+    </message>
+    <message>
+        <source>More</source>
+        <translation type="unfinished">Altro</translation>
     </message>
     <message>
         <source>Disable effect</source>
@@ -10669,6 +13187,10 @@
         <translation>Nessun effetto finora</translation>
     </message>
     <message>
+        <source>Tap Browse effects and pick a preset.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Drag a preset from the Effects library onto this clip, or click a preset card.</source>
         <translation>Trascina un predefinito dalla libreria Effetti su questa clip o fai clic sulla scheda di un predefinito.</translation>
     </message>
@@ -10679,6 +13201,18 @@
     <message>
         <source>Effect settings</source>
         <translation>Impostazioni effetto</translation>
+    </message>
+    <message>
+        <source>Blurring something that moves?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track it in Mask &amp; track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This clip already has a frame for every project frame, so Motion Smoothing adds nothing here. It helps footage with a lower frame rate than the project, or slowed down.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -10715,8 +13249,16 @@
         <translation>Aggiungi nuova maschera</translation>
     </message>
     <message>
-        <source>Cutout subject</source>
-        <translation>Ritaglia soggetto</translation>
+        <source>Remove background</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Blur faces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Find and blur faces</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -10747,6 +13289,10 @@
     <message>
         <source>Save as preset…</source>
         <translation>Salva come predefinito…</translation>
+    </message>
+    <message>
+        <source>Remove all</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -10850,21 +13396,6 @@
         <translation>Esportazione annullata.</translation>
     </message>
     <message>
-        <source>Some bakes are out of date</source>
-        <translation>Alcuni bake non sono aggiornati</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n baked range(s) no longer match your edits. Exporting them as is uses the old pictures.</source>
-        <translation>
-            <numerusform>%n intervallo con bake non corrisponde più alle tue modifiche. Esportarlo così com&apos;è utilizzerà le vecchie immagini.</numerusform>
-            <numerusform>%n intervalli con bake non corrispondono più alle tue modifiche. Esportarli così come sono utilizzerà le vecchie immagini.</numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>Re-bake first</source>
-        <translation>Riesegui prima il bake</translation>
-    </message>
-    <message>
         <source>Re-baking. Export again when it finishes.</source>
         <translation>Esecuzione del nuovo bake in corso. Esporta nuovamente al termine.</translation>
     </message>
@@ -10905,8 +13436,43 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Use baked ranges</source>
-        <translation>Usa intervalli con bake</translation>
+        <source>Sent to the render farm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added to the render queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added to the render queue. Press Start there to render it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add to queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Send to farm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some pre-rendered sections are out of date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n pre-rendered section(s) no longer match your edits. Exporting them as is uses the old pictures.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Re-render first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use pre-rendered sections</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Read pre-rendered ranges instead of compositing them again</source>
@@ -11075,10 +13641,69 @@
     </message>
 </context>
 <context>
+    <name>ExportDialogSizeEstimate</name>
+    <message>
+        <source>%1 KB</source>
+        <translation type="unfinished">%1 KB</translation>
+    </message>
+    <message>
+        <source>%1 MB</source>
+        <translation type="unfinished">%1 MB</translation>
+    </message>
+    <message>
+        <source>%1 GB</source>
+        <translation type="unfinished">%1 GB</translation>
+    </message>
+    <message>
+        <source>Estimated size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>≈ %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Estimate — varies with content</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>ExportDialogVideoSection</name>
     <message>
         <source>Saves what you see in the preview. Pick a size — the picture shape stays the same.</source>
         <translation>Salva ciò che vedi nell&apos;anteprima. Scegli una dimensione: la proporzione dell&apos;immagine rimane la stessa.</translation>
+    </message>
+    <message>
+        <source>Format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1×%2</source>
+        <translation type="unfinished">%1×%2</translation>
+    </message>
+    <message>
+        <source>%1×%2. Vertical for TikTok, Reels and Shorts, wide for YouTube.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose layout…</source>
+        <translation type="unfinished">Scegli layout…</translation>
+    </message>
+    <message>
+        <source>Pick a platform template (YouTube, Instagram, TikTok, …) and quality</source>
+        <translation type="unfinished">Scegli un modello di piattaforma (YouTube, Instagram, TikTok, …) e la qualità</translation>
+    </message>
+    <message>
+        <source>Auto reframe…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crop the selected clip to follow its subject in a new shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a video clip on the timeline first</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Downscale</source>
@@ -11095,6 +13720,10 @@
     <message>
         <source>fps</source>
         <translation>fps</translation>
+    </message>
+    <message>
+        <source>Above the project rate, extra frames come from the source footage, which keeps slowed clips smooth.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Exporting above the project rate pulls extra frames from the source footage where it has them — this is what makes slowed clips look smooth. Where it doesn&apos;t, frames repeat.</source>
@@ -11119,6 +13748,10 @@
     <message>
         <source>Constant Quality</source>
         <translation>Qualità costante</translation>
+    </message>
+    <message>
+        <source>Quality</source>
+        <translation type="unfinished">Qualità</translation>
     </message>
     <message>
         <source>Bitrate</source>
@@ -11470,12 +14103,35 @@
         <translation>“%1” e i relativi dati scaricati verranno eliminati. Sarà possibile installarlo nuovamente in seguito.</translation>
     </message>
     <message>
+        <source>Download all extras?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Download</source>
+        <translation type="unfinished">Scarica</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n add-on(s) will be downloaded, %1 in total. Once they are installed, everything in Drift works without an internet connection.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Search extras</source>
         <translation>Cerca extra</translation>
     </message>
     <message>
         <source>Clear search</source>
         <translation>Cancella ricerca</translation>
+    </message>
+    <message>
+        <source>Download all…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Install every add-on so Drift works offline</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Install from file…</source>
@@ -11778,6 +14434,33 @@
         <translation>Rilevamento volti completato</translation>
     </message>
     <message>
+        <source>Scan this clip for faces first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This clip&apos;s face track could not be read — re-detect faces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Face %1</source>
+        <translation type="unfinished">Volto %1</translation>
+    </message>
+    <message>
+        <source>Face</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mask faces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Masked %n face(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Scanned clip no longer exists</source>
         <translation>La clip scansionata non esiste più</translation>
     </message>
@@ -11861,12 +14544,16 @@
         <translation>Attenuazione in uscita</translation>
     </message>
     <message>
-        <source>Drag the two handles to shape the cubic. The ends stay pinned, and handles are held inside the box so the curve cannot fold back on itself.</source>
-        <translation>Trascina le due maniglie per modellare la curva cubica. Le estremità rimangono fisse e le maniglie vengono mantenute all&apos;interno del riquadro in modo che la curva non possa ripiegarsi su se stessa.</translation>
+        <source>Drag the two handles to shape the cubic. The ends stay pinned, and handles are held inside the box so the curve cannot fold back on itself. Shift keeps a handle flat, Ctrl suspends snapping, Esc cancels a drag.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Drag the middle points to shape the ramp (ends stay pinned). Double-click to add a point; Delete removes the selection.</source>
-        <translation>Trascina i punti intermedi per modellare la rampa (le estremità rimangono bloccate). Fai doppio clic per aggiungere un punto; Canc rimuove la selezione.</translation>
+        <source>Click the curve to add a point and drag the points to shape the ramp (ends stay pinned). Delete or double-click removes, drag an empty spot to select several, Esc cancels a drag.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit curve</source>
+        <translation type="unfinished">Modifica curva</translation>
     </message>
     <message>
         <source>Apply</source>
@@ -11972,6 +14659,500 @@
     </message>
 </context>
 <context>
+    <name>ForgeCodeTab</name>
+    <message>
+        <source>Copy</source>
+        <translation type="unfinished">Copia</translation>
+    </message>
+    <message>
+        <source>Nothing compiled yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ForgeController</name>
+    <message>
+        <source>Move nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disconnect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duplicate nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paste nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add node</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit value</source>
+        <translation type="unfinished">Modifica valore</translation>
+    </message>
+    <message>
+        <source>Unexpose %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expose %1 as slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disconnect all</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview this node</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview output</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit option</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expose as slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unexpose slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reorder sliders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use lowercase letters, digits, underscores and dots, starting with a letter or digit.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown field.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This package was not made in Forge.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name the package</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is already installed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 already exists and is not a package folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cannot open %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio effects are not supported yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Built-in sample</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cut: %1 to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ForgeDetailsTab</name>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished">Nome</translation>
+    </message>
+    <message>
+        <source>Identifier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Author</source>
+        <translation type="unfinished">Autore</translation>
+    </message>
+    <message>
+        <source>Version</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plays as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In</source>
+        <translation type="unfinished">In entrata</translation>
+    </message>
+    <message>
+        <source>Out</source>
+        <translation type="unfinished">In uscita</translation>
+    </message>
+    <message>
+        <source>Default duration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ms</source>
+        <translation type="unfinished">ms</translation>
+    </message>
+</context>
+<context>
+    <name>ForgeGraphPanel</name>
+    <message>
+        <source>Forge node graph</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effect</source>
+        <translation type="unfinished">Effetto</translation>
+    </message>
+    <message>
+        <source>Transition</source>
+        <translation type="unfinished">Transizione</translation>
+    </message>
+    <message>
+        <source>Animation</source>
+        <translation type="unfinished">Animazione</translation>
+    </message>
+    <message>
+        <source>New %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open a saved Forge project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation type="unfinished">Ripeti</translation>
+    </message>
+    <message>
+        <source>Install</source>
+        <translation type="unfinished">Installa</translation>
+    </message>
+    <message>
+        <source>Install it into the effect, transition or animation browsers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation type="unfinished">Esporta</translation>
+    </message>
+    <message>
+        <source>Installed “%1”</source>
+        <translation type="unfinished">“%1” installato</translation>
+    </message>
+    <message>
+        <source>Replace existing?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replace</source>
+        <translation type="unfinished">Sostituisci</translation>
+    </message>
+    <message>
+        <source>“%1” is already installed. Replace it with this version?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export .driftfx…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export .driftfx</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift package (*.driftfx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exported to %1</source>
+        <translation type="unfinished">Esportato in %1</translation>
+    </message>
+    <message>
+        <source>Export folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No saved projects yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ForgeInspectorPanel</name>
+    <message>
+        <source>Forge inspector</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Node</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sliders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation type="unfinished">Dettagli</translation>
+    </message>
+    <message>
+        <source>Code</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ForgeNodeTab</name>
+    <message>
+        <source>Slider: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a single node in the graph to edit its settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expose</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unexpose</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comma-separated choices</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not exposed</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ForgePalettePanel</name>
+    <message>
+        <source>Forge node palette</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ForgePreviewBar</name>
+    <message>
+        <source>Plays across the cut; Loop repeats the transition window.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loop repeats the in or out window of the clip.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shown on the target clip with the current slider values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Previewing a single node</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Compiles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n error(s)</source>
+        <translation type="unfinished">
+            <numerusform>%n errore</numerusform>
+            <numerusform>%n errori</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Use selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Interrompi</translation>
+    </message>
+    <message>
+        <source>Loop play</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview output</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follow selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In</source>
+        <translation type="unfinished">In entrata</translation>
+    </message>
+    <message>
+        <source>Out</source>
+        <translation type="unfinished">In uscita</translation>
+    </message>
+    <message>
+        <source>ms</source>
+        <translation type="unfinished">ms</translation>
+    </message>
+</context>
+<context>
+    <name>ForgeSlidersTab</name>
+    <message>
+        <source>Reset values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preset name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No sliders yet. Right-click a node and choose Expose as slider, or use Expose in the Node tab.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Label</source>
+        <translation type="unfinished">Etichetta</translation>
+    </message>
+    <message>
+        <source>Move up</source>
+        <translation type="unfinished">Sposta in alto</translation>
+    </message>
+    <message>
+        <source>Move down</source>
+        <translation type="unfinished">Sposta in basso</translation>
+    </message>
+    <message>
+        <source>Remove slider</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>identifier</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Min</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Max</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default</source>
+        <translation type="unfinished">Predefinito</translation>
+    </message>
+    <message>
+        <source>On by default</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Comma-separated options</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation type="unfinished">Anteprima</translation>
+    </message>
+    <message>
+        <source>Nothing uses this slider.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>GeneralInspector</name>
     <message>
         <source>Video</source>
@@ -12040,6 +15221,10 @@
     <message>
         <source>Straighten</source>
         <translation>Raddrizza</translation>
+    </message>
+    <message>
+        <source>Crop on canvas</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Starts at</source>
@@ -12131,6 +15316,59 @@
     </message>
 </context>
 <context>
+    <name>GeneratorCard</name>
+    <message>
+        <source>Couldn’t add the generator.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 — click to add at the playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add at playhead</source>
+        <translation type="unfinished">Aggiungi alla testina di riproduzione</translation>
+    </message>
+</context>
+<context>
+    <name>GeneratorInspector</name>
+    <message>
+        <source>Generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Seed</source>
+        <translation type="unfinished">Seme</translation>
+    </message>
+    <message>
+        <source>Generator seed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Parameters</source>
+        <translation type="unfinished">Parametri</translation>
+    </message>
+    <message>
+        <source>Generator parameters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emoji or path to an image</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>GeneratorsTab</name>
+    <message>
+        <source>Search generators</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No generators match “%1”.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>GlobalSearchPopup</name>
     <message>
         <source>Action</source>
@@ -12189,8 +15427,48 @@
         <translation>Controllo</translation>
     </message>
     <message>
+        <source>Ask</source>
+        <translation type="unfinished">Chiedi</translation>
+    </message>
+    <message>
+        <source>Suggestion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No matches</source>
         <translation>Nessuna corrispondenza</translation>
+    </message>
+    <message>
+        <source>No matches for “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Popular searches</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Captions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove background</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed</source>
+        <translation type="unfinished">Velocità</translation>
+    </message>
+    <message>
+        <source>Crop</source>
+        <translation type="unfinished">Ritaglio quadro</translation>
+    </message>
+    <message>
+        <source>Stabilize</source>
+        <translation type="unfinished">Stabilizza</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation type="unfinished">Esporta</translation>
     </message>
 </context>
 <context>
@@ -12334,6 +15612,10 @@
     <message>
         <source>Release to remove</source>
         <translation>Rilascia per rimuovere</translation>
+    </message>
+    <message>
+        <source>Move guide</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -12553,9 +15835,115 @@
         <source>Start</source>
         <translation>Inizio</translation>
     </message>
+    <message numerus="yes">
+        <source>%n step(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n state(s) in memory</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
         <source>History</source>
         <translation>Cronologia</translation>
+    </message>
+    <message>
+        <source>Clear history…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear history</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation type="unfinished">Cancella</translation>
+    </message>
+    <message>
+        <source>Frees undo memory. Undone steps (redo) are dropped too, and cleared steps can&apos;t be restored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep last steps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Snapshots</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Named copies of the project at this step, kept outside the undo stack</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save snapshot…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This project…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo history settings for this project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No snapshots yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="unfinished">Ripristina</translation>
+    </message>
+    <message>
+        <source>Before colour pass</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replaces the project with this snapshot. A snapshot that is no longer in the undo history starts a new history, so steps after it can&apos;t be restored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>History settings for this project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation type="unfinished">Applica</translation>
+    </message>
+    <message>
+        <source>This project overrides the app&apos;s undo history settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Following the app&apos;s undo history settings (Settings, General).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo steps kept (-1 unlimited, 0 off)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save history with the project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use app settings</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Nothing to undo yet. Your edits will be listed here.</source>
@@ -12737,6 +16125,451 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
+    <name>InlineTip</name>
+    <message>
+        <source>Hide this tip</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>Interchange</name>
+    <message>
+        <source>Sony/MAGIX VEGAS Pro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects other than Levels, Color Corrector and Sharpen are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Envelopes and keyframes are not read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested projects that cannot be opened are left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adobe Premiere Pro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transitions are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects and keyframes are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio levels and opacity are not read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the first sequence is imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>DaVinci Resolve / FCPXML</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The timeline is flattened to one video track and one audio track.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects, transitions, keyframes, retiming and audio levels are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Markers and compound or multicam clips are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A .drp project is always opened at 1080p 24 fps.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>When the chosen timeline is not found, the default timeline is used.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kdenlive / Shotcut (MLT)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Guides and markers are not read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the last sequence is imported; earlier ones are ignored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filters and transitions are dropped, including their keyframes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Colour, noise and count generators are left as gaps.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Volume and pan are not read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Motion Graphics Template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Imported as a single clip inserted into the current project.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the properties the template exposes are carried over.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CMX 3600 EDL</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed changes (M2) and retiming are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OpenTimelineIO</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Marker colours are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects other than a constant speed change are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested stacks and generator references are left as gaps.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the first stack is read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Resolution and frame rate are guessed when the file does not say.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects, transitions and keyframes are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed changes and text clips are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested sequences and other sequences are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Final Cut Pro XML</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disabled clips are dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>VEGAS markers (TSV)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only markers and regions are written; clips are not exported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clips and tracks are not written; only markers are exported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adjustment tracks are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hidden tracks are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disabled clips are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text clips are not written with their text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested sequence clips are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed changes are not written; the clip plays at normal speed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keyframes are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transitions are not written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the open timeline is written; other sequences are left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>InterchangeController</name>
+    <message>
+        <source>That file location isn’t valid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift doesn’t recognise this file as an importable format.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to read the Motion Graphics Template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to read this file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Failed to unpack Motion Graphics Template</source>
+        <translation type="unfinished">Impossibile estrarre il modello di grafica animata</translation>
+    </message>
+    <message>
+        <source>Failed to apply template to project</source>
+        <translation type="unfinished">Impossibile applicare il modello al progetto</translation>
+    </message>
+    <message>
+        <source>Import template: %1</source>
+        <translation type="unfinished">Importa modello: %1</translation>
+    </message>
+    <message>
+        <source>Template imported: %1</source>
+        <translation type="unfinished">Modello importato: %1</translation>
+    </message>
+    <message>
+        <source>That export location isn’t valid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export failed</source>
+        <translation type="unfinished">Esportazione non riuscita</translation>
+    </message>
+    <message>
+        <source>Exported %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>InterchangeGapList</name>
+    <message>
+        <source>Known limitations</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>InterchangeReportView</name>
+    <message>
+        <source>Nothing is lost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dropped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Degraded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Info</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transitions</source>
+        <translation type="unfinished">Transizioni</translation>
+    </message>
+    <message>
+        <source>Effects</source>
+        <translation type="unfinished">Effetti</translation>
+    </message>
+    <message>
+        <source>Speed changes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keyframes</source>
+        <translation type="unfinished">Fotogrammi chiave</translation>
+    </message>
+    <message>
+        <source>Text</source>
+        <translation type="unfinished">Testo</translation>
+    </message>
+    <message>
+        <source>Nested sequences</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sequences</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Markers</source>
+        <translation type="unfinished">Marcatori</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation type="unfinished">Audio</translation>
+    </message>
+    <message>
+        <source>Generators</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Media</source>
+        <translation type="unfinished">Elementi multimediali</translation>
+    </message>
+    <message>
+        <source>Format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disabled clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assets</source>
+        <translation type="unfinished">Risorse</translation>
+    </message>
+    <message>
+        <source>Missing assets</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>InterchangeStabilityChip</name>
+    <message>
+        <source>Stable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Beta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Experimental</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>InterchangeWindow</name>
+    <message>
+        <source>Import / Export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (%2)</source>
+        <translation type="unfinished">%1 (%2)</translation>
+    </message>
+    <message>
+        <source>All supported (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a file to import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import a project from another editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export the timeline for another editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation type="unfinished">Importa</translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation type="unfinished">Esporta</translation>
+    </message>
+    <message>
+        <source>Choose file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose another file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing is lost in this import.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Imported. The report stays here for reference.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adds to the current project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opens as a new untitled project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Insert at playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing is lost in this export.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export…</source>
+        <translation type="unfinished">Esporta…</translation>
+    </message>
+</context>
+<context>
     <name>JobRegistry</name>
     <message>
         <source>Queued</source>
@@ -12914,10 +16747,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Fotogrammi chiave cancellati</translation>
     </message>
     <message>
-        <source>Nudge keyframes</source>
-        <translation>Sposta fotogrammi chiave</translation>
-    </message>
-    <message>
         <source>Move keyframes</source>
         <translation>Sposta fotogrammi chiave</translation>
     </message>
@@ -13064,8 +16893,12 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Sfumatura maschera</translation>
     </message>
     <message>
-        <source>Edit keyframe curve</source>
-        <translation>Modifica curva fotogramma chiave</translation>
+        <source>Auto-smooth keyframes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No keyframes on this clip</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>%1 (keyframes off)</source>
@@ -13084,8 +16917,20 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>La mia attenuazione %1</translation>
     </message>
     <message>
+        <source>Interpolation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smooth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Straight</source>
         <translation>Lineare</translation>
+    </message>
+    <message>
+        <source>Hold</source>
+        <translation type="unfinished">Fermo</translation>
     </message>
     <message>
         <source>Easing…</source>
@@ -13094,10 +16939,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Save curve as preset…</source>
         <translation>Salva curva come preset…</translation>
-    </message>
-    <message>
-        <source>Jump</source>
-        <translation>Salto</translation>
     </message>
 </context>
 <context>
@@ -13143,15 +16984,20 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Trova battute e colpi nell&apos;audio sotto questa clip</translation>
     </message>
     <message>
+        <source>Add timeline markers at the detected beats</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto-smooth the focused curve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto-smooth every shown curve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>More keyframe tools</source>
         <translation>Altri strumenti per fotogrammi chiave</translation>
-    </message>
-</context>
-<context>
-    <name>KeyframeGraphKeyDot</name>
-    <message>
-        <source>Move keyframe</source>
-        <translation>Sposta fotogramma chiave</translation>
     </message>
 </context>
 <context>
@@ -13181,10 +17027,29 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
-    <name>KeyframeGraphTangentHandle</name>
+    <name>KeyframeInteraction</name>
+    <message numerus="yes">
+        <source>%n key(s)</source>
+        <translation type="unfinished">
+            <numerusform>%n fotogramma chiave</numerusform>
+            <numerusform>%n fotogrammi chiave</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Move keyframes</source>
+        <translation type="unfinished">Sposta fotogrammi chiave</translation>
+    </message>
     <message>
         <source>Edit keyframe curve</source>
-        <translation>Modifica curva fotogramma chiave</translation>
+        <translation type="unfinished">Modifica curva fotogramma chiave</translation>
+    </message>
+    <message>
+        <source>Stretch keyframes</source>
+        <translation type="unfinished">Estendi fotogrammi chiave</translation>
+    </message>
+    <message>
+        <source>Nudge keyframes</source>
+        <translation type="unfinished">Sposta fotogrammi chiave</translation>
     </message>
 </context>
 <context>
@@ -13194,8 +17059,16 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Lineare</translation>
     </message>
     <message>
-        <source>Jump</source>
-        <translation>Salto</translation>
+        <source>Interpolation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smooth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hold</source>
+        <translation type="unfinished">Fermo</translation>
     </message>
     <message>
         <source>Easing…</source>
@@ -13223,35 +17096,14 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
-    <name>KeyframesCurvesInteraction</name>
-    <message>
-        <source>Move keyframes</source>
-        <translation>Sposta fotogrammi chiave</translation>
-    </message>
-    <message>
-        <source>Edit keyframe curve</source>
-        <translation>Modifica curva fotogramma chiave</translation>
-    </message>
-</context>
-<context>
-    <name>KeyframesInteractionSurface</name>
-    <message>
-        <source>Move keyframes</source>
-        <translation>Sposta fotogrammi chiave</translation>
-    </message>
-    <message numerus="yes">
-        <source>%n key(s)</source>
-        <translation>
-            <numerusform>%n fotogramma chiave</numerusform>
-            <numerusform>%n fotogrammi chiave</numerusform>
-        </translation>
-    </message>
-</context>
-<context>
     <name>KeyframesPanel</name>
     <message>
         <source>Keyframe editor</source>
         <translation>Editor fotogrammi chiave</translation>
+    </message>
+    <message>
+        <source>Auto-smooth keyframes</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Scale</source>
@@ -13275,13 +17127,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
-    <name>KeyframesStretchBox</name>
-    <message>
-        <source>Stretch keyframes</source>
-        <translation>Estendi fotogrammi chiave</translation>
-    </message>
-</context>
-<context>
     <name>KeyframesToolbar</name>
     <message>
         <source>Previous keyframe (Alt+Left)</source>
@@ -13302,6 +17147,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Clear all keyframes of the selected properties</source>
         <translation>Cancella tutti i fotogrammi chiave delle proprietà selezionate</translation>
+    </message>
+    <message>
+        <source>Auto-smooth the selected keyframes, or every key of the selected properties</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Lanes</source>
@@ -13395,6 +17244,113 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
+    <name>Keymap</name>
+    <message>
+        <source>File &amp; app</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation type="unfinished">Modifica</translation>
+    </message>
+    <message>
+        <source>Playback</source>
+        <translation type="unfinished">Riproduzione</translation>
+    </message>
+    <message>
+        <source>Navigation</source>
+        <translation type="unfinished">Navigazione</translation>
+    </message>
+    <message>
+        <source>Marking &amp; work area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Markers</source>
+        <translation type="unfinished">Marcatori</translation>
+    </message>
+    <message>
+        <source>Timeline editing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tracks &amp; audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tools</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview &amp; view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Workspaces</source>
+        <translation type="unfinished">Aree di lavoro</translation>
+    </message>
+    <message>
+        <source>Keyframes panel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Masking</source>
+        <translation type="unfinished">Mascheratura</translation>
+    </message>
+    <message>
+        <source>Path editing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tracking</source>
+        <translation type="unfinished">Tracciamento</translation>
+    </message>
+    <message>
+        <source>Subtitles</source>
+        <translation type="unfinished">Sottotitoli</translation>
+    </message>
+    <message>
+        <source>Source Lab viewer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Source Lab ranges</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Color panel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>3D viewport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>3D fly mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Node editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Multicam window</source>
+        <translation type="unfinished">Finestra Multicam</translation>
+    </message>
+    <message>
+        <source>Media preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>LanguageChooserDialog</name>
     <message>
         <source>Choose your language</source>
@@ -13444,8 +17400,8 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Scegli un modello di piattaforma e la qualità. Questo aggiornerà le dimensioni video del progetto.</translation>
     </message>
     <message>
-        <source>Pick a category, then a template and quality. You can change this anytime in Settings → Choose layout.</source>
-        <translation>Scegli una categoria, quindi un modello e la qualità. Puoi modificarlo in qualsiasi momento in Impostazioni → Scegli layout.</translation>
+        <source>Pick a category, then a template and quality. You can change this anytime from Video → Size, aspect &amp; frame rate….</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Favorites</source>
@@ -13598,10 +17554,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Rimuovi</translation>
     </message>
     <message>
-        <source>Color Grading LUTs</source>
-        <translation>LUT di gradazione colore</translation>
-    </message>
-    <message>
         <source>Import LUTs</source>
         <translation>Importa LUT</translation>
     </message>
@@ -13620,6 +17572,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Missing LUT</source>
         <translation>LUT mancante</translation>
+    </message>
+    <message>
+        <source>Looks</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>LUT Intensity</source>
@@ -13699,6 +17655,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <source>Export finished.</source>
         <translation>Esportazione completata.</translation>
     </message>
+    <message>
+        <source>Review captions</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
         <source>This VEGAS Pro timeline contains %n unconverted AVCHD / camera raw clip(s). Convert them to Apple ProRes 422 now to prevent audio sync drift and lag?</source>
         <translation type="unfinished">
@@ -13774,8 +17734,8 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>&amp;Esporta video…</translation>
     </message>
     <message>
-        <source>&amp;Package Project…</source>
-        <translation>&amp;Crea pacchetto del progetto…</translation>
+        <source>Save with &amp;Media…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>&amp;Close Project</source>
@@ -13948,6 +17908,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>&amp;Help</source>
         <translation>&amp;Aiuto</translation>
+    </message>
+    <message>
+        <source>Drift Help</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Keyboard Shortcuts</source>
@@ -14510,6 +18474,22 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
 <context>
     <name>MaskAiOverlay</name>
     <message>
+        <source>Tap the object to select it. Switch to Exclude to mark what to leave out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click the object to select it. Right-click, Alt-click or X to exclude.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add points to refine, then press “Cut out through whole clip” in the Masking panel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>People are found automatically. Press “Cut out people” in the Masking panel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Tracking object… %1%</source>
         <translation>Tracciamento oggetto in corso… %1%</translation>
     </message>
@@ -14526,35 +18506,59 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Sposta la testina di riproduzione sulla clip selezionata</translation>
     </message>
     <message>
-        <source>Click the object to select it · Right-click or Ctrl-click to exclude</source>
-        <translation>Fai clic sull&apos;oggetto per selezionarlo · Fai clic con il pulsante destro del mouse o premi Ctrl per escludere</translation>
-    </message>
-    <message>
-        <source>Add points to refine · then press “Cut out through whole clip” in the Masking panel</source>
-        <translation>Aggiungi punti per perfezionare · poi premi “Ritaglia attraverso l&apos;intera clip” nel pannello Maschere</translation>
-    </message>
-    <message>
         <source>Install a cutout model in the Masking panel first</source>
         <translation>Installa prima un modello di ritaglio nel pannello Maschere</translation>
-    </message>
-    <message>
-        <source>People are found automatically · press “Cut out people” in the Masking panel</source>
-        <translation>Le persone vengono rilevate automaticamente · premi “Ritaglia persone” nel pannello Maschere</translation>
     </message>
 </context>
 <context>
     <name>MaskBrushOverlay</name>
     <message>
-        <source>%1 %</source>
-        <translation>%1 %</translation>
-    </message>
-    <message>
-        <source>Paint to add · Right-drag or %1 to erase · [ ] or Shift-drag to resize · Ctrl+scroll to zoom</source>
-        <translation>Dipingi per aggiungere · Trascina con tasto destro o %1 per cancellare · [ ] o Maiusc-trascina per ridimensionare · Ctrl+scorrimento per zoomare</translation>
-    </message>
-    <message>
         <source>Move the playhead over the selected clip</source>
         <translation>Sposta la testina di riproduzione sulla clip selezionata</translation>
+    </message>
+    <message>
+        <source>Drag to draw an outline, release to fill it. Right-drag or Alt to subtract.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click along an edge to place points. Right-click or Alt to subtract.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 points. Click the first point or Enter to close, Backspace to undo, Esc to cancel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click to select a region of similar colour. Shift adds, Alt or right-click subtracts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paint with one finger, or switch to Navigate to pan. Two fingers always zoom and pan.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paint to add. Right-drag, Alt or %1 to subtract. [ ] sizes, Shift+[ ] sets hardness. Shift-drag or Alt+right-drag resizes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Size %1 %   Hardness %2 %</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paint</source>
+        <translation type="unfinished">Pittura</translation>
+    </message>
+    <message>
+        <source>One finger paints. Two fingers always zoom and pan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Navigate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One finger pans the preview. A stylus still paints</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Select a video or image clip to paint a mask</source>
@@ -14572,16 +18576,12 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Sposta la testina di riproduzione sulla clip selezionata</translation>
     </message>
     <message>
-        <source>Click to place points. Click the first point or press Enter to close.</source>
-        <translation>Fai clic per posizionare i punti. Fai clic sul primo punto o premi Invio per chiudere.</translation>
-    </message>
-    <message>
-        <source>%1 points · Enter to close · Backspace to undo · Esc to cancel</source>
-        <translation>%1 punti · Invio per chiudere · Backspace per annullare · Esc per cancellare</translation>
-    </message>
-    <message>
         <source>Drawing replaces this layer&apos;s mask</source>
         <translation>Il disegno sostituisce la maschera di questo livello</translation>
+    </message>
+    <message>
+        <source>Drag on the picture to draw</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Drag to draw · Shift for square/circle · Alt from centre</source>
@@ -14596,6 +18596,25 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
+    <name>MaskModeChips</name>
+    <message>
+        <source>Include</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add to the mask</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exclude</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Take away from the mask. Alt or right-drag does this for one stroke</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MaskOverlay</name>
     <message>
         <source>Unlock aspect ratio</source>
@@ -14604,14 +18623,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Lock aspect ratio</source>
         <translation>Blocca proporzioni</translation>
-    </message>
-    <message>
-        <source>Drag points to reshape · Tap ○ on an edge to add a point · Hold a point to delete</source>
-        <translation>Trascina i punti per rimodellare · Tocca ○ su un bordo per aggiungere un punto · Tieni premuto un punto per eliminarlo</translation>
-    </message>
-    <message>
-        <source>Drag points to reshape · Click ○ on an edge to add a point · Right-click a point to delete</source>
-        <translation>Trascina i punti per rimodellare · Fai clic su ○ su un bordo per aggiungere un punto · Fai clic con il tasto destro su un punto per eliminarlo</translation>
     </message>
 </context>
 <context>
@@ -14638,6 +18649,28 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Feather</source>
         <translation>Sfumatura bordi</translation>
+    </message>
+</context>
+<context>
+    <name>MaskOverlayResizeGrip</name>
+    <message>
+        <source>Edit %1</source>
+        <translation type="unfinished">Modifica %1</translation>
+    </message>
+    <message>
+        <source>Mask</source>
+        <translation type="unfinished">Maschera</translation>
+    </message>
+</context>
+<context>
+    <name>MaskOverlayRotateHandle</name>
+    <message>
+        <source>Edit %1</source>
+        <translation type="unfinished">Modifica %1</translation>
+    </message>
+    <message>
+        <source>Mask</source>
+        <translation type="unfinished">Maschera</translation>
     </message>
 </context>
 <context>
@@ -14672,6 +18705,18 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
 </context>
 <context>
     <name>MaskingController</name>
+    <message>
+        <source>Hard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Soft</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detail</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>Use as mask</source>
         <translation>Usa come maschera</translation>
@@ -14765,6 +18810,26 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Fotogramma di ritaglio corretto</translation>
     </message>
     <message>
+        <source>Lasso selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scissors selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This clip has no picture to follow edges on</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This clip has no picture to select from</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Magic wand</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Could not save the brush mask. The next stroke will try again</source>
         <translation>Impossibile salvare la maschera pennello. Il tratto successivo riproverà</translation>
     </message>
@@ -14795,6 +18860,14 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Mask deleted</source>
         <translation>Maschera eliminata</translation>
+    </message>
+    <message>
+        <source>Reset mask</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mask reset</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Draw polygon mask</source>
@@ -14926,10 +18999,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Tracker</source>
         <translation>Tracciatore</translation>
-    </message>
-    <message>
-        <source>%1 (%2)</source>
-        <translation>%1 (%2)</translation>
     </message>
     <message>
         <source>Off</source>
@@ -15198,8 +19267,116 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Aggiungi</translation>
     </message>
     <message>
+        <source>Remove background</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move and reshape masks you have already drawn.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw a rectangular mask to keep or hide a box-shaped area.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw an oval mask, such as a spotlight or a vignette.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click out a shape point by point for precise edges.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paint the mask by hand and fix the edges.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lasso</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw around an object freehand to select it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scissors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click along an edge and it snaps to the outline.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Magic wand</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a colour to select all similar pixels next to it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click what you want and AI finds its outline. Use it to remove a background.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pin a point to something moving so a mask or object can follow it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click to select the region of similar colour. It is added to the same still mask the Brush paints.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag around an area to fill it into the same still mask the Brush paints.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click along an object&apos;s edge; the outline snaps to it. Close the outline to fill it into the same still mask the Brush paints.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tolerance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wand tolerance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Contiguous</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click adds to the mask. Shift also adds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Subtract</source>
         <translation>Sottrai</translation>
+    </message>
+    <message>
+        <source>Click removes from the mask. Alt or right-click also subtracts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 brush: %2 % size, %3 % hardness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smoothing</source>
+        <translation type="unfinished">Attenuazione</translation>
+    </message>
+    <message>
+        <source>Brush smoothing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fill closed loops</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Needs AI Engine</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Intersect</source>
@@ -15352,6 +19529,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Forma</translation>
     </message>
     <message>
+        <source>Draw &amp; track ↗</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Rectangle</source>
         <translation>Rettangolo</translation>
     </message>
@@ -15390,6 +19571,14 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Intersect</source>
         <translation>Interseca</translation>
+    </message>
+    <message>
+        <source>Reset mask</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore the default mask settings without deleting the mask</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Remove cutout layer</source>
@@ -15483,16 +19672,16 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Soggetto</translation>
     </message>
     <message>
-        <source>Cut out subject…</source>
-        <translation>Ritaglia soggetto…</translation>
-    </message>
-    <message>
         <source>Trace the subject and pin the result as a mask layer</source>
         <translation>Traccia il soggetto e fissa il risultato come livello di maschera</translation>
     </message>
     <message>
-        <source>Select a video clip first</source>
-        <translation>Seleziona prima una clip video</translation>
+        <source>Remove background…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a video or image clip first</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Download people cutout (about 20 MB)</source>
@@ -15525,13 +19714,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>All files (*)</source>
         <translation>Tutti i file (*)</translation>
-    </message>
-</context>
-<context>
-    <name>McpController</name>
-    <message>
-        <source>Relink media</source>
-        <translation>Ricollega file multimediali</translation>
     </message>
 </context>
 <context>
@@ -15723,6 +19905,33 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Sostituisci elemento multimediale…</translation>
     </message>
     <message>
+        <source>Reload from disk</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn’t reload this media. It may not be a file on disk, or is already being read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Prepare in Source Lab…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save a copy…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Playback</source>
+        <translation type="unfinished">Riproduzione</translation>
+    </message>
+    <message numerus="yes">
+        <source>Convert %n clips to Apple ProRes 422…</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
         <source>Use as mask</source>
         <translation>Usa come maschera</translation>
     </message>
@@ -15786,10 +19995,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Export image…</source>
         <translation>Esporta immagine…</translation>
-    </message>
-    <message>
-        <source>Save As…</source>
-        <translation>Salva con nome…</translation>
     </message>
     <message numerus="yes">
         <source>Remove %n items from project</source>
@@ -15871,6 +20076,22 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Cerca elementi multimediali</translation>
     </message>
     <message>
+        <source>Search by sound, e.g. heavy rain</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search by sound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search by sound needs the audio tagging add-on. Click to get it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear search</source>
+        <translation type="unfinished">Cancella ricerca</translation>
+    </message>
+    <message>
         <source>Media generator inserted</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15913,6 +20134,22 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>This folder is empty</source>
         <translation>Questa cartella è vuota</translation>
+    </message>
+    <message>
+        <source>Listening to the bin…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type a sound, like heavy rain or applause, and press Enter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not a sound Drift knows. Closest: %1</source>
+        <translation type="unfinished">Non è un suono riconosciuto da Drift. Più simile: %1</translation>
+    </message>
+    <message>
+        <source>Nothing in the bin sounds like that.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Drag media here, or import more.</source>
@@ -15959,6 +20196,18 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
     <message>
         <source>Insert VEGAS Media Generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to list view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to tree view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to grid view</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -16076,37 +20325,15 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Could not create the folder %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Those clips are already Apple ProRes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No valid video files to transcode</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Transcoding to Apple ProRes 422…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message numerus="yes">
-        <source>%n clip(s)</source>
-        <translation type="unfinished">
-            <numerusform>%n clip</numerusform>
-            <numerusform>%n clip</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <source>Starting Apple ProRes 422 transcode for %n file(s)…</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>Transcoding to Apple ProRes 422 (%1 of %2 complete)…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Transcoding %1 to Apple ProRes 422 (%2 of %3)…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Transcode to Apple ProRes 422</source>
         <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
@@ -16115,17 +20342,6 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
             <numerusform></numerusform>
             <numerusform></numerusform>
         </translation>
-    </message>
-    <message numerus="yes">
-        <source>Transcoded %n clip(s) to Apple ProRes 422, but could not relink (unlock locked tracks first)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>ProRes transcoding cancelled</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>ProRes transcoding failed</source>
@@ -16185,6 +20401,24 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Couldn’t update the library</source>
         <translation>Impossibile aggiornare la libreria</translation>
+    </message>
+    <message>
+        <source>Transcoding to Apple ProRes 422 (%1/%2)…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>ProRes transcoding cancelled after %n clip(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Transcoded %n clip(s) to Apple ProRes 422, %1 failed</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <source>Could not refresh “%1”: %2</source>
@@ -16363,6 +20597,14 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
         <translation>Raddrizza</translation>
     </message>
     <message>
+        <source>Auto-fit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The crop box shrinks to stay inside the straightened picture</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Level (0°)</source>
         <translation>Livella (0°)</translation>
     </message>
@@ -16511,6 +20753,93 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
+    <name>MidiProtocol</name>
+    <message>
+        <source>Mackie Control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>HUI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generic MIDI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bank left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bank right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rewind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fast forward</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Interrompi</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation type="unfinished">Riproduci</translation>
+    </message>
+    <message>
+        <source>Record</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cursor up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cursor down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cursor left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cursor right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zoom</source>
+        <translation type="unfinished">Zoom</translation>
+    </message>
+    <message>
+        <source>Scrub</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rec %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mute %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select %1</source>
+        <translation type="unfinished">Seleziona %1</translation>
+    </message>
+    <message>
+        <source>V-pot press %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MissingAddonsDialog</name>
     <message>
         <source>Extra packs needed</source>
@@ -16624,6 +20953,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>Output bus &amp; aux sends for %1</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 volume</source>
+        <translation type="unfinished">Volume %1</translation>
     </message>
 </context>
 <context>
@@ -17023,10 +21356,91 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
+    <name>NodeGraphEditor</name>
+    <message>
+        <source>Zoom out</source>
+        <translation type="unfinished">Riduci</translation>
+    </message>
+    <message>
+        <source>Zoom in</source>
+        <translation type="unfinished">Ingrandisci</translation>
+    </message>
+    <message>
+        <source>Fit all</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minimap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add node…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paste</source>
+        <translation type="unfinished">Incolla</translation>
+    </message>
+    <message>
+        <source>Disconnect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select all</source>
+        <translation type="unfinished">Seleziona tutto</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>Redo</source>
+        <translation type="unfinished">Ripeti</translation>
+    </message>
+    <message>
+        <source>Open inspector</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation type="unfinished">Copia</translation>
+    </message>
+    <message>
+        <source>Duplicate</source>
+        <translation type="unfinished">Duplica</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Elimina</translation>
+    </message>
+</context>
+<context>
+    <name>NodeInputControl</name>
+    <message>
+        <source>Randomize</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>NodeMinimap</name>
+    <message>
+        <source>Empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>NotificationHistoryRow</name>
     <message>
         <source>%1  (×%2)</source>
         <translation>%1  (×%2)</translation>
+    </message>
+    <message>
+        <source>Copied</source>
+        <translation type="unfinished">Copiato</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -17042,6 +21456,14 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     <message>
         <source>No notifications yet.</source>
         <translation>Nessuna notifica finora.</translation>
+    </message>
+    <message>
+        <source>No notifications yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Messages about exports, downloads and errors show up here.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -17317,6 +21739,157 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
+    <name>PathActionChips</name>
+    <message>
+        <source>Pen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished">Fatto</translation>
+    </message>
+</context>
+<context>
+    <name>PathEditSession</name>
+    <message>
+        <source>Close path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit handle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bend segment</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add point</source>
+        <translation type="unfinished">Aggiungi punto</translation>
+    </message>
+    <message>
+        <source>Convert point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete point</source>
+        <translation type="unfinished">Elimina punto</translation>
+    </message>
+    <message>
+        <source>Change point type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove point</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PathEditor</name>
+    <message>
+        <source>Nudge points</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tap for a corner point, drag for a smooth one. Tap the first point to close.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click for a corner point, drag for a smooth one. Shift snaps to 45 degrees. Click the first point to close, Enter to finish, Esc to cancel.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click or drag to extend the path. Enter or Esc ends it, Backspace removes the last point.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag points and handles. Tap an edge to add a point, hold a point for more.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag points and handles. Click an edge to add a point, Alt-click a point to switch corner and smooth, Alt-drag a handle to break it, Delete heals.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This path is keyframed: edits are stored as a key at the playhead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move the playhead over the selected clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PathPointBar</name>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Elimina</translation>
+    </message>
+    <message>
+        <source>Smooth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Corner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Break handles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Heal</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PathPointModeRow</name>
+    <message>
+        <source>Point type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Corner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mirrored</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Aligned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Free</source>
+        <translation type="unfinished">Libero</translation>
+    </message>
+    <message>
+        <source>Smooth</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PdfClipRenderer</name>
     <message>
         <source>Install the PDF viewer addon to show this PDF</source>
@@ -17511,7 +22084,42 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
     </message>
 </context>
 <context>
+    <name>PortalScreenCapture</name>
+    <message>
+        <source>The desktop refused to share the screen.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The desktop shared nothing to record.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The desktop would not open the screen-sharing stream.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PreferencesController</name>
+    <message>
+        <source>Choose a folder by its full path.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That folder doesn’t exist.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift can’t write to that folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choosing a folder isn’t supported on this device.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That is Drift’s own cache. Choose another folder, or pick “In Drift’s cache”.</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>Faster preview takes effect after you restart Drift.</source>
         <translation>L&apos;anteprima più veloce diventerà effettiva dopo aver riavviato Drift.</translation>
@@ -17547,6 +22155,10 @@ Select 2+ video clips on the timeline and choose Take → Create Multicamera Tra
 </context>
 <context>
     <name>Preview3DMode</name>
+    <message>
+        <source>Mouse looks · W/A/S/D move · Q/E down/up · Shift faster · Wheel speed (%1×) · Esc or click to finish</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>W/A/S/D move · Q/E down/up · Shift faster · Wheel speed (%1×) · Esc or click to finish</source>
         <translation>W/A/S/D sposta · Q/E giù/su · Shift più veloce · Rotellina velocità (%1×) · Esc o clic per terminare</translation>
@@ -17791,8 +22403,12 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>PreviewOsdGuidesButton</name>
     <message>
-        <source>Toggle guides</source>
-        <translation>Mostra/Nascondi guide</translation>
+        <source>Guides</source>
+        <translation type="unfinished">Guide</translation>
+    </message>
+    <message>
+        <source>Overlay safe areas and grids so titles and subjects stay framed.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -17957,12 +22573,12 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>PreviewStatusLayer</name>
     <message>
-        <source>Stale bake</source>
-        <translation>Bake non aggiornato</translation>
+        <source>Stale pre-render</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Baked</source>
-        <translation>Bake completato</translation>
+        <source>Pre-rendered</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Nothing to preview yet</source>
@@ -17999,10 +22615,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 </context>
 <context>
     <name>PreviewTransportBar</name>
-    <message>
-        <source>%1 (%2)</source>
-        <translation>%1 (%2)</translation>
-    </message>
     <message>
         <source>Go to start</source>
         <translation>Vai all&apos;inizio</translation>
@@ -18325,6 +22937,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Il pacchetto &quot;%1&quot; non è installato; la clip non eseguirà il rendering di nulla finché non sarà disponibile.</translation>
     </message>
     <message>
+        <source>Edit package ↗</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Package</source>
         <translation>Pacchetto</translation>
     </message>
@@ -18529,10 +23145,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Questo progetto utilizza &quot;%1&quot;, che non è installato e non verrà mostrato. Apri Extra per installarlo.</translation>
     </message>
     <message>
-        <source>This project uses %1 effects or transitions that aren’t installed (%2%3) — they won’t show. Open Extras to install them.</source>
-        <translation>Questo progetto utilizza %1 effetti o transizioni non installati (%2%3) che non verranno mostrati. Apri Extra per installarli.</translation>
-    </message>
-    <message>
         <source>, …</source>
         <translation>, …</translation>
     </message>
@@ -18590,6 +23202,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Failed to open Premiere Pro project</source>
         <translation>Impossibile aprire il progetto Premiere Pro</translation>
+    </message>
+    <message>
+        <source>This project uses %1 effects, transitions or animations that aren’t installed (%2%3) — they won’t show. Open Extras to install them.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Not enough memory to save the project</source>
@@ -18699,6 +23315,62 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Elementi multimediali copiati e ricollegati</translation>
     </message>
     <message>
+        <source>%1 files open from File › Import/Export…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Relinked %n clip(s) to ProRes transcodes</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Imported %1 — %n item(s) left out. See Import/Export for details.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Imported %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n media file(s) could not be found.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 isn’t a project folder (there is no project.json in it)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Project folder loaded, but %n media file(s) could not be found</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Project folder loaded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detach generated items</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detach clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exported %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>All project media is already online</source>
         <translation type="unfinished"></translation>
     </message>
@@ -18790,6 +23462,209 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Started new session</source>
         <translation>Nuova sessione avviata</translation>
+    </message>
+</context>
+<context>
+    <name>ProjectFolderBanner</name>
+    <message>
+        <source>Project folder — %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dismiss</source>
+        <translation type="unfinished">Ignora</translation>
+    </message>
+</context>
+<context>
+    <name>ProjectFolderController</name>
+    <message>
+        <source>%1 was changed on disk while you edited it; the version on disk was kept and yours is in .drift/conflicts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source> and %n more</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The project folder has no project.json (moved or deleted?)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>External edit: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Template render finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Template render failed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not start the renderer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rendering a template needs a desktop build</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 already exists and isn’t empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved as project folder %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ProjectHealthDialog</name>
+    <message>
+        <source>Missing media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Missing asset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Asset mismatch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Past end of media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Orphaned effect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Broken link</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dangling transition</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Empty lane</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Overlap</source>
+        <translation type="unfinished">Sovrapposizione</translation>
+    </message>
+    <message>
+        <source>Unused asset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Project health</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">Chiudi</translation>
+    </message>
+    <message numerus="yes">
+        <source>Relinked %n file(s), %1 still missing</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Relinked %n file(s)</source>
+        <translation type="unfinished">
+            <numerusform>%n file ricollegato</numerusform>
+            <numerusform>%n file ricollegati</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Search folder for missing media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove unused assets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation type="unfinished">Rimuovi</translation>
+    </message>
+    <message numerus="yes">
+        <source>Removed %n asset(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>These %n asset(s) are not used by any clip. Removing them can be undone.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Relink folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Relink</source>
+        <translation type="unfinished">Ricollega</translation>
+    </message>
+    <message>
+        <source>Missing files under the old folder are pointed at the same place under the new one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Old folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>D:/footage</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New folder</source>
+        <translation type="unfinished">Nuova cartella</translation>
+    </message>
+    <message>
+        <source>Browse…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No problems found.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n finding(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>(first %1 listed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove unused assets…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Relink folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search folder for missing media…</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -18943,8 +23818,48 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Tocca una clip sulla timeline per modificarne le proprietà</translation>
     </message>
     <message>
-        <source>Click a clip on the timeline to edit its properties</source>
-        <translation>Fai clic su una clip sulla timeline per modificarne le proprietà</translation>
+        <source>Select a clip to…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Captions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the subtitle cues to generate or edit captions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed</source>
+        <translation type="unfinished">Velocità</translation>
+    </message>
+    <message>
+        <source>Select the clip at the playhead and open its Speed tab</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select the clip at the playhead and open its Effects tab</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text</source>
+        <translation type="unfinished">Testo</translation>
+    </message>
+    <message>
+        <source>Select the clip at the playhead and open its Text tab</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Background</source>
+        <translation type="unfinished">Sfondo</translation>
+    </message>
+    <message>
+        <source>Open Masking to remove or replace the background</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -18954,76 +23869,168 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Generale</translation>
     </message>
     <message>
+        <source>Name, notes and basic details of the clip.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Text</source>
         <translation>Testo</translation>
+    </message>
+    <message>
+        <source>Edit the words, font, colour and animation.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Shape</source>
         <translation>Forma</translation>
     </message>
     <message>
+        <source>Fill, outline and corners of the shape.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Motion</source>
         <translation>Movimento</translation>
+    </message>
+    <message>
+        <source>Edit the animated vector graphic.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>3D Model</source>
         <translation>Modello 3D</translation>
     </message>
     <message>
+        <source>Position and light the 3D model.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>PDF</source>
         <translation>PDF</translation>
+    </message>
+    <message>
+        <source>Choose the pages to show.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Procedural</source>
         <translation>Procedurale</translation>
     </message>
     <message>
+        <source>Adjust the generated visual.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adjust the generated picture.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Subtitles</source>
         <translation>Sottotitoli</translation>
+    </message>
+    <message>
+        <source>Edit caption lines and their timing.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Transform</source>
         <translation>Trasformazione</translation>
     </message>
     <message>
+        <source>Move, scale, rotate and crop the clip on the canvas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Camera</source>
         <translation>Telecamera</translation>
+    </message>
+    <message>
+        <source>Pan, zoom and move the viewpoint.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Stabilization</source>
         <translation>Stabilizzazione</translation>
     </message>
     <message>
+        <source>Smooth out shaky handheld footage.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Animation</source>
         <translation>Animazione</translation>
+    </message>
+    <message>
+        <source>Add intro, outro and looping motion.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Audio</source>
         <translation>Audio</translation>
     </message>
     <message>
+        <source>Volume, fades, noise removal and ducking.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Speed</source>
         <translation>Velocità</translation>
+    </message>
+    <message>
+        <source>Slow down, speed up, reverse or ramp the speed.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Blending</source>
         <translation>Fusione</translation>
     </message>
     <message>
+        <source>Opacity and how the clip mixes with layers below.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Masks</source>
         <translation>Maschere</translation>
+    </message>
+    <message>
+        <source>Show only part of the clip, or remove its background.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Effects</source>
         <translation>Effetti</translation>
     </message>
     <message>
+        <source>Filters, blurs and colour looks on this clip.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Audio FX</source>
         <translation>Effetti audio</translation>
     </message>
     <message>
+        <source>Echo, EQ and other sound effects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Transition</source>
         <translation>Transizione</translation>
+    </message>
+    <message>
+        <source>How this clip blends into the next one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move the playhead over a clip first</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clip at the playhead has no %1 tab</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Select a clip to edit its %1</source>
@@ -19047,6 +24054,17 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>PropertiesSuggestionStrip</name>
+    <message>
+        <source>Do it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not now</source>
+        <translation type="unfinished">Non ora</translation>
+    </message>
+</context>
+<context>
     <name>PropertyKeyframeRow</name>
     <message>
         <source>%1 has no keyframes yet</source>
@@ -19063,6 +24081,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Custom</source>
         <translation>Personalizzato</translation>
+    </message>
+    <message>
+        <source>Reset %1</source>
+        <translation type="unfinished">Reimposta %1</translation>
     </message>
     <message>
         <source>Easing: %1 — click to change</source>
@@ -19327,6 +24349,54 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>L&apos;archivio MOGRT è vuoto o non valido</translation>
     </message>
     <message>
+        <source>The archive has no definition.json or manifest.xml, so it is not a Premiere motion graphics template.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template size was not found; 1920x1080 was assumed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template frame rate was not found; 30 fps was assumed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template duration was not found; 5 seconds was assumed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The bundled Premiere project is imported as tracks. Its effects, transitions and keyframes are not reproduced.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text properties are not applied when the template bundles a Premiere project.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Media files are added to the bin only, not placed on the timeline.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Text is placed at a guessed position and size. The template&apos;s layout, font weight and animation are not reproduced.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Image controls are not applied.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Controls of type &quot;%1&quot; are not applied.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template size and frame rate are applied only to an empty project.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template has no text or media that this import can use.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Could not open file: %1</source>
         <translation>Impossibile aprire il file: %1</translation>
     </message>
@@ -19349,14 +24419,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Root element is &lt;%1&gt;, expected &lt;fcpxml&gt;</source>
         <translation>L&apos;elemento radice è &lt;%1&gt;, previsto &lt;fcpxml&gt;</translation>
-    </message>
-    <message>
-        <source>Cannot open DaVinci Resolve project archive: %1</source>
-        <translation>Impossibile aprire l&apos;archivio del progetto DaVinci Resolve: %1</translation>
-    </message>
-    <message>
-        <source>DaVinci Resolve project archive is empty or invalid</source>
-        <translation>L&apos;archivio del progetto DaVinci Resolve è vuoto o non valido</translation>
     </message>
     <message>
         <source>No edit events found in EDL</source>
@@ -19422,6 +24484,129 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <source>Balanced</source>
         <translation>Bilanciato</translation>
     </message>
+    <message>
+        <source>Release to delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In %1 → Out %2</source>
+        <translation type="unfinished">Ingresso %1 → Uscita %2</translation>
+    </message>
+    <message>
+        <source>ZIP archive is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note %1 (ch %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pitch bend (ch %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>NRPN %1 (ch %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CC %1 fine (ch %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CC %1 (ch %2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fader %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>V-pot %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Master fader</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jog wheel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select %1</source>
+        <translation type="unfinished">Seleziona %1</translation>
+    </message>
+    <message>
+        <source>Mute %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Solo %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rec %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation type="unfinished">Riproduci</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Interrompi</translation>
+    </message>
+    <message>
+        <source>Step back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Step forward</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 trackball X</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 trackball Y</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 ring</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look pad X</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look pad Y</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gyro yaw</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gyro pitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>QuickAddPopup</name>
+    <message>
+        <source>Add and connect…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search nodes…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No matching nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>QuickSetup</name>
@@ -19470,97 +24655,270 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
-    <name>QuickSetupAddonsPage</name>
+    <name>QuickSetupAgenticPage</name>
     <message>
-        <source>Install the essentials</source>
-        <translation>Installa gli elementi essenziali</translation>
+        <source>None</source>
+        <translation type="unfinished">Nessuno</translation>
     </message>
     <message>
-        <source>Drift&apos;s basic effects, transitions, audio effects, fonts and color grading LUTs come as add-ons. Without them the editor will be missing most of what you expect, so they are installed now.</source>
-        <translation>Gli effetti di base, le transizioni, gli effetti audio, i font e le LUT di color grading di Drift sono forniti come componenti aggiuntivi. Senza di essi l&apos;editor sarà privo della maggior parte delle funzionalità previste, pertanto vengono installati ora.</translation>
+        <source>Hide the AI workspaces and the Ask button</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Needs a newer version of Drift.</source>
-        <translation>Richiede una versione più recente di Drift.</translation>
+        <source>Some</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Not available in the download store.</source>
-        <translation>Non disponibile nello store di download.</translation>
+        <source>Keep AI tools and Ask within reach</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The download failed.</source>
-        <translation>Download non riuscito.</translation>
+        <source>Lots</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>%1 of %2 installed</source>
-        <translation>%1 di %2 installati</translation>
+        <source>AI agents are part of how I edit</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Couldn&apos;t reach the download store. Until the essentials are installed the editor will be missing basic effects, transitions and fonts. You can install them later from Extras.</source>
-        <translation>Impossibile raggiungere lo store di download. Fino a quando gli elementi essenziali non saranno installati, l&apos;editor sarà privo di effetti di base, transizioni e font. Puoi installarli in seguito da Extra.</translation>
+        <source>Will you work with AI agents?</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Some packs didn&apos;t install. Until they are, the editor will be missing basic effects, transitions and fonts. You can install them later from Extras.</source>
-        <translation>Alcuni pacchetti non sono stati installati. Fino ad allora, l&apos;editor sarà privo di effetti di base, transizioni e font. Puoi installarli in seguito da Extra.</translation>
-    </message>
-    <message>
-        <source>Optional</source>
-        <translation>Facoltativo</translation>
-    </message>
-    <message>
-        <source>Retry</source>
-        <translation>Riprova</translation>
-    </message>
-    <message>
-        <source>Skip for now</source>
-        <translation>Salta per ora</translation>
-    </message>
-    <message>
-        <source>Continue without the essentials?</source>
-        <translation>Continuare senza gli elementi essenziali?</translation>
-    </message>
-    <message>
-        <source>Continue</source>
-        <translation>Continua</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation>Annulla</translation>
-    </message>
-    <message>
-        <source>You can find more effects, models and stickers later in Extras.</source>
-        <translation>In seguito potrai trovare altri effetti, modelli e adesivi in Extra.</translation>
+        <source>Drift can be driven by assistants such as Claude through MCP. Choose how much of that to show.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
-    <name>QuickSetupCommunityPage</name>
+    <name>QuickSetupDownloads</name>
+    <message>
+        <source>Needs a newer version of Drift.</source>
+        <translation type="unfinished">Richiede una versione più recente di Drift.</translation>
+    </message>
+    <message>
+        <source>Not available in the download store.</source>
+        <translation type="unfinished">Non disponibile nello store di download.</translation>
+    </message>
+    <message>
+        <source>The download failed.</source>
+        <translation type="unfinished">Download non riuscito.</translation>
+    </message>
+</context>
+<context>
+    <name>QuickSetupExperiencePage</name>
+    <message>
+        <source>First time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fewer workspaces, labelled tabs and hints as you go</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some experience</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All the usual tools, labels and hints</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every workspace, compact tabs and no hints</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How much editing have you done?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This decides how much Drift shows at first. Anything hidden stays reachable from search (Ctrl+K) and in Settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>QuickSetupFinishPage</name>
+    <message>
+        <source>YouTube</source>
+        <translation type="unfinished">YouTube</translation>
+    </message>
+    <message>
+        <source>Shorts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Films</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Podcasts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tutorials</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some experience</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start a YouTube project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start a vertical project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start a widescreen project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start a podcast project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start a tutorial project</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>You&apos;re all set</source>
-        <translation>Tutto pronto</translation>
+        <translation type="unfinished">Tutto pronto</translation>
     </message>
     <message>
-        <source>Need help or have an idea? We&apos;d love to hear from you.</source>
-        <translation>Hai bisogno di aiuto o hai un&apos;idea? Ci farebbe molto piacere ascoltarti.</translation>
+        <source>Your Drift: %1</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Finish</source>
-        <translation>Fine</translation>
+        <source>Open the editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add-ons installed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Installing add-ons: %1 of %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You can continue now. Downloads carry on in the editor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t reach the download store. Until the essentials are installed the editor will be missing basic effects, transitions and fonts. You can install them later from Extras.</source>
+        <translation type="unfinished">Impossibile raggiungere lo store di download. Fino a quando gli elementi essenziali non saranno installati, l&apos;editor sarà privo di effetti di base, transizioni e font. Puoi installarli in seguito da Extra.</translation>
+    </message>
+    <message>
+        <source>Some packs didn&apos;t install. Until they are, the editor will be missing basic effects, transitions and fonts. You can install them later from Extras.</source>
+        <translation type="unfinished">Alcuni pacchetti non sono stati installati. Fino ad allora, l&apos;editor sarà privo di effetti di base, transizioni e font. Puoi installarli in seguito da Extra.</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation type="unfinished">Riprova</translation>
+    </message>
+    <message>
+        <source>Hide details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Optional</source>
+        <translation type="unfinished">Facoltativo</translation>
+    </message>
+    <message>
+        <source>Drift will restart to apply the interface size. Downloads still running will stop and can be resumed from Extras.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift will restart to apply the interface size.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Just open the editor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Questions or ideas?</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Join our Discord</source>
-        <translation>Unisciti al nostro Discord</translation>
-    </message>
-    <message>
-        <source>Copied</source>
-        <translation>Copiato</translation>
-    </message>
-    <message>
-        <source>Copy email address</source>
-        <translation>Copia indirizzo e-mail</translation>
+        <translation type="unfinished">Unisciti al nostro Discord</translation>
     </message>
     <message>
         <source>If Drift crashes, it sends an error report to help fix it. No project files or media are included. You can turn this off in Settings.</source>
-        <translation>Se Drift si arresta in modo anomalo, invia una segnalazione di errore per facilitare la risoluzione. Nessun file di progetto o elemento multimediale viene incluso. Puoi disattivare questa opzione nelle Impostazioni.</translation>
+        <translation type="unfinished">Se Drift si arresta in modo anomalo, invia una segnalazione di errore per facilitare la risoluzione. Nessun file di progetto o elemento multimediale viene incluso. Puoi disattivare questa opzione nelle Impostazioni.</translation>
+    </message>
+</context>
+<context>
+    <name>QuickSetupMakePage</name>
+    <message>
+        <source>YouTube videos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Long videos in widescreen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shorts and Reels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vertical videos for phones</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Films</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cinematic edits and color grading</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Podcasts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Talking heads, captions and clean audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tutorials</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Screen recordings and walkthroughs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>What do you make?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift sets up new projects, the workspace and suggested add-ons to match. You can skip this and change it later in Settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip</source>
+        <translation type="unfinished">Salta</translation>
     </message>
 </context>
 <context>
@@ -19581,8 +24939,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Dimensione interfaccia</translation>
     </message>
     <message>
-        <source>Make buttons, text and icons larger or smaller.</source>
-        <translation>Rendi pulsanti, testo e icone più grandi o più piccoli.</translation>
+        <source>Drift looks cramped or oversized at this screen resolution. We picked a size that fits; change it if you like.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Windows</source>
@@ -19611,8 +24969,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Scegli un aspetto</translation>
     </message>
     <message>
-        <source>Choose how Drift looks. You can change this any time in Settings.</source>
-        <translation>Scegli l&apos;aspetto di Drift. Puoi modificarlo in qualsiasi momento nelle Impostazioni.</translation>
+        <source>Choose how Drift looks, and an accent colour. You can change both any time in Settings.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Match system</source>
@@ -19634,179 +24992,9 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <source>Dark</source>
         <translation>Scuro</translation>
     </message>
-</context>
-<context>
-    <name>QuickSetupTipArt</name>
     <message>
-        <source>Edit</source>
-        <translation>Modifica</translation>
-    </message>
-    <message>
-        <source>Color</source>
-        <translation>Colore</translation>
-    </message>
-    <message>
-        <source>Keyframes</source>
-        <translation>Fotogrammi chiave</translation>
-    </message>
-    <message>
-        <source>Subtitles</source>
-        <translation>Sottotitoli</translation>
-    </message>
-    <message>
-        <source>Effects</source>
-        <translation>Effetti</translation>
-    </message>
-    <message>
-        <source>Transitions</source>
-        <translation>Transizioni</translation>
-    </message>
-    <message>
-        <source>LUTs</source>
-        <translation>LUT</translation>
-    </message>
-    <message>
-        <source>Fonts</source>
-        <translation>Caratteri</translation>
-    </message>
-    <message>
-        <source>Stickers</source>
-        <translation>Adesivi</translation>
-    </message>
-    <message>
-        <source>AI tools</source>
-        <translation>Strumenti IA</translation>
-    </message>
-    <message>
-        <source>color</source>
-        <translation>colore</translation>
-    </message>
-    <message>
-        <source>Color workspace</source>
-        <translation>Area di lavoro Colore</translation>
-    </message>
-    <message>
-        <source>Color grade effect</source>
-        <translation>Effetto color grading</translation>
-    </message>
-    <message>
-        <source>Appearance settings</source>
-        <translation>Impostazioni aspetto</translation>
-    </message>
-    <message>
-        <source>Auto subtitles</source>
-        <translation>Sottotitoli automatici</translation>
-    </message>
-    <message>
-        <source>People cutout</source>
-        <translation>Ritaglio persone</translation>
-    </message>
-    <message>
-        <source>Find scenes</source>
-        <translation>Trova scene</translation>
-    </message>
-    <message>
-        <source>Hello and welcome back</source>
-        <translation>Ciao e bentornato</translation>
-    </message>
-    <message>
-        <source>Select multiple</source>
-        <translation>Selezione multipla</translation>
-    </message>
-</context>
-<context>
-    <name>QuickSetupTipsPage</name>
-    <message>
-        <source>Search anything</source>
-        <translation>Cerca qualsiasi cosa</translation>
-    </message>
-    <message>
-        <source>Press %1 to search actions, workspaces, add-ons, themes and settings from anywhere, then jump straight to the result.</source>
-        <translation>Premi %1 per cercare azioni, aree di lavoro, componenti aggiuntivi, temi e impostazioni da qualsiasi punto, quindi passa direttamente al risultato.</translation>
-    </message>
-    <message>
-        <source>Use the search field in the header to find actions, workspaces, add-ons, themes and settings, then jump straight to the result.</source>
-        <translation>Usa il campo di ricerca nell&apos;intestazione per trovare azioni, aree di lavoro, componenti aggiuntivi, temi e impostazioni, quindi passa direttamente al risultato.</translation>
-    </message>
-    <message>
-        <source>Switch workspaces</source>
-        <translation>Cambia area di lavoro</translation>
-    </message>
-    <message>
-        <source>Each workspace arranges the panels for a job, such as Edit, Color, Keyframes or Subtitles. Open the Workspace menu in the header, or press %1 to %2 to jump to one.</source>
-        <translation>Ciascuna area di lavoro organizza i pannelli per una specifica attività, come Modifica, Colore, Fotogrammi chiave o Sottotitoli. Apri il menu Area di lavoro nell&apos;intestazione oppure premi da %1 a %2 per passare a una di esse.</translation>
-    </message>
-    <message>
-        <source>Each workspace arranges the panels for a job, such as Edit, Color, Keyframes or Subtitles. Open the Workspace menu in the header to switch.</source>
-        <translation>Ciascuna area di lavoro organizza i pannelli per una specifica attività, come Modifica, Colore, Fotogrammi chiave o Sottotitoli. Apri il menu Area di lavoro nell&apos;intestazione per passare da una all&apos;altra.</translation>
-    </message>
-    <message>
-        <source>Get more from Extras</source>
-        <translation>Ottieni di più da Extra</translation>
-    </message>
-    <message>
-        <source>More effects, transitions, color grading LUTs, fonts, stickers and AI models are installed from Extras, in the top bar.</source>
-        <translation>Altri effetti, transizioni, LUT di color grading, font, adesivi e modelli di intelligenza artificiale possono essere installati da Extra, nella barra superiore.</translation>
-    </message>
-    <message>
-        <source>More effects, transitions, color grading LUTs, fonts, stickers and AI models are installed from Extras, in the header.</source>
-        <translation>Altri effetti, transizioni, LUT di color grading, font, adesivi e modelli di intelligenza artificiale possono essere installati da Extra, nell&apos;intestazione.</translation>
-    </message>
-    <message>
-        <source>Use your fingers</source>
-        <translation>Usa le dita</translation>
-    </message>
-    <message>
-        <source>Pinch the timeline to zoom it, and pinch the preview to zoom and pan the picture. Long-press a clip and choose Select multiple to pick several clips at once.</source>
-        <translation>Pizzica la timeline per ingrandirla e pizzica l&apos;anteprima per ingrandire e fare una panoramica dell&apos;immagine. Tieni premuta a lungo una clip e scegli Selezione multipla per selezionare più clip contemporaneamente.</translation>
-    </message>
-    <message>
-        <source>Play/Pause</source>
-        <translation>Riproduci/Pausa</translation>
-    </message>
-    <message>
-        <source>Split at current time</source>
-        <translation>Dividi alla posizione corrente</translation>
-    </message>
-    <message>
-        <source>Delete selection</source>
-        <translation>Elimina selezione</translation>
-    </message>
-    <message>
-        <source>Undo</source>
-        <translation>Annulla</translation>
-    </message>
-    <message>
-        <source>Edit from the keyboard</source>
-        <translation>Modifica dalla tastiera</translation>
-    </message>
-    <message>
-        <source>A few shortcuts cover most of an edit. See and change every shortcut in Settings, under Keyboard shortcuts.</source>
-        <translation>Poche scorciatoie coprono la maggior parte delle modifiche. Visualizza e modifica ogni scorciatoia nelle Impostazioni, in Scorciatoie da tastiera.</translation>
-    </message>
-    <message>
-        <source>AI tools on your device</source>
-        <translation>Strumenti IA sul tuo dispositivo</translation>
-    </message>
-    <message>
-        <source>Auto subtitles, people cutout and scene finding run locally. Install their add-ons from Extras, under AI tools.</source>
-        <translation>Sottotitoli automatici, ritaglio di persone e ricerca scene vengono eseguiti localmente. Installa i rispettivi componenti aggiuntivi da Extra, in Strumenti IA.</translation>
-    </message>
-    <message>
-        <source>A few tips before you start</source>
-        <translation>Alcuni suggerimenti prima di iniziare</translation>
-    </message>
-    <message>
-        <source>Quick pointers to the parts of Drift people tend to miss.</source>
-        <translation>Brevi indicazioni sulle funzionalità di Drift che spesso sfuggono.</translation>
-    </message>
-    <message>
-        <source>Previous tip</source>
-        <translation>Suggerimento precedente</translation>
-    </message>
-    <message>
-        <source>Next tip</source>
-        <translation>Suggerimento successivo</translation>
+        <source>Accent colour</source>
+        <translation type="unfinished">Colore accento</translation>
     </message>
 </context>
 <context>
@@ -19849,12 +25037,20 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 %1</translation>
     </message>
     <message>
-        <source>Initialize new project</source>
-        <translation>Inizializza nuovo progetto</translation>
+        <source>New project</source>
+        <translation type="unfinished">Nuovo progetto</translation>
     </message>
     <message>
-        <source>Open project…</source>
-        <translation>Apri progetto…</translation>
+        <source>Open…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export video…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render queue…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Save as…</source>
@@ -19873,14 +25069,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Salva con elementi multimediali…</translation>
     </message>
     <message>
-        <source>Save as JSON…</source>
-        <translation>Salva come JSON…</translation>
-    </message>
-    <message>
-        <source>Open JSON…</source>
-        <translation>Apri JSON…</translation>
-    </message>
-    <message>
         <source>Export timeline (.fcpxml / .edl / .otio / .txt)…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -19889,8 +25077,44 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Import / Export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save project as JSON…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open project from JSON…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open project folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save as project folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export .drift bundle…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render with data…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import/Export…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Project properties…</source>
         <translation>Proprietà progetto…</translation>
+    </message>
+    <message>
+        <source>Check for missing media…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Close project</source>
@@ -19980,6 +25204,160 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Auto-saved: %1</source>
         <translation>Salvataggio automatico: %1</translation>
+    </message>
+</context>
+<context>
+    <name>RenderQueueDialog</name>
+    <message>
+        <source>Render queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">Chiudi</translation>
+    </message>
+    <message>
+        <source>Waiting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Queued</source>
+        <translation type="unfinished">In coda</translation>
+    </message>
+    <message>
+        <source>Rendering</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished">Fatto</translation>
+    </message>
+    <message>
+        <source>Failed</source>
+        <translation type="unfinished">Non riuscito</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation type="unfinished">Annullato</translation>
+    </message>
+    <message>
+        <source>Queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Farm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start all</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Resume</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation type="unfinished">Pausa</translation>
+    </message>
+    <message>
+        <source>Finish the current render, then hold the rest</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear finished</source>
+        <translation type="unfinished">Cancella completati</translation>
+    </message>
+    <message>
+        <source>Start immediately</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render in a separate process</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing queued. Choose Add to queue in the Export dialog to render in the background.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %2%</source>
+        <translation type="unfinished">%1 %2%</translation>
+    </message>
+    <message>
+        <source>Farm %1/%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation type="unfinished">Inizio</translation>
+    </message>
+    <message>
+        <source>Hold</source>
+        <translation type="unfinished">Fermo</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation type="unfinished">Riprova</translation>
+    </message>
+    <message>
+        <source>Show the file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>Move up</source>
+        <translation type="unfinished">Sposta in alto</translation>
+    </message>
+    <message>
+        <source>Move down</source>
+        <translation type="unfinished">Sposta in basso</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation type="unfinished">Rimuovi</translation>
+    </message>
+    <message>
+        <source>Coordinator listening on %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The render farm is off. Turn it on in Settings, Render farm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Token: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy token</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No workers yet. On another computer run: drift --headless --farm-worker %1 --token &lt;token&gt;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Idle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 fps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n done</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -20320,6 +25698,32 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <source>Split clip at %1 scene boundary/boundaries</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>No scene cuts fall inside this clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Split into %n scene(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Scene</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n marker(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No new markers to add</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>ScenesShotRow</name>
@@ -20353,6 +25757,22 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Clear</source>
         <translation>Cancella</translation>
+    </message>
+    <message>
+        <source>Split at scenes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cut the selected clip at every detected shot boundary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add markers at scenes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drop a timeline marker at every detected shot boundary</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Identify objects</source>
@@ -20485,8 +25905,68 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Dimensioni e layout video</translation>
     </message>
     <message>
-        <source>Bakes</source>
-        <translation>Bake</translation>
+        <source>Ask: “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Run as an editing command</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Install the Command Bar Model to run commands like this</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Install the Command Bar Model to run editing commands</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A small local model, about 490 MB</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split it at the playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fade in over half a second</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fade out for 1.5 seconds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Make it black and white</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed this up to 1.5x</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set the volume to 50%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mute this clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add a title that says Hello</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Go to 10 seconds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jump to the start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-rendered sections</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Crop video</source>
@@ -20568,6 +26048,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <source>Select a video, image, text or shape clip</source>
         <translation>Seleziona una clip video, immagine, testo o forma</translation>
     </message>
+    <message>
+        <source>Install</source>
+        <translation type="unfinished">Installa</translation>
+    </message>
 </context>
 <context>
     <name>SectionedAssetGrid</name>
@@ -20639,8 +26123,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Ritaglia e applica effetto</translation>
     </message>
     <message>
-        <source>Cut out subject</source>
-        <translation>Ritaglia soggetto</translation>
+        <source>Remove background</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -20653,10 +26137,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 </context>
 <context>
     <name>SegmentationController</name>
-    <message>
-        <source>Select a video clip to cut out</source>
-        <translation>Seleziona una clip video da ritagliare</translation>
-    </message>
     <message>
         <source>Wait for the frame to finish loading</source>
         <translation>Attendi il completamento del caricamento del fotogramma</translation>
@@ -20694,6 +26174,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>La clip è troppo breve per il ritaglio</translation>
     </message>
     <message>
+        <source>Remove background</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Could not create a cutout file</source>
         <translation>Impossibile creare un file di ritaglio</translation>
     </message>
@@ -20722,6 +26206,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Ritaglio completato</translation>
     </message>
     <message>
+        <source>Select a video or image clip to cut out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>That object mask changed while it was being refined</source>
         <translation>Quella maschera oggetto è cambiata durante il perfezionamento</translation>
     </message>
@@ -20740,10 +26228,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Cutout</source>
         <translation>Ritaglio</translation>
-    </message>
-    <message>
-        <source>Cut out subject</source>
-        <translation>Ritaglia soggetto</translation>
     </message>
 </context>
 <context>
@@ -20764,8 +26248,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>SegmentationWindow</name>
     <message>
-        <source>Cut out subject</source>
-        <translation>Ritaglia soggetto</translation>
+        <source>Remove background</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Anything (click to pick)</source>
@@ -20926,24 +26410,12 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Attiva automaticamente l&apos;accesso dell&apos;agente alla successiva apertura di Drift. La disattivazione dell&apos;accesso reimposta questa opzione.</translation>
     </message>
     <message>
-        <source>Notifications for agent actions</source>
-        <translation>Notifiche per le azioni dell&apos;agente</translation>
+        <source>Commands in search (Ctrl+K)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Which pop-ups an agent&apos;s own edits show you. Errors always show.</source>
-        <translation>Quali notifiche a comparsa mostrare per le modifiche dell&apos;agente. Gli errori vengono sempre mostrati.</translation>
-    </message>
-    <message>
-        <source>All</source>
-        <translation>Tutti</translation>
-    </message>
-    <message>
-        <source>Problems only</source>
-        <translation>Solo problemi</translation>
-    </message>
-    <message>
-        <source>None (errors still show)</source>
-        <translation>Nessuna (gli errori vengono comunque mostrati)</translation>
+        <source>Type a sentence such as &quot;split at 12 seconds&quot; in search and run it as an editing command. Needs the Command Bar Model and llama.cpp runtime add-ons; runs on this device.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Cloud</source>
@@ -21096,8 +26568,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>chiaro</translation>
     </message>
     <message>
-        <source>This theme has a dark and a light variant. The header toggle switches between them.</source>
-        <translation>Questo tema dispone di una variante chiara e una scura. Il selettore nell&apos;intestazione consente di passare dall&apos;una all&apos;altra.</translation>
+        <source>This theme has a dark and a light variant, and follows your system’s light or dark setting.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Translucent windows</source>
@@ -21166,30 +26638,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Restart now</source>
         <translation>Riavvia ora</translation>
-    </message>
-    <message>
-        <source>Workspace</source>
-        <translation>Spazio di lavoro</translation>
-    </message>
-    <message>
-        <source>Workspace orientation</source>
-        <translation>Orientamento area di lavoro</translation>
-    </message>
-    <message>
-        <source>Landscape or portrait workspace. Auto follows the shape of the canvas.</source>
-        <translation>Area di lavoro orizzontale o verticale. Automatico segue la forma del quadro.</translation>
-    </message>
-    <message>
-        <source>Auto (follow canvas)</source>
-        <translation>Automatico (segui area di disegno)</translation>
-    </message>
-    <message>
-        <source>Landscape</source>
-        <translation>Orizzontale</translation>
-    </message>
-    <message>
-        <source>Portrait</source>
-        <translation>Verticale</translation>
     </message>
 </context>
 <context>
@@ -21310,6 +26758,121 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>SettingsControllersPage</name>
+    <message>
+        <source>Controllers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Devices</source>
+        <translation type="unfinished">Dispositivi</translation>
+    </message>
+    <message>
+        <source>Use game controllers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly the 3D view and drive the timeline from a gamepad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This build has no game controller support.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connected controllers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None found. Plug one in or pair it over Bluetooth.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · gyro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · rumble</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Test</source>
+        <translation type="unfinished">Verifica</translation>
+    </message>
+    <message>
+        <source>Move the sticks and press buttons to see what the editor receives.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sticks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dead zone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How far a stick must move before it counts. Raise it if the view drifts on its own.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Response curve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>1 is linear. Higher values give finer control near the centre.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look speed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Degrees per second at full right-stick deflection in 3D fly mode.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Motion and feedback</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gyro aiming</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tilt the controller to aim the camera in 3D fly mode.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gyro sensitivity</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scales how far the view turns for a given tilt.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rumble feedback</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A short pulse when scrubbing crosses a cut or marker and when a gizmo snaps.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Button bindings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gamepad buttons are bound like keys, in the Keyboard shortcuts page: add a binding and press a controller button.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open shortcuts</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SettingsDialog</name>
     <message>
         <source>Settings</source>
@@ -21321,18 +26884,96 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>SettingsExportPage</name>
+    <message>
+        <source>Export</source>
+        <translation type="unfinished">Esporta</translation>
+    </message>
+    <message>
+        <source>Encoding</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Prefer hardware encoder for new exports</source>
+        <translation type="unfinished">Preferisci codificatore hardware per le nuove esportazioni</translation>
+    </message>
+    <message>
+        <source>Start new exports on a GPU H.264 encoder when one is available. Faster, but quality per bitrate is usually lower than the default software encoder.</source>
+        <translation type="unfinished">Avvia le nuove esportazioni con un codificatore H.264 su GPU quando disponibile. Più veloce, ma la qualità per bitrate è generalmente inferiore rispetto al codificatore software predefinito.</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsFarmPage</name>
+    <message>
+        <source>Render farm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Coordinator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Let other computers render for this one</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Listens for render workers on your network. Jobs sent to the farm from the Export dialog are split up between them. Only turn this on in a network you trust.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Port</source>
+        <translation type="unfinished">Porta</translation>
+    </message>
+    <message>
+        <source>The TCP port workers connect to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Token</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Workers need this to join %1. Paste it on the worker with --token.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Workers need this to join. Paste it on the worker with --token.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Copy</source>
+        <translation type="unfinished">Copia</translation>
+    </message>
+    <message>
+        <source>New token</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Workers using the old token are turned away the next time they connect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Worker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Media cache size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How much of a coordinator&apos;s media a worker started on this computer keeps for the next job, in GB. The least recently used files go first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>GB</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SettingsGeneralPage</name>
     <message>
         <source>General</source>
         <translation>Generale</translation>
-    </message>
-    <message>
-        <source>%1 GB</source>
-        <translation>%1 GB</translation>
-    </message>
-    <message>
-        <source>%1 MB</source>
-        <translation>%1 MB</translation>
     </message>
     <message>
         <source>Language &amp; region</source>
@@ -21435,26 +27076,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>50 passaggi</translation>
     </message>
     <message>
-        <source>Extras</source>
-        <translation>Extra</translation>
-    </message>
-    <message>
-        <source>Remind about essential packs</source>
-        <translation>Ricorda i pacchetti essenziali</translation>
-    </message>
-    <message>
-        <source>Pulse the Extras icon when the video, transitions, and audio packs are not installed.</source>
-        <translation>Fai pulsare l&apos;icona Extra quando i pacchetti video, transizioni e audio non sono installati.</translation>
-    </message>
-    <message>
-        <source>Remind about pack updates</source>
-        <translation>Ricorda gli aggiornamenti dei pacchetti</translation>
-    </message>
-    <message>
-        <source>Pulse the Extras icon when updates are available for packs you already have installed.</source>
-        <translation>Fai pulsare l&apos;icona Extra quando sono disponibili aggiornamenti per i pacchetti già installati.</translation>
-    </message>
-    <message>
         <source>Feedback</source>
         <translation>Feedback</translation>
     </message>
@@ -21477,38 +27098,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>After a crash, send the error details, a short scrubbed log and your system and graphics information to help fix it. No project files or media.</source>
         <translation>Dopo un arresto anomalo, invia i dettagli dell&apos;errore, un breve log ripulito e le informazioni su sistema e scheda grafica per facilitare la risoluzione. Nessun file o elemento multimediale di progetto.</translation>
-    </message>
-    <message>
-        <source>Storage</source>
-        <translation>Archiviazione</translation>
-    </message>
-    <message>
-        <source>Cache</source>
-        <translation>Cache</translation>
-    </message>
-    <message>
-        <source>%1 used</source>
-        <translation>%1 in uso</translation>
-    </message>
-    <message>
-        <source>Clear cache</source>
-        <translation>Cancella cache</translation>
-    </message>
-    <message>
-        <source>Cache location</source>
-        <translation>Posizione della cache</translation>
-    </message>
-    <message>
-        <source>%1. Takes effect after restart.</source>
-        <translation>%1. Diventerà effettivo dopo il riavvio.</translation>
-    </message>
-    <message>
-        <source>Reset</source>
-        <translation>Reimposta</translation>
-    </message>
-    <message>
-        <source>Change…</source>
-        <translation>Cambia…</translation>
     </message>
     <message>
         <source>Settings file</source>
@@ -21554,47 +27143,79 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Scorciatoie da tastiera</translation>
     </message>
     <message>
-        <source>Click a shortcut, then press the keys. Esc cancels, Backspace clears.</source>
-        <translation>Fai clic su una scorciatoia, quindi premi i tasti. Esc annulla, Backspace cancella.</translation>
-    </message>
-    <message>
-        <source>Keymap preset</source>
+        <source>%1 — only while it is in focus</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Switch between VEGAS Pro (Mojave default) and popular NLE shortcut layouts.</source>
+        <source>Click + to add a shortcut, × to remove. Esc cancels.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Applied %1 keymap preset</source>
+        <source>Shortcut preset</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Reset to defaults</source>
-        <translation>Reimposta ai valori predefiniti</translation>
+        <source>The set of keys your changes are applied on top of.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Restores every shortcut to its original key.</source>
-        <translation>Ripristina ciascuna scorciatoia al tasto originale.</translation>
+        <source>Reset to preset</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Shortcuts reset to defaults.</source>
-        <translation>Scorciatoie reimpostate ai valori predefiniti.</translation>
+        <source>Removes every change you made and restores the preset&apos;s keys.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shortcuts reset to the preset.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Modified</source>
+        <translation type="unfinished">Modificato</translation>
+    </message>
+    <message>
+        <source>Reset this shortcut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset shortcut for %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch preset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You have changed some shortcuts. Keep those changes on top of the new preset, or discard them?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>Discard my changes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep my changes</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>SettingsNetworkPage</name>
     <message>
-        <source>Network</source>
-        <translation>Rete</translation>
-    </message>
-    <message>
         <source>Connection</source>
         <translation>Connessione</translation>
     </message>
     <message>
-        <source>Proxy</source>
-        <translation>Proxy</translation>
+        <source>Network &amp; internet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Internet proxy server</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>How Drift reaches the internet for downloads, updates, and online services. Applies immediately.</source>
@@ -21617,8 +27238,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Proxy SOCKS5</translation>
     </message>
     <message>
-        <source>Proxy server</source>
-        <translation>Server proxy</translation>
+        <source>Proxy server details</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Host and port of the proxy. The username and password are optional.</source>
@@ -21642,10 +27263,65 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>SettingsNotificationsPage</name>
+    <message>
+        <source>Notifications</source>
+        <translation type="unfinished">Notifiche</translation>
+    </message>
+    <message>
+        <source>Extras</source>
+        <translation type="unfinished">Extra</translation>
+    </message>
+    <message>
+        <source>Remind about essential packs</source>
+        <translation type="unfinished">Ricorda i pacchetti essenziali</translation>
+    </message>
+    <message>
+        <source>Pulse the Extras icon when the video, transitions, and audio packs are not installed.</source>
+        <translation type="unfinished">Fai pulsare l&apos;icona Extra quando i pacchetti video, transizioni e audio non sono installati.</translation>
+    </message>
+    <message>
+        <source>Remind about pack updates</source>
+        <translation type="unfinished">Ricorda gli aggiornamenti dei pacchetti</translation>
+    </message>
+    <message>
+        <source>Pulse the Extras icon when updates are available for packs you already have installed.</source>
+        <translation type="unfinished">Fai pulsare l&apos;icona Extra quando sono disponibili aggiornamenti per i pacchetti già installati.</translation>
+    </message>
+    <message>
+        <source>Agents</source>
+        <translation type="unfinished">Agenti</translation>
+    </message>
+    <message>
+        <source>Notifications for agent actions</source>
+        <translation type="unfinished">Notifiche per le azioni dell&apos;agente</translation>
+    </message>
+    <message>
+        <source>Which pop-ups an agent&apos;s own edits show you. Errors always show.</source>
+        <translation type="unfinished">Quali notifiche a comparsa mostrare per le modifiche dell&apos;agente. Gli errori vengono sempre mostrati.</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation type="unfinished">Tutti</translation>
+    </message>
+    <message>
+        <source>Problems only</source>
+        <translation type="unfinished">Solo problemi</translation>
+    </message>
+    <message>
+        <source>None (errors still show)</source>
+        <translation type="unfinished">Nessuna (gli errori vengono comunque mostrati)</translation>
+    </message>
+</context>
+<context>
     <name>SettingsPane</name>
     <message>
         <source>General</source>
         <translation>Generale</translation>
+    </message>
+    <message>
+        <source>Personalize</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Appearance</source>
@@ -21660,20 +27336,36 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Timeline</translation>
     </message>
     <message>
-        <source>Timeline toolbar</source>
-        <translation>Barra degli strumenti della timeline</translation>
-    </message>
-    <message>
         <source>Keyboard shortcuts</source>
         <translation>Scorciatoie da tastiera</translation>
+    </message>
+    <message>
+        <source>Control surfaces</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Preview</source>
         <translation>Anteprima</translation>
     </message>
     <message>
+        <source>Controllers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Performance</source>
         <translation>Prestazioni</translation>
+    </message>
+    <message>
+        <source>Storage &amp; media</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export</source>
+        <translation type="unfinished">Esporta</translation>
+    </message>
+    <message>
+        <source>Render farm</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Audio</source>
@@ -21684,8 +27376,12 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>IA e cloud</translation>
     </message>
     <message>
-        <source>Network</source>
-        <translation>Rete</translation>
+        <source>Notifications</source>
+        <translation type="unfinished">Notifiche</translation>
+    </message>
+    <message>
+        <source>Network &amp; internet</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>About</source>
@@ -21705,14 +27401,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Performance</source>
         <translation>Prestazioni</translation>
-    </message>
-    <message>
-        <source>For advanced users</source>
-        <translation>Per utenti avanzati</translation>
-    </message>
-    <message>
-        <source>These tune memory use and playback behaviour. The defaults suit most machines; changing them can make playback stutter or use far more memory. Most changes apply immediately.</source>
-        <translation>Queste opzioni regolano l&apos;uso della memoria e il comportamento di riproduzione. I valori predefiniti sono adatti alla maggior parte dei computer; modificarli può causare scatti nella riproduzione o un consumo di memoria molto più elevato. La maggior parte delle modifiche ha effetto immediato.</translation>
     </message>
     <message>
         <source>Reset to defaults</source>
@@ -21747,20 +27435,108 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Metal (predefinito di macOS)</translation>
     </message>
     <message>
+        <source>Graphics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Faster preview (experimental)</source>
+        <translation type="unfinished">Anteprima più veloce (sperimentale)</translation>
+    </message>
+    <message>
+        <source>Can make playback smoother by keeping video on the graphics card. Turn it off if the picture looks wrong. Takes effect after restart.</source>
+        <translation type="unfinished">Può rendere la riproduzione più fluida mantenendo il video sulla scheda grafica. Disattivalo se l&apos;immagine presenta anomalie. Diventa effettivo dopo il riavvio.</translation>
+    </message>
+    <message>
+        <source>Graphics card</source>
+        <translation type="unfinished">Scheda grafica</translation>
+    </message>
+    <message>
+        <source>Which graphics card Drift runs on. High performance keeps video decoded on an NVIDIA card on that card; power saving uses less battery. Takes effect after restart.</source>
+        <translation type="unfinished">Scheda grafica su cui viene eseguito Drift. Alte prestazioni mantiene sulla scheda NVIDIA i video decodificati su di essa; Risparmio energetico consuma meno batteria. Diventa effettivo dopo il riavvio.</translation>
+    </message>
+    <message>
+        <source>Windows default</source>
+        <translation type="unfinished">Predefinito di Windows</translation>
+    </message>
+    <message>
+        <source>Power saving (integrated GPU)</source>
+        <translation type="unfinished">Risparmio energetico (GPU integrata)</translation>
+    </message>
+    <message>
+        <source>High performance (discrete GPU)</source>
+        <translation type="unfinished">Alte prestazioni (GPU dedicata)</translation>
+    </message>
+    <message>
+        <source>Choose which graphics card Drift runs on in Windows Settings, under Display &gt; Graphics. Takes effect after restart.</source>
+        <translation type="unfinished">Scegli la scheda grafica su cui eseguire Drift nelle Impostazioni di Windows, in Schermo &gt; Grafica. Ha effetto dopo il riavvio.</translation>
+    </message>
+    <message>
+        <source>Open graphics settings</source>
+        <translation type="unfinished">Apri impostazioni grafiche</translation>
+    </message>
+    <message>
+        <source>Advanced tuning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Memory use and playback behaviour. The defaults suit most machines; changing them can make playback stutter or use far more memory. Most changes apply immediately.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation type="unfinished">Nascondi</translation>
+    </message>
+    <message>
+        <source>Show</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Playback</source>
         <translation>Riproduzione</translation>
     </message>
     <message>
-        <source>Drop late frames</source>
-        <translation>Scarta i fotogrammi in ritardo</translation>
+        <source>Skip frames when playback falls behind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip frames that are late by more than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Playback buffer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep the playback buffer full</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview memory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scrubbing memory per clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects workspace: buffer count</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects workspace: video memory limit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Graphics card image cache: image count</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Graphics card image cache: video memory limit</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Skip preview frames that finish this far behind the playhead, instead of showing them late. Can reduce slow-motion at clip cuts on slow machines. Off never drops a frame for being late.</source>
         <translation>Salta i fotogrammi di anteprima con un ritardo superiore a questo valore rispetto alla testina di riproduzione, invece di visualizzarli in ritardo. Può ridurre i rallentamenti in corrispondenza dei tagli su macchine lente. Se disattivato, nessun fotogramma viene scartato per ritardo.</translation>
-    </message>
-    <message>
-        <source>Drop frames lagging behind playback by more than</source>
-        <translation>Scarta i fotogrammi in ritardo rispetto alla riproduzione di oltre</translation>
     </message>
     <message>
         <source>ms</source>
@@ -21771,16 +27547,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Disattiva</translation>
     </message>
     <message>
-        <source>Read-ahead</source>
-        <translation>Pre-lettura</translation>
-    </message>
-    <message>
         <source>How much video each clip decodes ahead of the playhead during playback. More absorbs slow-to-decode footage but competes with the frames on screen. Default 2000 ms.</source>
         <translation>Quantità di video decodificata in anticipo da ciascuna clip rispetto alla testina durante la riproduzione. Un valore più alto gestisce meglio filmati lenti da decodificare, ma compete con i fotogrammi visualizzati. Predefinito: 2000 ms.</translation>
-    </message>
-    <message>
-        <source>Continuous read-ahead</source>
-        <translation>Pre-lettura continua</translation>
     </message>
     <message>
         <source>Keep decoding until the whole read-ahead window is full. Off decodes one frame ahead per displayed frame, which leaves more decoder time for the clip on screen but buffers less.</source>
@@ -21789,10 +27557,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Memory &amp; caches</source>
         <translation>Memoria e cache</translation>
-    </message>
-    <message>
-        <source>Decoded frame cache</source>
-        <translation>Cache fotogrammi decodificati</translation>
     </message>
     <message>
         <source>Memory shared by all clips for decoded preview frames. Automatic uses an eighth of system memory (a sixteenth on Android), at least 128 MiB.</source>
@@ -21807,20 +27571,12 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Automatico</translation>
     </message>
     <message>
-        <source>CPU frame history per clip</source>
-        <translation>Cronologia fotogrammi CPU per clip</translation>
-    </message>
-    <message>
         <source>Limit the decoded images each clip keeps in memory for scrubbing and effects. Unlimited keeps up to 16 frames per clip, which is large for 4K footage.</source>
         <translation>Limita le immagini decodificate conservate in memoria da ciascuna clip per lo scrubbing e gli effetti. Illimitato conserva fino a 16 fotogrammi per clip, una quantità notevole per riprese 4K.</translation>
     </message>
     <message>
         <source>Unlimited</source>
         <translation>Illimitato</translation>
-    </message>
-    <message>
-        <source>Render target pool: count</source>
-        <translation>Pool destinazioni di rendering: numero</translation>
     </message>
     <message>
         <source>Idle GPU render targets kept for reuse. Fewer saves video memory; more avoids reallocating while effects and transitions play.</source>
@@ -21831,16 +27587,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>destinazioni</translation>
     </message>
     <message>
-        <source>Render target pool: size</source>
-        <translation>Pool destinazioni di rendering: dimensione</translation>
-    </message>
-    <message>
         <source>Cap on the video memory held by idle render targets, in addition to the count.</source>
         <translation>Limite alla memoria video occupata dalle destinazioni di rendering inattive, oltre al numero.</translation>
-    </message>
-    <message>
-        <source>Image upload cache: count</source>
-        <translation>Cache caricamento immagini: numero</translation>
     </message>
     <message>
         <source>Stills and converted frames kept on the GPU so they are not uploaded again every frame.</source>
@@ -21851,24 +27599,151 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>immagini</translation>
     </message>
     <message>
-        <source>Image upload cache: size</source>
-        <translation>Cache caricamento immagini: dimensione</translation>
-    </message>
-    <message>
         <source>Cap on the video memory used by the image upload cache, in addition to the count. 48 uploads of 4K frames take about 1.5 GiB.</source>
         <translation>Limite alla memoria video utilizzata dalla cache di caricamento immagini, oltre al numero. 48 caricamenti di fotogrammi 4K occupano circa 1,5 GiB.</translation>
     </message>
+</context>
+<context>
+    <name>SettingsPersonalizePage</name>
     <message>
-        <source>Export</source>
-        <translation>Esporta</translation>
+        <source>Personalize</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Prefer hardware encoder for new exports</source>
-        <translation>Preferisci codificatore hardware per le nuove esportazioni</translation>
+        <source>About you</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Start new exports on a GPU H.264 encoder when one is available. Faster, but quality per bitrate is usually lower than the default software encoder.</source>
-        <translation>Avvia le nuove esportazioni con un codificatore H.264 su GPU quando disponibile. Più veloce, ma la qualità per bitrate è generalmente inferiore rispetto al codificatore software predefinito.</translation>
+        <source>What you make</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Used to suggest sensible defaults for new projects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not set</source>
+        <translation type="unfinished">Non impostata</translation>
+    </message>
+    <message>
+        <source>YouTube videos</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shorts and Reels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Films</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Podcasts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tutorials</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Experience with video editing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First time hides the Studio workspaces. You can show any of them again below.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some experience</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pro</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Working with AI agents</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None hides the AI and Procedural workspaces and the Ask button in the header.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation type="unfinished">Nessuno</translation>
+    </message>
+    <message>
+        <source>Some</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lots</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Accent colour</source>
+        <translation type="unfinished">Colore accento</translation>
+    </message>
+    <message>
+        <source>Colours buttons, selections and highlights on top of the current theme.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Labels under panel tabs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show a name under each icon on the side tab rails.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hints</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show hints</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Short tips and suggestions that appear as you work.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset dismissed tips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bring back every tip and suggestion you closed. They reappear the next time you open the panel they belong to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset tips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tips will show again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Workspaces</source>
+        <translation type="unfinished">Aree di lavoro</translation>
+    </message>
+    <message>
+        <source>Workspaces in the switcher</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hidden workspaces stay reachable from search (Ctrl+K) and their Alt+number shortcuts. Edit is always shown.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -21974,112 +27849,366 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Modalità di decodifica del video per l&apos;anteprima. Software è più fluido per la maggior parte delle clip ma utilizza più CPU. Hardware è ideale per il 4K di alta qualità.</translation>
     </message>
     <message>
-        <source>Faster preview (experimental)</source>
-        <translation>Anteprima più veloce (sperimentale)</translation>
+        <source>3D view</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Can make playback smoother by keeping video on the graphics card. Turn it off if the picture looks wrong. Takes effect after restart.</source>
-        <translation>Può rendere la riproduzione più fluida mantenendo il video sulla scheda grafica. Disattivalo se l&apos;immagine presenta anomalie. Diventa effettivo dopo il riavvio.</translation>
+        <source>Fly look</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Graphics card</source>
-        <translation>Scheda grafica</translation>
+        <source>How the mouse turns the view in fly mode. Mouse look locks the pointer; steering turns toward the pointer and suits touchpads.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Which graphics card Drift runs on. High performance keeps video decoded on an NVIDIA card on that card; power saving uses less battery. Takes effect after restart.</source>
-        <translation>Scheda grafica su cui viene eseguito Drift. Alte prestazioni mantiene sulla scheda NVIDIA i video decodificati su di essa; Risparmio energetico consuma meno batteria. Diventa effettivo dopo il riavvio.</translation>
+        <source>Mouse look (locked pointer)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Windows default</source>
-        <translation>Predefinito di Windows</translation>
+        <source>Steer toward pointer</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Power saving (integrated GPU)</source>
-        <translation>Risparmio energetico (GPU integrata)</translation>
+        <source>Recording smoothing</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>High performance (discrete GPU)</source>
-        <translation>Alte prestazioni (GPU dedicata)</translation>
+        <source>How much a recorded camera flight or clip motion is thinned into keyframes. Higher gives fewer, smoother keys.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Choose which graphics card Drift runs on in Windows Settings, under Display &gt; Graphics. Takes effect after restart.</source>
-        <translation>Scegli la scheda grafica su cui eseguire Drift nelle Impostazioni di Windows, in Schermo &gt; Grafica. Ha effetto dopo il riavvio.</translation>
+        <source>Smoothing</source>
+        <translation type="unfinished">Attenuazione</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsStoragePage</name>
+    <message>
+        <source>Storage &amp; media</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Open graphics settings</source>
-        <translation>Apri impostazioni grafiche</translation>
+        <source>%1 GB</source>
+        <translation type="unfinished">%1 GB</translation>
     </message>
     <message>
-        <source>Proxies</source>
-        <translation>Proxy</translation>
+        <source>%1 MB</source>
+        <translation type="unfinished">%1 MB</translation>
     </message>
     <message>
-        <source>Use proxies for preview</source>
-        <translation>Usa proxy per l&apos;anteprima</translation>
+        <source>Cache</source>
+        <translation type="unfinished">Cache</translation>
     </message>
     <message>
-        <source>Play clips from their low-resolution proxies where one exists. Export always uses the original media.</source>
-        <translation>Riproduce le clip dai rispettivi proxy a bassa risoluzione, se disponibili. L&apos;esportazione utilizza sempre gli elementi multimediali originali.</translation>
+        <source>%1 used</source>
+        <translation type="unfinished">%1 in uso</translation>
     </message>
     <message>
-        <source>Suggest proxies on import</source>
-        <translation>Suggerisci proxy durante l&apos;importazione</translation>
+        <source>Clear cache</source>
+        <translation type="unfinished">Cancella cache</translation>
+    </message>
+    <message>
+        <source>Cache location</source>
+        <translation type="unfinished">Posizione della cache</translation>
+    </message>
+    <message>
+        <source>%1. Takes effect after restart.</source>
+        <translation type="unfinished">%1. Diventerà effettivo dopo il riavvio.</translation>
+    </message>
+    <message>
+        <source>Reset</source>
+        <translation type="unfinished">Reimposta</translation>
+    </message>
+    <message>
+        <source>Change…</source>
+        <translation type="unfinished">Cambia…</translation>
+    </message>
+    <message>
+        <source>Preview copies (proxies)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use preview copies for playback</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Play clips from their low-resolution preview copies (proxies) where one exists. Export always uses the original media.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Suggest preview copies on import</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>What to do when imported footage may preview slowly.</source>
-        <translation>Cosa fare quando i filmati importati potrebbero essere riprodotti lentamente in anteprima.</translation>
+        <translation type="unfinished">Cosa fare quando i filmati importati potrebbero essere riprodotti lentamente in anteprima.</translation>
     </message>
     <message>
         <source>Ask</source>
-        <translation>Chiedi</translation>
+        <translation type="unfinished">Chiedi</translation>
     </message>
     <message>
-        <source>Always create proxies</source>
-        <translation>Crea sempre i proxy</translation>
+        <source>Always create preview copies</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Never ask</source>
-        <translation>Non chiedere mai</translation>
+        <translation type="unfinished">Non chiedere mai</translation>
     </message>
     <message>
-        <source>Proxy resolution</source>
-        <translation>Risoluzione proxy</translation>
+        <source>Preview copy resolution</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Size of new proxies. Proxies made at another size are not used until you create them again.</source>
-        <translation>Dimensioni dei nuovi proxy. I proxy creati con altre dimensioni non vengono utilizzati finché non vengono ricreati.</translation>
+        <source>Size of new preview copies. Copies made at another size are not used until you create them again.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>360p</source>
-        <translation>360p</translation>
+        <translation type="unfinished">360p</translation>
     </message>
     <message>
         <source>540p</source>
-        <translation>540p</translation>
+        <translation type="unfinished">540p</translation>
     </message>
     <message>
         <source>720p</source>
-        <translation>720p</translation>
+        <translation type="unfinished">720p</translation>
     </message>
     <message>
         <source>1080p</source>
-        <translation>1080p</translation>
+        <translation type="unfinished">1080p</translation>
     </message>
     <message>
-        <source>Proxy name patterns</source>
-        <translation>Modelli dei nomi dei proxy</translation>
+        <source>Save screen and camera recordings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Where Drift puts the recordings it makes. A recording is the only copy of what it caught, so Drift’s cache is not an option here — it gets cleared. Changing this doesn’t move recordings you already made.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Folder for recordings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In my Movies folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Beside the project</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In this folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No folder chosen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Until the project is saved, recordings go to your Movies folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save preview copies and reversed clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Where Drift saves the files it makes from your media. Changing the folder doesn’t move or delete anything. Proxies in the previous folder are no longer found; choosing that folder again finds them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Folder for proxies</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Beside the original</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In Drift’s cache</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drift’s files in this folder: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>0 B</source>
+        <translation type="unfinished">0 B</translation>
+    </message>
+    <message>
+        <source>Drift’s cache is pruned when it passes its size limit.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview copy name patterns</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Linking a proxy teaches Drift its name pattern. Proxies next to your media that match a pattern below link automatically.</source>
-        <translation>Il collegamento di un proxy permette a Drift di apprenderne il modello del nome. I proxy accanto ai file multimediali corrispondenti a uno dei modelli sottostanti si collegano automaticamente.</translation>
+        <translation type="unfinished">Il collegamento di un proxy permette a Drift di apprenderne il modello del nome. I proxy accanto ai file multimediali corrispondenti a uno dei modelli sottostanti si collegano automaticamente.</translation>
     </message>
     <message>
         <source>Remove pattern</source>
-        <translation>Rimuovi modello</translation>
+        <translation type="unfinished">Rimuovi modello</translation>
     </message>
     <message>
         <source>Reset to defaults</source>
-        <translation>Reimposta ai valori predefiniti</translation>
+        <translation type="unfinished">Reimposta ai valori predefiniti</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsSurfacesPage</name>
+    <message>
+        <source>Control surfaces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Learn</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Learn mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a parameter in the editor, such as a slider, a colour wheel or a mixer fader, then move a knob, fader or button on your device to bind it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Waiting for a control. Move a fader or knob, or press a button, on a connected device.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>MIDI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MIDI controllers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open every MIDI controller that is plugged in, including ones that appear later.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Protocol: Mackie Control and HUI faders and buttons drive the mixer and transport, and follow the editor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OSC</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OSC control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Listen for OSC messages over UDP, for TouchOSC, Open Stage Control and scripts. Anything else a sender transmits shows up as a control to bind.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Listen port</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The UDP port Drift receives on.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Feedback port</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The UDP port on the sender&apos;s machine that Drift answers to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Allowed hosts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One address or range per line, such as 192.168.1.40 or 10.0.0.0/24. Empty allows the local network only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OSC problem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Phone remote</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Let a phone running Drift act as a jog wheel, fader bank and colour trackballs for this editor over your local network.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pair a phone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scan the code from the Drift app on your phone, or type the code into its Remote page. It works for a few minutes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop pairing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pair phone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paired, not connected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forget</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use this phone as a remote</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pair with Drift on your computer to jog, fly the 3D view and set colours from here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open remote</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Devices</source>
+        <translation type="unfinished">Dispositivi</translation>
+    </message>
+    <message>
+        <source>No control surfaces</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plug in a MIDI controller, or enable OSC or the phone remote, and it appears here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not connected</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -22147,10 +28276,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Cosa muove la rotellina del mouse sulla timeline. Tieni premuto Shift per l&apos;altra direzione; trascinare con il pulsante centrale esegue una panoramica.</translation>
     </message>
     <message>
-        <source>Tracks (up and down)</source>
-        <translation>Tracce (su e giù)</translation>
-    </message>
-    <message>
         <source>Time (left and right)</source>
         <translation>Tempo (sinistra e destra)</translation>
     </message>
@@ -22183,12 +28308,12 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Anche il trascinamento di un cursore crea fotogrammi chiave.</translation>
     </message>
     <message>
-        <source>Loop work area</source>
-        <translation>Ripeti area di lavoro in loop</translation>
+        <source>Tracks, or time when they fit</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Playback repeats between the work area in and out points.</source>
-        <translation>La riproduzione si ripete tra i punti di attacco e stacco dell&apos;area di lavoro.</translation>
+        <source>Animation</source>
+        <translation type="unfinished">Animazione</translation>
     </message>
     <message>
         <source>Defaults</source>
@@ -22230,20 +28355,17 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <source>Show the audio mixer strip beside the timeline.</source>
         <translation>Mostra la striscia del mixer audio accanto alla timeline.</translation>
     </message>
-</context>
-<context>
-    <name>SettingsToolbarPage</name>
     <message>
-        <source>Timeline toolbar</source>
-        <translation>Barra degli strumenti della timeline</translation>
+        <source>Toolbar</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Toolbar layout</source>
-        <translation>Layout della barra degli strumenti</translation>
+        <translation type="unfinished">Layout della barra degli strumenti</translation>
     </message>
     <message>
         <source>Choose which actions appear on the toolbar above the timeline and which go in its overflow menu.</source>
-        <translation>Scegli quali azioni visualizzare sulla barra sopra la timeline e quali inserire nel menu a comparsa.</translation>
+        <translation type="unfinished">Scegli quali azioni visualizzare sulla barra sopra la timeline e quali inserire nel menu a comparsa.</translation>
     </message>
 </context>
 <context>
@@ -22255,6 +28377,34 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Arrange panels into layouts, optionally across several windows. Drag a panel onto an edge of another block to split it, or onto its middle to add a tab. Nothing changes in the editor until you save.</source>
         <translation>Disponi i pannelli nei layout, facoltativamente su più finestre. Trascina un pannello sul bordo di un altro blocco per dividerlo, o al centro per aggiungere una scheda. Nessuna modifica ha effetto nell&apos;editor finché non salvi.</translation>
+    </message>
+    <message>
+        <source>Orientation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Workspace orientation</source>
+        <translation type="unfinished">Orientamento area di lavoro</translation>
+    </message>
+    <message>
+        <source>Landscape or portrait workspace. Auto follows the shape of the canvas.</source>
+        <translation type="unfinished">Area di lavoro orizzontale o verticale. Automatico segue la forma del quadro.</translation>
+    </message>
+    <message>
+        <source>Auto (follow canvas)</source>
+        <translation type="unfinished">Automatico (segui area di disegno)</translation>
+    </message>
+    <message>
+        <source>Landscape</source>
+        <translation type="unfinished">Orizzontale</translation>
+    </message>
+    <message>
+        <source>Portrait</source>
+        <translation type="unfinished">Verticale</translation>
+    </message>
+    <message>
+        <source>Layouts</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Layout designer</source>
@@ -22340,6 +28490,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Show layer</source>
         <translation>Mostra livello</translation>
+    </message>
+    <message>
+        <source>More</source>
+        <translation type="unfinished">Altro</translation>
     </message>
     <message>
         <source>Duplicate layer</source>
@@ -22429,6 +28583,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Smusso</translation>
     </message>
     <message>
+        <source>Butt</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Square</source>
+        <translation type="unfinished">Quadrato</translation>
+    </message>
+    <message>
         <source>Opacity</source>
         <translation>Opacità</translation>
     </message>
@@ -22463,6 +28625,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>How the stroke turns a corner: sharp, rounded or cut off</source>
         <translation>Come il tratto curva su un angolo: a punta, arrotondato o tagliato</translation>
+    </message>
+    <message>
+        <source>Cap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How the stroke ends on open paths and dashes: flat, rounded or squared off</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Miter limit</source>
@@ -22671,8 +28841,119 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>La sostituzione della forma ne mantiene la posizione, le dimensioni, lo stile e gli effetti.</translation>
     </message>
     <message>
+        <source>Sides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Teeth</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Shape style</source>
         <translation>Stile forma</translation>
+    </message>
+    <message>
+        <source>Make editable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Turn this shape into a path you can reshape point by point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Make shape editable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Its size, style and effects stay; knob animation on the shape is dropped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit this path&apos;s points and handles in the preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fill rule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Non-zero</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Even-odd</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>How overlapping or nested contours are filled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>Path animation: %n key(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Path animation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation type="unfinished">Interrompi</translation>
+    </message>
+    <message>
+        <source>Animate</source>
+        <translation type="unfinished">Anima</translation>
+    </message>
+    <message>
+        <source>Remove all path keys and keep the current outline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Key the whole outline at the playhead, then edit it at other times</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animate path</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Key at %1 s</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move the playhead to this key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove this key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save to My shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep this shape&apos;s outline in the Shapes tab to reuse it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>My shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save shape to My shapes</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Layers</source>
@@ -22719,6 +29000,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Raggio interno</translation>
     </message>
     <message>
+        <source>Sweep</source>
+        <translation type="unfinished">A ventaglio</translation>
+    </message>
+    <message>
         <source>Head size</source>
         <translation>Dimensione punta</translation>
     </message>
@@ -22752,6 +29037,26 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Add to favorites</source>
         <translation>Aggiungi ai preferiti</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation type="unfinished">Rinomina</translation>
+    </message>
+    <message>
+        <source>Rename shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Elimina</translation>
+    </message>
+    <message>
+        <source>Delete shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove “%1” from My shapes? Clips already using it keep their outline.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -22807,6 +29112,50 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Trapezoid</source>
         <translation>Trapezio</translation>
+    </message>
+    <message>
+        <source>Pill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Polygon</source>
+        <translation type="unfinished">Poligono</translation>
+    </message>
+    <message>
+        <source>Ring</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame</source>
+        <translation type="unfinished">Fotogramma</translation>
+    </message>
+    <message>
+        <source>Pie</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Arc</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crescent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Line</source>
+        <translation type="unfinished">Riga</translation>
+    </message>
+    <message>
+        <source>Curve</source>
+        <translation type="unfinished">Curva</translation>
+    </message>
+    <message>
+        <source>Wave</source>
+        <translation type="unfinished">Onda</translation>
+    </message>
+    <message>
+        <source>Zigzag</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Arrow</source>
@@ -22873,8 +29222,48 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Striscione</translation>
     </message>
     <message>
+        <source>Gear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Badge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shield</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Teardrop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Location pin</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tag</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bookmark</source>
+        <translation type="unfinished">Segnalibro</translation>
+    </message>
+    <message>
+        <source>Checkmark</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>X mark</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Basic</source>
         <translation>Base</translation>
+    </message>
+    <message>
+        <source>Lines</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Arrows</source>
@@ -22913,6 +29302,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Dimensione coda</translation>
     </message>
     <message>
+        <source>Sweep</source>
+        <translation type="unfinished">A ventaglio</translation>
+    </message>
+    <message>
         <source>Points</source>
         <translation>Punti</translation>
     </message>
@@ -22920,12 +29313,40 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>ShapesTab</name>
     <message>
+        <source>Import SVG</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>SVG images (*.svg)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Search shapes</source>
         <translation>Cerca forme</translation>
     </message>
     <message>
+        <source>Draw a line or custom shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add an SVG file to My shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>My shapes: draw or import a shape, then Save to My shapes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No shapes match “%1”.</source>
         <translation>Nessuna forma corrisponde a “%1”.</translation>
+    </message>
+    <message>
+        <source>My shapes</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -22933,6 +29354,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Adjustment layer</source>
         <translation>Livello di regolazione</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>Run</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -22981,24 +29410,94 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>ShortcutCaptureField</name>
     <message>
-        <source>Shortcut for %1</source>
-        <translation>Scorciatoia per %1</translation>
-    </message>
-    <message>
-        <source>Not set</source>
-        <translation>Non impostata</translation>
+        <source>Add shortcut for %1</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Press keys…</source>
         <translation>Premi i tasti…</translation>
     </message>
     <message>
-        <source>Click to set</source>
-        <translation>Fai clic per impostare</translation>
+        <source>Press keys or a button…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>“%1” is already used by %2.</source>
         <translation>“%1” è già utilizzato da %2.</translation>
+    </message>
+</context>
+<context>
+    <name>ShortcutChip</name>
+    <message>
+        <source>Remove this shortcut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove shortcut %1 from %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SoundEffectDialog</name>
+    <message>
+        <source>Sound effect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sound effects come from ElevenLabs. Add your API key in Settings to use them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Allow sending prompts to ElevenLabs in Settings to use sound effects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Describe the sound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Heavy wooden door creaking open</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Let the model pick the length</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Prompt influence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Higher values follow the prompt more literally and vary less</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Make it loop seamlessly</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Place at the playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generate</source>
+        <translation type="unfinished">Genera</translation>
+    </message>
+    <message>
+        <source>Billed by ElevenLabs to your account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished">Annulla</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished">Chiudi</translation>
     </message>
 </context>
 <context>
@@ -23385,6 +29884,13 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Shot %1</source>
         <translation>Inquadratura %1</translation>
+    </message>
+</context>
+<context>
+    <name>SourceLabCropOverlay</name>
+    <message>
+        <source>Crop</source>
+        <translation type="unfinished">Ritaglio quadro</translation>
     </message>
 </context>
 <context>
@@ -24168,6 +30674,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Interrompi generazione</translation>
     </message>
     <message>
+        <source>Sound effect…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generate a sound effect from a text prompt (ElevenLabs)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Record a voice</source>
         <translation>Registra una voce</translation>
     </message>
@@ -24243,20 +30757,20 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>SpeedCurveController</name>
     <message>
-        <source>Custom speed works on video and audio clips</source>
-        <translation>La velocità personalizzata si applica a clip video e audio</translation>
+        <source>Speed ramp works on video and audio clips</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>This clip has no media to speed up or slow down</source>
         <translation>Questa clip non ha elementi multimediali da velocizzare o rallentare</translation>
     </message>
     <message>
-        <source>That clip moved — open Custom speed again</source>
-        <translation>La clip è stata spostata: riapri Velocità personalizzata</translation>
+        <source>That clip moved — open Speed ramp again</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Custom speed applied</source>
-        <translation>Velocità personalizzata applicata</translation>
+        <source>Speed ramp applied</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -24269,8 +30783,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>SpeedCurveWindow</name>
     <message>
-        <source>Custom speed</source>
-        <translation>Velocità personalizzata</translation>
+        <source>Speed ramp</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Pause</source>
@@ -24313,6 +30827,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Reimposta</translation>
     </message>
     <message>
+        <source>Edit speed curve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Applied as a copy on a new track — the original clip is left alone.</source>
         <translation>Applicato come copia su una nuova traccia: la clip originale non viene modificata.</translation>
     </message>
@@ -24332,14 +30850,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Velocità di riproduzione</translation>
     </message>
     <message>
-        <source>Custom speed…</source>
-        <translation>Velocità personalizzata…</translation>
-    </message>
-    <message>
-        <source>Custom speed active — remove</source>
-        <translation>Velocità personalizzata attiva — rimuovi</translation>
-    </message>
-    <message>
         <source>Speed</source>
         <translation>Velocità</translation>
     </message>
@@ -24348,8 +30858,28 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Velocità modificata</translation>
     </message>
     <message>
-        <source>Custom speed</source>
-        <translation>Velocità personalizzata</translation>
+        <source>Speed ramp…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed ramp active — remove</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split (%1) to speed up only part of a clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Split the clip to speed up only part of it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ramp</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed ramp</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source> (reversed)</source>
@@ -24577,12 +31107,28 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Attenua le oscillazioni della telecamera. Drift analizza la clip, esegue il rendering di una copia stabilizzata nel cestino multimediale e sostituisce la clip. La modifica di fluidità o cavalletto non aggiorna l&apos;anteprima finché non applichi.</translation>
     </message>
     <message>
+        <source>Smooths camera shake with position keyframes. Apply to update the preview.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Smooths camera shake by rendering a stabilized copy of the clip. Apply to update the preview.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Stabilize</source>
         <translation>Stabilizza</translation>
     </message>
     <message>
         <source>Render a stabilized copy, or animate the clip with sparse transform keys</source>
         <translation>Esegui il rendering di una copia stabilizzata o anima la clip con fotogrammi chiave di trasformazione radi</translation>
+    </message>
+    <message>
+        <source>Smoothing is how many frames the smoother looks ahead and behind; higher values hide more shake but crop more.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tripod mode locks the framing and crops more aggressively.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Smoothing</source>
@@ -24628,6 +31174,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Impostazioni</translation>
     </message>
     <message>
+        <source>Help</source>
+        <translation type="unfinished">Aiuto</translation>
+    </message>
+    <message>
+        <source>Help and support</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Debug info</source>
         <translation>Informazioni di debug</translation>
     </message>
@@ -24657,6 +31211,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Open Project…</source>
         <translation>Apri progetto…</translation>
+    </message>
+    <message>
+        <source>Import/Export…</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -24738,6 +31296,57 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>StickerPackImport</name>
+    <message>
+        <source>The pack has too many images</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No .png or .webp images found</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not create the sticker folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The pack is too large</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not write the sticker files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not install the sticker pack</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Custom stickers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open %1</source>
+        <translation type="unfinished">Impossibile aprire %1</translation>
+    </message>
+    <message>
+        <source>%1 is not a .zip archive</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 has too many files</source>
+        <translation type="unfinished">%1 contiene troppi file</translation>
+    </message>
+    <message>
+        <source>“%1” is not an imported sticker pack</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not delete “%1”</source>
+        <translation type="unfinished">Impossibile eliminare “%1”</translation>
+    </message>
+</context>
+<context>
     <name>StickerPresetCard</name>
     <message>
         <source>%1 — click to add, or drag to the timeline or preview</source>
@@ -24759,6 +31368,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>StickersTab</name>
     <message>
+        <source>Import sticker pack</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Zip archives (*.zip)</source>
+        <translation type="unfinished">Archivi zip (*.zip)</translation>
+    </message>
+    <message>
         <source>Search stickers</source>
         <translation>Cerca adesivi</translation>
     </message>
@@ -24767,8 +31384,28 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Altre emoji</translation>
     </message>
     <message>
+        <source>Import or manage sticker packs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import sticker pack (.zip)…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import sticker folder…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove “%1”</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No sticker packs installed</source>
         <translation>Nessun pacchetto adesivi installato</translation>
+    </message>
+    <message>
+        <source>Install the emoji pack, or import your own images with the upload button.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Install the emoji pack to add stickers.</source>
@@ -24917,6 +31554,17 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>SubtitleCueEdgeGrip</name>
+    <message>
+        <source>Adjust subtitle timing</source>
+        <translation type="unfinished">Regola temporizzazione sottotitoli</translation>
+    </message>
+    <message>
+        <source>  →  </source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SubtitleCueEmptyState</name>
     <message>
         <source>No subtitles yet. Move to a time inside this clip and add one below.</source>
@@ -25057,6 +31705,18 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Sottotitoli WebVTT (*.vtt)</translation>
     </message>
     <message>
+        <source>Import and export</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import subtitles…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export subtitles…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Timestamps from the start of the video</source>
         <translation>Timestamp dall&apos;inizio del video</translation>
     </message>
@@ -25102,6 +31762,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Move to a time inside this clip to add a subtitle</source>
         <translation>Spostati su una posizione temporale all&apos;interno di questa clip per aggiungere un sottotitolo</translation>
+    </message>
+    <message>
+        <source>Add subtitle at %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move the playhead into this clip to add</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Add subtitle at current time</source>
@@ -25588,6 +32256,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>SubtitlesPanel</name>
     <message>
+        <source>Captions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No cues yet</source>
         <translation>Ancora nessuna battuta</translation>
     </message>
@@ -25655,12 +32327,28 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>I sottotitoli più brevi vengono sincronizzati dividendo ciascuna frase in modo uniforme, pertanto potrebbero desincronizzarsi leggermente rispetto al parlato.</translation>
     </message>
     <message>
-        <source>Create captions from the selected clips&apos; speech — several clips become one caption clip</source>
-        <translation>Crea sottotitoli dal parlato delle clip selezionate — più clip diventano un&apos;unica clip sottotitoli</translation>
+        <source>Auto captions</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Select a video or audio clip first</source>
-        <translation>Seleziona prima una clip video o audio</translation>
+        <source>Writes captions from the selected clips&apos; speech.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a video or audio clip first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Writes captions from the speech in your clips, on your computer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Needs speech model</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Needs AI Engine</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Creating captions… %1%</source>
@@ -25683,10 +32371,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Installa prima il motore IA</translation>
     </message>
     <message>
-        <source>Needed for auto captions from speech</source>
-        <translation>Necessario per i sottotitoli automatici dal parlato</translation>
-    </message>
-    <message>
         <source>Recommended caption length</source>
         <translation>Lunghezza didascalia consigliata</translation>
     </message>
@@ -25697,6 +32381,81 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>%1 words per caption</source>
         <translation>%1 parole per didascalia</translation>
+    </message>
+</context>
+<context>
+    <name>SurfaceDeviceBindings</name>
+    <message>
+        <source>Nothing is bound yet. Turn on learn mode, click a parameter in the editor, then move a control.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished">Posizione</translation>
+    </message>
+    <message>
+        <source>Counter, 2&apos;s complement</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Counter, sign and size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Counter around 64</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invert</source>
+        <translation type="unfinished">Inverti</translation>
+    </message>
+    <message>
+        <source>Speed</source>
+        <translation type="unfinished">Velocità</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation type="unfinished">Rimuovi</translation>
+    </message>
+    <message>
+        <source>Bind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Learn</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export…</source>
+        <translation type="unfinished">Esporta…</translation>
+    </message>
+    <message>
+        <source>Export bindings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bindings (*.json)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import…</source>
+        <translation type="unfinished">Importa…</translation>
+    </message>
+    <message>
+        <source>Import bindings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That file is not a bindings file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation type="unfinished">Cancella</translation>
+    </message>
+    <message>
+        <source>Forget device</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -25755,6 +32514,95 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>TemplateRenderDialog</name>
+    <message>
+        <source>Render now</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add to render queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Send to render farm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Render with data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rendering…</source>
+        <translation type="unfinished">Rendering in corso…</translation>
+    </message>
+    <message>
+        <source>Render</source>
+        <translation type="unfinished">Rendering</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="unfinished">Aggiungi</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n row(s) could not be queued: %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Sent to the render farm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added to the render queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n row(s) of data: one video per row.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No data file: the template renders once with its default parameters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose data file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Data file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CSV or JSON (*.csv *.json)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row</source>
+        <translation type="unfinished">Riga</translation>
+    </message>
+    <message>
+        <source>Output file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>/path/to/renders/{row}.mp4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>{row} is the row number; {name} is any template parameter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>TextAnimPresetFrame</name>
     <message>
         <source>None</source>
@@ -25781,6 +32629,22 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Export text style</source>
         <translation>Esporta stile di testo</translation>
+    </message>
+    <message>
+        <source>Show built-in styles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show title templates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show my styles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Templates</source>
+        <translation type="unfinished">Modelli</translation>
     </message>
     <message>
         <source>My styles</source>
@@ -25923,6 +32787,62 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>My style %1</source>
         <translation>Il mio stile %1</translation>
+    </message>
+    <message>
+        <source>Import animation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animation presets (*.json *.lottie)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn’t import that animation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Imported, but some features aren’t supported: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animation imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export animation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animation preset (*.json)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Animation exported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Couldn’t export the animation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename animation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation type="unfinished">Rinomina</translation>
+    </message>
+    <message>
+        <source>Delete animation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Elimina</translation>
+    </message>
+    <message>
+        <source>Remove “%1” from your imported animations? It is also cleared from the selected clip.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -26081,6 +33001,29 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Plays for every caption</source>
         <translation>Viene riprodotta per ogni sottotitolo</translation>
+    </message>
+</context>
+<context>
+    <name>TextInspectorAnimatePage</name>
+    <message>
+        <source>Import…</source>
+        <translation type="unfinished">Importa…</translation>
+    </message>
+    <message>
+        <source>Import an animation from a Lottie or exported preset file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename…</source>
+        <translation type="unfinished">Rinomina…</translation>
+    </message>
+    <message>
+        <source>Export…</source>
+        <translation type="unfinished">Esporta…</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished">Elimina</translation>
     </message>
 </context>
 <context>
@@ -26403,6 +33346,88 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>TextInspectorScriptSection</name>
+    <message>
+        <source>Script</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Make this text the result of a Lua script, evaluated for every frame.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generate the text with a script instead of typing it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scripted text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start from a preset…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replace the script with a ready-made one</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Now: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Return a string. Read ctx.time, ctx.timeline, ctx.progress, ctx.frame, ctx.fps, ctx.source and ctx.now; helpers: timecode, lerp, ease, pad, commas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TextInspectorScrollSection</name>
+    <message>
+        <source>Scroll</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Roll the text up the screen like end credits, or crawl it sideways like a ticker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation type="unfinished">Nessuno</translation>
+    </message>
+    <message>
+        <source>Roll up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crawl left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Crawl right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The text crosses the screen over the clip&apos;s length: a longer clip scrolls slower.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter off-screen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start with the text fully outside the frame; off, it starts where the box lays it out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exit off-screen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End with the text fully outside the frame; off, it settles where the box lays it out</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>TextInspectorSpacingSection</name>
     <message>
         <source>Spacing</source>
@@ -26496,6 +33521,37 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Images (*.png *.jpg *.jpeg *.webp)</source>
         <translation>Immagini (*.png *.jpg *.jpeg *.webp)</translation>
+    </message>
+</context>
+<context>
+    <name>TextScriptPresets</name>
+    <message>
+        <source>Timecode burn-in (timeline)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timecode burn-in (source)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Frame counter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Number ticker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stopwatch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Date and clock (at render)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Percentage loader</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -26809,29 +33865,76 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>TimelineAutoReframeDialog</name>
+    <message>
+        <source>Auto reframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reframe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track</source>
+        <translation type="unfinished">Traccia</translation>
+    </message>
+    <message>
+        <source>Follow face</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep centred</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follows the clip&apos;s face track. Without one, the crop stays centred.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape</source>
+        <translation type="unfinished">Forma</translation>
+    </message>
+    <message>
+        <source>Vertical 9:16</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Square 1:1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Portrait 4:5</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wide 16:9</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>TimelineBakeContextMenu</name>
     <message>
-        <source>Re-bake</source>
-        <translation>Esegui di nuovo il bake</translation>
+        <source>Re-render</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Set work area to bake</source>
-        <translation>Imposta area di lavoro per il bake</translation>
+        <source>Set work area to pre-render</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Delete bake</source>
-        <translation>Elimina bake</translation>
+        <source>Delete pre-rendered section</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Manage bakes…</source>
-        <translation>Gestisci i bake…</translation>
+        <source>Manage pre-rendered sections…</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>TimelineBakeStrip</name>
     <message>
-        <source>Baking %1%</source>
-        <translation>Bake in corso %1%</translation>
+        <source>Pre-rendering %1%</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Stale</source>
@@ -26859,6 +33962,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Rename…</source>
         <translation>Rinomina…</translation>
+    </message>
+    <message>
+        <source>Default colour</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Delete</source>
@@ -26916,6 +34023,94 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Selezione multipla</translation>
     </message>
     <message>
+        <source>Detach audio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detach all audio tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unlink video and audio</source>
+        <translation type="unfinished">Scollega video e audio</translation>
+    </message>
+    <message>
+        <source>Remove all effects</source>
+        <translation type="unfinished">Rimuovi tutti gli effetti</translation>
+    </message>
+    <message>
+        <source>Effects</source>
+        <translation type="unfinished">Effetti</translation>
+    </message>
+    <message>
+        <source>Blur area</source>
+        <translation type="unfinished">Area di sfocatura</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation type="unfinished">Audio</translation>
+    </message>
+    <message>
+        <source>Auto duck…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generate captions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add beat markers: every beat</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add beat markers: every 2 beats</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add beat markers: every bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto-cut to beat…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transform</source>
+        <translation type="unfinished">Trasformazione</translation>
+    </message>
+    <message>
+        <source>Crop on canvas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Auto reframe…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stabilize…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>More</source>
+        <translation type="unfinished">Altro</translation>
+    </message>
+    <message>
+        <source>Split on beats</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Snap clips to beats</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swap with previous clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swap with next clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Open composite</source>
         <translation>Apri composizione</translation>
     </message>
@@ -26956,14 +34151,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Dividi alla posizione corrente</translation>
     </message>
     <message>
-        <source>Split item at current time</source>
-        <translation>Dividi elemento alla posizione corrente</translation>
-    </message>
-    <message>
-        <source>Separate audio</source>
-        <translation>Separa audio</translation>
-    </message>
-    <message>
         <source>Separate all audio tracks</source>
         <translation>Separa tutte le tracce audio</translation>
     </message>
@@ -26982,6 +34169,34 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Sync by Audio &amp; Start Multicamera</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Paste at current time</source>
+        <translation type="unfinished">Incolla alla posizione corrente</translation>
+    </message>
+    <message>
+        <source>Enable clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Disable clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Detach from %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed and reverse…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Volume…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Freeze frame</source>
+        <translation type="unfinished">Fermo immagine</translation>
     </message>
     <message>
         <source>Mute / Disable event (Alt+Shift+Q)</source>
@@ -27260,10 +34475,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Blur area…</source>
-        <translation>Sfoca area…</translation>
-    </message>
-    <message>
         <source>Edit keyframes…</source>
         <translation>Modifica fotogrammi chiave…</translation>
     </message>
@@ -27321,8 +34532,12 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>La timeline è vuota</translation>
     </message>
     <message>
-        <source>Drag media here from the library, or add an empty track to start.</source>
-        <translation>Trascina gli elementi multimediali qui dalla libreria o aggiungi una traccia vuota per iniziare.</translation>
+        <source>Drag media here from the library, or import a file to start.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import media</source>
+        <translation type="unfinished">Importa elementi multimediali</translation>
     </message>
     <message>
         <source>New track</source>
@@ -27383,12 +34598,38 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Regola dissolvenza</translation>
     </message>
     <message>
+        <source>%1 s</source>
+        <translation type="unfinished">%1 s</translation>
+    </message>
+    <message>
         <source>Fade out %1s</source>
         <translation>Dissolvenza in uscita %1s</translation>
     </message>
     <message>
         <source>Fade in %1s</source>
         <translation>Dissolvenza in entrata %1s</translation>
+    </message>
+</context>
+<context>
+    <name>TimelineKeyframeMenu</name>
+    <message>
+        <source>Easing…</source>
+        <translation type="unfinished">Attenuazione…</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n keyframe(s) here</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Set playhead here</source>
+        <translation type="unfinished">Posiziona la testina di riproduzione qui</translation>
+    </message>
+    <message>
+        <source>Edit keyframes…</source>
+        <translation type="unfinished">Modifica fotogrammi chiave…</translation>
     </message>
 </context>
 <context>
@@ -27466,6 +34707,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Livello di trasformazione: sposta, ridimensiona e ruota ogni traccia coperta dalla sua parentesi</translation>
     </message>
     <message>
+        <source>Keyframe. Right-click for easing presets, or to open the Keyframes tab.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Save effect preset</source>
         <translation>Salva predefinito effetto</translation>
     </message>
@@ -27494,6 +34739,22 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Aggiungi segnalibro qui</translation>
     </message>
     <message>
+        <source>Close gap</source>
+        <translation type="unfinished">Chiudi spazio</translation>
+    </message>
+    <message>
+        <source>Close gap on all tracks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close gaps in work area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close all gaps on track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Select clips on track</source>
         <translation>Seleziona clip sulla traccia</translation>
     </message>
@@ -27506,32 +34767,40 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Seleziona tutte le clip</translation>
     </message>
     <message>
-        <source>Unmute track</source>
-        <translation>Riattiva audio traccia</translation>
+        <source>Add track</source>
+        <translation type="unfinished">Aggiungi traccia</translation>
     </message>
     <message>
-        <source>Mute track</source>
-        <translation>Disattiva audio traccia</translation>
+        <source>Video</source>
+        <translation type="unfinished">Video</translation>
     </message>
     <message>
-        <source>Show track</source>
-        <translation>Mostra traccia</translation>
+        <source>Audio</source>
+        <translation type="unfinished">Audio</translation>
     </message>
     <message>
-        <source>Hide track</source>
-        <translation>Nascondi traccia</translation>
+        <source>Text</source>
+        <translation type="unfinished">Testo</translation>
     </message>
     <message>
-        <source>Unlock track</source>
-        <translation>Sblocca traccia</translation>
+        <source>Subtitle</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Lock track</source>
-        <translation>Blocca traccia</translation>
+        <source>Graphic</source>
+        <translation type="unfinished">Grafica</translation>
     </message>
     <message>
-        <source>Remove empty tracks</source>
-        <translation>Rimuovi tracce vuote</translation>
+        <source>Adjustment</source>
+        <translation type="unfinished">Regolazione</translation>
+    </message>
+    <message>
+        <source>Split all tracks here</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete all empty tracks</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Rename bookmark</source>
@@ -27580,10 +34849,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>My look</source>
         <translation>Il mio stile</translation>
-    </message>
-    <message>
-        <source>Close Gap</source>
-        <translation>Chiudi spazio</translation>
     </message>
 </context>
 <context>
@@ -27660,10 +34925,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>TimelineToolbar</name>
     <message>
-        <source>%1 (%2)</source>
-        <translation>%1 (%2)</translation>
-    </message>
-    <message>
         <source>Import media</source>
         <translation>Importa elementi multimediali</translation>
     </message>
@@ -27680,12 +34941,24 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Riproduci</translation>
     </message>
     <message>
-        <source>Auto-select: select the clip under the playhead</source>
-        <translation>Selezione automatica: seleziona la clip sotto la testina di riproduzione</translation>
+        <source>Let clips sit on top of each other on one track instead of pushing apart.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Magnetic snapping: align video and audio edges across tracks</source>
-        <translation>Aggancio magnetico: allinea i bordi di video e audio tra le tracce</translation>
+        <source>Auto-select</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Selects the clip under the playhead as you move it, so the inspector follows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Snapping</source>
+        <translation type="unfinished">Allineamento magnetico</translation>
+    </message>
+    <message>
+        <source>Clips and the playhead snap to neighbouring edges so cuts line up exactly.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Off</source>
@@ -27732,6 +35005,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Ripple editing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>When you trim or delete, later clips shift to close or open the gap.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Toggle audio mixer strip</source>
         <translation>Mostra/Nascondi striscia del mixer audio</translation>
     </message>
@@ -27771,23 +35052,11 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Seleziona</translation>
     </message>
     <message>
-        <source>Select — normal editing</source>
-        <translation>Selezione — modifica normale</translation>
-    </message>
-    <message>
         <source>Cut mode</source>
         <translation>Modalità taglio</translation>
     </message>
     <message>
-        <source>Cut mode — click a clip to split it</source>
-        <translation>Modalità taglio — fai clic su una clip per dividerla</translation>
-    </message>
-    <message>
         <source>Slip mode</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Slip mode — drag within clip boundaries to shift media (Alt+drag)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -27795,15 +35064,7 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Roll edit — drag a cut edge between touching clips to move the edit point</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Slide edit mode</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Slide edit — drag a clip between touching neighbors without changing its content</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -27823,24 +35084,64 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Taglia inizio</translation>
     </message>
     <message>
-        <source>Trim start — click a clip to drop everything left of the cut</source>
-        <translation>Ritaglio iniziale — fai clic su una clip per eliminare tutto a sinistra del taglio</translation>
-    </message>
-    <message>
         <source>Trim end</source>
         <translation>Taglia fine</translation>
     </message>
     <message>
-        <source>Trim end — click a clip to drop everything right of the cut</source>
-        <translation>Ritaglio finale — fai clic su una clip per eliminare tutto a destra del taglio</translation>
+        <source>Click, drag and trim clips as normal. Switch back here after using Cut.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a clip to split it there. Fast for chopping out the parts you do not need.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag within clip boundaries to shift media (Alt+drag).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag a cut edge between touching clips to move the edit point.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag a clip between touching neighbors without changing its content.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pull the sound out of a video onto its own track to edit it separately.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move or trim the picture and its sound separately.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep the selected clips moving, trimming and deleting together.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a clip to drop everything before that point.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a clip to drop everything after that point.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Trim start to playhead</source>
         <translation>Taglia inizio fino alla testina</translation>
     </message>
     <message>
+        <source>Drop everything before the playhead from the selected clip.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Trim end to playhead</source>
         <translation>Taglia fine fino alla testina</translation>
+    </message>
+    <message>
+        <source>Drop everything after the playhead from the selected clip.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Undo</source>
@@ -27895,24 +35196,32 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Blocca fotogramma alla posizione corrente</translation>
     </message>
     <message>
+        <source>Hold the current frame as a still. Good for emphasis or a title card.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Add adjustment layer</source>
         <translation>Aggiungi livello di regolazione</translation>
+    </message>
+    <message>
+        <source>An empty layer whose effects apply to everything under it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Add transform layer</source>
         <translation>Aggiungi livello di trasformazione</translation>
     </message>
     <message>
-        <source>Add transform layer — moves the selected clips&apos; tracks as one</source>
-        <translation>Aggiungi livello di trasformazione — sposta le tracce delle clip selezionate come un blocco unico</translation>
+        <source>Move, scale and rotate the selected clips together as one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One viewpoint the whole timeline is seen through. Use it for pans and zooms.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Add camera</source>
         <translation>Aggiungi telecamera</translation>
-    </message>
-    <message>
-        <source>Add camera — one viewpoint the whole timeline is seen through. With a camera already there, adds a new camera clip (a cut to a new framing) at the playhead</source>
-        <translation>Aggiungi telecamera — un punto di vista attraverso cui viene vista l&apos;intera timeline. Se è già presente una telecamera, aggiunge una nuova clip telecamera (un taglio su una nuova inquadratura) alla testina</translation>
     </message>
 </context>
 <context>
@@ -28178,6 +35487,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <source>Transition Curve</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Resize transition</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>  →  </source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>TimelineTrimHandle</name>
@@ -28191,6 +35508,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
     <message>
         <source>Drag to trim the end (Ctrl+drag to time stretch)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>  →  </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -28264,20 +35585,31 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>TimelineWorkAreaBakeChip</name>
     <message>
-        <source>Baking %1%</source>
-        <translation>Bake in corso %1%</translation>
+        <source>Pre-rendering %1%</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Bake</source>
-        <translation>Bake</translation>
+        <source>Pre-render</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Cancel baking</source>
         <translation>Annulla bake</translation>
     </message>
     <message>
+        <source>Pre-rendered sections are of the main timeline. Switch to it to pre-render.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Pre-render the work area for smooth playback and export</source>
         <translation>Esegui il pre-rendering dell&apos;area di lavoro per una riproduzione e un&apos;esportazione fluide</translation>
+    </message>
+</context>
+<context>
+    <name>TitleTemplateCard</name>
+    <message>
+        <source>%1 — click to add at the playhead, then type over the text.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -28298,8 +35630,54 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         </translation>
     </message>
     <message>
+        <source>Copied</source>
+        <translation type="unfinished">Copiato</translation>
+    </message>
+    <message>
+        <source>Copy message</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Dismiss</source>
         <translation>Ignora</translation>
+    </message>
+</context>
+<context>
+    <name>TouchContextBar</name>
+    <message>
+        <source>Lock ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Constrain</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From centre</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Snap</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Break handle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Exclude</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TrackHeaderBottomResize</name>
+    <message>
+        <source>Resize track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 px</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -28490,6 +35868,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Mostra traccia</translation>
     </message>
     <message>
+        <source>Show in clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Hide track</source>
         <translation>Nascondi traccia</translation>
     </message>
@@ -28531,6 +35913,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
     <message>
         <source>Clear All Envelopes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recording setup (teleprompter, noise)…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -28678,12 +36064,28 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Riga più bassa</translation>
     </message>
     <message>
-        <source>Delete track</source>
-        <translation>Elimina traccia</translation>
+        <source>Add track above</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Remove empty tracks</source>
-        <translation>Rimuovi tracce vuote</translation>
+        <source>Add track below</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move up</source>
+        <translation type="unfinished">Sposta in alto</translation>
+    </message>
+    <message>
+        <source>Move down</source>
+        <translation type="unfinished">Sposta in basso</translation>
+    </message>
+    <message>
+        <source>Select clips on track</source>
+        <translation type="unfinished">Seleziona clip sulla traccia</translation>
+    </message>
+    <message>
+        <source>Delete track</source>
+        <translation>Elimina traccia</translation>
     </message>
 </context>
 <context>
@@ -28838,6 +36240,17 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>TrackHeaderResizeHandle</name>
+    <message>
+        <source>Resize track labels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 px</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>TrackHeaderRow</name>
     <message>
         <source>Turn transform on</source>
@@ -28882,8 +36295,52 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>TrackerOverlay</name>
     <message>
+        <source>Nudge tracker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Trackers need a video clip</source>
         <translation>I tracciatori richiedono una clip video</translation>
+    </message>
+    <message>
+        <source>Move tracking outline corner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Resize pattern box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Resize search box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move tracking point</source>
+        <translation type="unfinished">Sposta punto di tracciamento</translation>
+    </message>
+    <message>
+        <source>Corner %1   X %2 %   Y %3 %</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pattern %1 %</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search %1 %</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>X %1 %   Y %2 %   Box %3 %</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Confidence %1 %</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This tracker drives other clips. Remove it from the Tracking panel to choose what happens to their keys.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Select a clip on the timeline to track motion in it</source>
@@ -28898,12 +36355,32 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Fai clic sull&apos;elemento da tracciare nell&apos;anteprima.</translation>
     </message>
     <message>
+        <source>Tap the feature to track on the preview.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Click the feature to add to this tracker.</source>
         <translation>Fai clic sull&apos;elemento da aggiungere a questo tracker.</translation>
     </message>
     <message>
+        <source>Tap the feature to add to this tracker.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Click the object the clip should follow.</source>
         <translation>Fai clic sull&apos;oggetto che la clip deve seguire.</translation>
+    </message>
+    <message>
+        <source>Tap the object the clip should follow.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tap the corners of a flat surface</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 corners · tap Done when you have four</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Click the corners of a flat surface, Enter to finish.</source>
@@ -28914,12 +36391,64 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>%1 angoli · Invio per terminare · Backspace per annullare · Esc per cancellare</translation>
     </message>
     <message>
+        <source>Pick Point or Planar, then tap the feature to track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag a marker to correct it, then track from this frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Use Point or Planar in the Tracking panel to start a track</source>
         <translation>Usa Punto o Planare nel pannello Tracciamento per avviare il tracciamento</translation>
     </message>
     <message>
-        <source>Drag a marker to correct it · ◀ ▶ in the Tracking panel to track</source>
-        <translation>Trascina un marcatore per correggerlo · ◀ ▶ nel pannello Tracciamento per tracciare</translation>
+        <source>Drag a marker to correct it · Right-click to re-track from here · ◀ ▶ in the Tracking panel to track</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Re-track forward from here</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Re-track backward from here</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete tracker</source>
+        <translation type="unfinished">Elimina tracker</translation>
+    </message>
+    <message>
+        <source>Point</source>
+        <translation type="unfinished">Punto</translation>
+    </message>
+    <message>
+        <source>Tap the feature to follow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Planar</source>
+        <translation type="unfinished">Planare</translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished">Fatto</translation>
+    </message>
+    <message>
+        <source>Track back to the start</source>
+        <translation type="unfinished">Traccia indietro fino all&apos;inizio</translation>
+    </message>
+    <message>
+        <source>Track one frame back</source>
+        <translation type="unfinished">Traccia indietro di un fotogramma</translation>
+    </message>
+    <message>
+        <source>Track one frame forward</source>
+        <translation type="unfinished">Traccia avanti di un fotogramma</translation>
+    </message>
+    <message>
+        <source>Track to the end</source>
+        <translation type="unfinished">Traccia fino alla fine</translation>
     </message>
     <message>
         <source>Tracking… %1%</source>
@@ -29140,10 +36669,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Prospettiva</translation>
     </message>
     <message>
-        <source>%1 (%2)</source>
-        <translation>%1 (%2)</translation>
-    </message>
-    <message>
         <source>No clip selected</source>
         <translation>Nessuna clip selezionata</translation>
     </message>
@@ -29168,10 +36693,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Segui un oggetto</translation>
     </message>
     <message>
-        <source>Click an object on the video; this clip will follow it through the clip</source>
-        <translation>Fai clic su un oggetto nel video; questa clip lo seguirà lungo l&apos;intera clip</translation>
-    </message>
-    <message>
         <source>Follows %1 on %2</source>
         <translation>Segue %1 su %2</translation>
     </message>
@@ -29192,16 +36713,8 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Punto</translation>
     </message>
     <message>
-        <source>Track a feature with one point</source>
-        <translation>Traccia un elemento con un punto</translation>
-    </message>
-    <message>
         <source>Planar</source>
         <translation>Planare</translation>
-    </message>
-    <message>
-        <source>Track a flat surface outlined by its corners</source>
-        <translation>Traccia una superficie piana delineata dai suoi angoli</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -29234,10 +36747,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Track whole clip</source>
         <translation>Traccia intera clip</translation>
-    </message>
-    <message>
-        <source>Follow the feature backward and forward through the whole clip</source>
-        <translation>Segui l&apos;elemento all&apos;indietro e in avanti lungo l&apos;intera clip</translation>
     </message>
     <message>
         <source>Corrected at this frame. Track ▶ to continue.</source>
@@ -29332,12 +36841,40 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Interrompi tracciamento</translation>
     </message>
     <message>
+        <source>Motion tracking</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Position + rotation</source>
         <translation>Posizione + rotazione</translation>
     </message>
     <message>
         <source>Position, rotation + size</source>
         <translation>Posizione, rotazione + dimensione</translation>
+    </message>
+    <message>
+        <source>Click something in the preview and this clip follows it, such as a label on a moving car.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Point tracker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follows one spot, such as a corner or a face, for position-only following.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Planar tracker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follows a flat surface, such as a screen or sign, including its rotation and scale.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Follows the feature backward and forward from here through the whole clip.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Track one frame forward</source>
@@ -29606,6 +37143,94 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
+    <name>TransformClipBox</name>
+    <message>
+        <source>Move clip</source>
+        <translation type="unfinished">Sposta clip</translation>
+    </message>
+    <message>
+        <source>X %1   Y %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Resize clip</source>
+        <translation type="unfinished">Ridimensiona clip</translation>
+    </message>
+    <message>
+        <source>Rotate clip</source>
+        <translation type="unfinished">Ruota clip</translation>
+    </message>
+    <message>
+        <source>Move anchor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Anchor %1, %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 · %n clip(s)</source>
+        <translation type="unfinished">
+            <numerusform>%1 · %n clip</numerusform>
+            <numerusform>%1 · %n clip</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Transform</source>
+        <translation type="unfinished">Trasformazione</translation>
+    </message>
+</context>
+<context>
+    <name>TransformGizmo</name>
+    <message>
+        <source>%1 %2 / %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rot %1 %2°</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scale %1 %2×</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scale %1×</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Local</source>
+        <translation type="unfinished">Locale</translation>
+    </message>
+    <message>
+        <source>World</source>
+        <translation type="unfinished">Mondo</translation>
+    </message>
+</context>
+<context>
+    <name>TransformGroupBox</name>
+    <message>
+        <source>Δ %1, %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rotate clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Resize clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>TransformInspector</name>
     <message>
         <source>Opacity</source>
@@ -29668,12 +37293,20 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Rotazione Z</translation>
     </message>
     <message>
+        <source>Move the playhead, set a value, then tap the diamond to keyframe it. Auto keyframes does this as you drag.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Position</source>
         <translation>Posizione</translation>
     </message>
     <message>
         <source>Reset position</source>
         <translation>Reimposta posizione</translation>
+    </message>
+    <message>
+        <source>Follow an object…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Reset size</source>
@@ -29686,6 +37319,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Scale width and height together</source>
         <translation>Scala larghezza e altezza insieme</translation>
+    </message>
+    <message>
+        <source>To animate Scale, move to a time and change it. Auto keyframes adds the keyframes for you.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Turn on Auto keyframes</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Previous scale keyframe</source>
@@ -29732,14 +37373,6 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Ruota la clip in 3D e spostala in profondità, con maniglie 3D sull&apos;anteprima. Se disattivata, la clip torna bidimensionale.</translation>
     </message>
     <message>
-        <source>Open 3D workspace</source>
-        <translation>Apri area di lavoro 3D</translation>
-    </message>
-    <message>
-        <source>Position, rotation, anchor point and depth occlusion are in the 3D workspace&apos;s 3D Transform panel</source>
-        <translation>Posizione, rotazione, punto di ancoraggio e occlusione di profondità si trovano nel pannello Trasformazione 3D dell&apos;area di lavoro 3D</translation>
-    </message>
-    <message>
         <source>Reset all</source>
         <translation>Reimposta tutto</translation>
     </message>
@@ -29750,6 +37383,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Rotate 90°</source>
         <translation>Ruota di 90°</translation>
+    </message>
+    <message>
+        <source>Open 3D workspace ↗</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Corrects the source&apos;s own rotation losslessly — unlike Rotation above, this changes decoding, not just the on-screen box.</source>
@@ -29855,32 +37492,73 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     </message>
 </context>
 <context>
-    <name>TransformOverlayLayerChip</name>
-    <message numerus="yes">
-        <source>%1 · %n clip(s)</source>
-        <translation>
-            <numerusform>%1 · %n clip</numerusform>
-            <numerusform>%1 · %n clip</numerusform>
-        </translation>
+    <name>TransformManip</name>
+    <message>
+        <source>Nudge clip</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Transform</source>
-        <translation>Trasformazione</translation>
+        <source>Multi-select</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move</source>
+        <translation type="unfinished">Sposta</translation>
+    </message>
+    <message>
+        <source>Rotate</source>
+        <translation type="unfinished">Ruota</translation>
+    </message>
+    <message>
+        <source>Scale</source>
+        <translation type="unfinished">Scala</translation>
+    </message>
+    <message>
+        <source>Local</source>
+        <translation type="unfinished">Locale</translation>
+    </message>
+    <message>
+        <source>X</source>
+        <translation type="unfinished">X</translation>
+    </message>
+    <message>
+        <source>Y</source>
+        <translation type="unfinished">Y</translation>
+    </message>
+    <message>
+        <source>Z</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Free</source>
+        <translation type="unfinished">Libero</translation>
+    </message>
+    <message>
+        <source>Move clip in 3D</source>
+        <translation type="unfinished">Sposta clip in 3D</translation>
+    </message>
+    <message>
+        <source>Rotate clip in 3D</source>
+        <translation type="unfinished">Ruota clip in 3D</translation>
+    </message>
+    <message>
+        <source>Scale clip</source>
+        <translation type="unfinished">Scala clip</translation>
     </message>
 </context>
 <context>
-    <name>TransformOverlayParentChip</name>
+    <name>TransformParentFrame</name>
     <message>
         <source>Select %1</source>
-        <translation>Seleziona %1</translation>
+        <translation type="unfinished">Seleziona %1</translation>
     </message>
     <message>
         <source>Transform</source>
-        <translation>Trasformazione</translation>
+        <translation type="unfinished">Trasformazione</translation>
     </message>
     <message>
         <source>Select the transform layer moving this clip (%1)</source>
-        <translation>Seleziona il livello di trasformazione che sposta questa clip (%1)</translation>
+        <translation type="unfinished">Seleziona il livello di trasformazione che sposta questa clip (%1)</translation>
     </message>
 </context>
 <context>
@@ -29895,6 +37573,10 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
             <numerusform>Copre %n traccia</numerusform>
             <numerusform>Copre %n tracce</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Change transform span</source>
+        <translation type="unfinished">Modifica estensione trasformazione</translation>
     </message>
 </context>
 <context>
@@ -29947,6 +37629,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Transizione di sovrapposizione. Trascina un altro tipo da Transizioni per sostituirla.</translation>
     </message>
     <message>
+        <source>Overlap transition. Tap the type to replace it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transition to the next clip. Scrub across the cut to preview it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Transition to the next clip. Move across the cut to preview it.</source>
         <translation>Transizione alla clip successiva. Spostati sul taglio per visualizzarla in anteprima.</translation>
     </message>
@@ -29955,8 +37645,16 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <translation>Uno dei lati non contiene elementi multimediali oltre il taglio, quindi l&apos;audio sfuma nel silenzio anziché eseguire una dissolvenza incrociata.</translation>
     </message>
     <message>
+        <source>Tap the + on the cut between two clips to add a transition.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Type</source>
         <translation>Tipo</translation>
+    </message>
+    <message>
+        <source>A transition needs two clips next to each other on one track.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Duration</source>
@@ -30036,8 +37734,12 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
 <context>
     <name>TransitionPresetCard</name>
     <message>
-        <source>%1 — drag onto where two clips meet, or on touch hold then drag</source>
-        <translation>%1 — trascina nel punto di unione tra due clip, o su touch tieni premuto e trascina</translation>
+        <source>Drag onto where two clips meet. On touch, hold then drag.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click to use this transition</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Remove from favorites</source>
@@ -30047,12 +37749,20 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
         <source>Add to favorites</source>
         <translation>Aggiungi ai preferiti</translation>
     </message>
+    <message>
+        <source>Edit in Forge</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>TransitionsTab</name>
     <message>
         <source>Install a custom transition or effect from a .driftfx or zip made in Drift Forge</source>
         <translation>Installa una transizione o un effetto personalizzato da un file .driftfx o zip creato in Drift Forge</translation>
+    </message>
+    <message>
+        <source>Create a new transition in Forge</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -30203,6 +37913,14 @@ Se la riproduzione va a scatti, prova un&apos;altra opzione.</translation>
     <message>
         <source>Cancelled</source>
         <translation>Annullato</translation>
+    </message>
+    <message>
+        <source>Sound effect added to the timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sound effect added to the media bin</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Speech added to the timeline</source>
@@ -30905,20 +38623,24 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
 <context>
     <name>VideoMenu</name>
     <message>
-        <source>Bakes…</source>
-        <translation>Bake…</translation>
+        <source>Size, aspect &amp; frame rate…</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Cancel crop</source>
         <translation>Annulla ritaglio quadro</translation>
     </message>
     <message>
-        <source>Crop video</source>
-        <translation>Ritaglia video</translation>
+        <source>Crop canvas</source>
+        <translation type="unfinished">Ritaglia area di disegno</translation>
     </message>
     <message>
-        <source>Adjust video layout…</source>
-        <translation>Regola layout video…</translation>
+        <source>Multicam…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-rendered sections…</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -31053,8 +38775,12 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
         <translation>Passo di rotazione</translation>
     </message>
     <message>
-        <source>Gizmo drags move and turn in these steps; hold Ctrl for free movement. 0 turns a step off.</source>
-        <translation>Il trascinamento del gizmo sposta e ruota secondo questi passi; tieni premuto Ctrl per il movimento libero. Imposta a 0 per disattivare.</translation>
+        <source>Scale step</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gizmo drags are free; hold Ctrl to move, turn and scale in these steps, and Shift for fine control. 0 turns a step off.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Navigation</source>
@@ -31116,6 +38842,10 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
 <context>
     <name>Viewport3dPanel</name>
     <message>
+        <source>3D viewport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Perspective</source>
         <translation>Prospettiva</translation>
     </message>
@@ -31148,8 +38878,8 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
         <translation>Telecamera della scena</translation>
     </message>
     <message>
-        <source>%1 (%2)</source>
-        <translation>%1 (%2)</translation>
+        <source>Record: the next play keys the scene camera&apos;s flight, or the selected clip&apos;s stick-driven motion, as one undo step</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>View</source>
@@ -31166,10 +38896,6 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     <message>
         <source>Orthographic projection</source>
         <translation>Proiezione ortografica</translation>
-    </message>
-    <message>
-        <source>Numpad 5</source>
-        <translation>Tastierino numerico 5</translation>
     </message>
     <message>
         <source>Move</source>
@@ -31200,16 +38926,8 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
         <translation>Volo libero (WASD per spostarsi, Q/E giù/su, orienta verso il cursore)</translation>
     </message>
     <message>
-        <source>Shift+F</source>
-        <translation>Shift+F</translation>
-    </message>
-    <message>
         <source>Look through the scene camera</source>
         <translation>Guarda attraverso la telecamera della scena</translation>
-    </message>
-    <message>
-        <source>Numpad 0</source>
-        <translation>Tastierino numerico 0</translation>
     </message>
     <message>
         <source>Lock camera to view: navigating while looking through the camera moves the camera</source>
@@ -31224,24 +38942,12 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
         <translation>Inquadra la selezione</translation>
     </message>
     <message>
-        <source>F</source>
-        <translation>F</translation>
-    </message>
-    <message>
         <source>Frame everything</source>
         <translation>Inquadra tutto</translation>
     </message>
     <message>
-        <source>Home</source>
-        <translation>Home</translation>
-    </message>
-    <message>
         <source>Reset the view</source>
         <translation>Reimposta la vista</translation>
-    </message>
-    <message>
-        <source>Shift+Home</source>
-        <translation>Shift+Home</translation>
     </message>
 </context>
 <context>
@@ -31417,6 +39123,13 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     </message>
 </context>
 <context>
+    <name>WorkspaceBackPill</name>
+    <message>
+        <source>← Back to %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>WorkspaceDesigner</name>
     <message>
         <source>Panels</source>
@@ -31513,6 +39226,13 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     <message>
         <source>Cancel</source>
         <translation>Annulla</translation>
+    </message>
+</context>
+<context>
+    <name>WorkspaceLink</name>
+    <message>
+        <source>Open in %1 ↗</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -31625,6 +39345,10 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
         <translation>Colore</translation>
     </message>
     <message>
+        <source>Looks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Scopes</source>
         <translation>Strumenti di misura</translation>
     </message>
@@ -31667,6 +39391,30 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     <message>
         <source>Procedural Console</source>
         <translation>Console procedurale</translation>
+    </message>
+    <message>
+        <source>Forge Graph</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forge Nodes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forge Inspector</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio Forge Graph</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio Forge Pedals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Audio Forge Inspector</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Media</source>
@@ -31739,10 +39487,6 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     <message>
         <source>Camera</source>
         <translation>Telecamera</translation>
-    </message>
-    <message>
-        <source>Color Grading LUTs</source>
-        <translation>LUT di color grading</translation>
     </message>
     <message>
         <source>Stabilization</source>
@@ -31888,6 +39632,160 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     </message>
 </context>
 <context>
+    <name>drift::CameraCaptureSource</name>
+    <message>
+        <source>A camera recording is already running.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No camera is connected.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The camera stopped working.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::EditorSurfaceTargets</name>
+    <message>
+        <source>Playhead</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jog (frames)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shuttle (spring fader)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Playhead position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Timeline zoom</source>
+        <translation type="unfinished">Zoom timeline</translation>
+    </message>
+    <message>
+        <source>3D view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Turn left and right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Look up and down</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly forward and back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fly left and right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mixer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Strip %1 volume</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Strip %1 pan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Strip %1 mute</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Strip %1 solo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Previous strip bank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next strip bank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Selected clip</source>
+        <translation type="unfinished">Clip selezionata</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation type="unfinished">Colore</translation>
+    </message>
+    <message>
+        <source>%1 hue X</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 hue Y</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 brightness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Actions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adjust with control surface</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::OscSurfaceService</name>
+    <message>
+        <source>OSC (port %1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::PhoneRemoteClient</name>
+    <message>
+        <source>The desktop did not accept this code. Pair again from Settings &gt; Control surfaces.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::PhoneRemoteServer</name>
+    <message>
+        <source>Phone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Phone: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::PortalScreenCapture</name>
+    <message>
+        <source>A screen recording is already starting.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This desktop has no screen-sharing portal, so Drift cannot record the screen. Install xdg-desktop-portal and a backend for your desktop.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The screen-sharing portal returned no session.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>drift::crash</name>
     <message>
         <source>Drift ran out of memory. Close other programs, or work with smaller or lower-resolution media.</source>
@@ -31916,6 +39814,176 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     <message>
         <source>Drift closed unexpectedly during your last session.</source>
         <translation>Drift si è chiuso in modo imprevisto durante l&apos;ultima sessione.</translation>
+    </message>
+</context>
+<context>
+    <name>drift::edl</name>
+    <message>
+        <source>Speed changes (M2) are not imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transitions (dissolves and wipes) are not imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Retimed clips play at normal speed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::farm::RenderQueue</name>
+    <message>
+        <source>Couldn’t copy the project into the render queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There is no project to queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>That save location isn’t valid</source>
+        <translation type="unfinished">Il percorso di salvataggio non è valido</translation>
+    </message>
+    <message>
+        <source>Couldn’t write the render queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This computer (worker process)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This computer (editor)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::interchange</name>
+    <message>
+        <source>Motion graphics templates are not opened as projects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown import format.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::kdenlive</name>
+    <message>
+        <source>Filters are not imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filter keyframes are not imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transitions are not imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the last sequence is imported; other sequences are ignored.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Guides and markers are not imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generated clips (colour, noise, counters) are left as a gap.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clips that point at another sequence or an unknown source are left as a gap.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::llm::LlamaServer</name>
+    <message>
+        <source>The llama.cpp runtime is not installed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The command model file is missing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Local language models are not supported on this platform.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No free local port for the language model.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not start llama-server: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>llama-server exited (code %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>llama-server did not become ready within 60 seconds.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The language model was stopped.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unexpected reply from llama-server.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>drift::manip::CurveGraphModel</name>
+    <message>
+        <source>Release to delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hue %1° → %2</source>
+        <translation type="unfinished">Tonalità %1° → %2</translation>
+    </message>
+    <message>
+        <source>In %1 → Out %2</source>
+        <translation type="unfinished">Ingresso %1 → Uscita %2</translation>
+    </message>
+    <message>
+        <source>Add point</source>
+        <translation type="unfinished">Aggiungi punto</translation>
+    </message>
+    <message>
+        <source>Delete point</source>
+        <translation type="unfinished">Elimina punto</translation>
+    </message>
+    <message>
+        <source>Smooth point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Corner point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset curve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nudge points</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit curve</source>
+        <translation type="unfinished">Modifica curva</translation>
     </message>
 </context>
 <context>
@@ -31969,6 +40037,45 @@ Transcoding runs in the background using multi-threaded FFmpeg without modifying
     <message>
         <source>Couldn’t reach the marketplace. Check your connection and try again.</source>
         <translation>Impossibile raggiungere il marketplace. Controlla la connessione e riprova.</translation>
+    </message>
+</context>
+<context>
+    <name>drift::otio</name>
+    <message>
+        <source>The file does not state a frame rate; 24 fps was assumed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file does not state a resolution; 1920x1080 was assumed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Marker colours are not kept.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Track effects are not imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transitions are not imported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nested stacks and tracks are left as a gap.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generated media (such as solid colours) is left as a gap.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clip has no media file and is left as a gap.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Effects other than a constant speed change are not imported.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

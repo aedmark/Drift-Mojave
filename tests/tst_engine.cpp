@@ -115,6 +115,8 @@
 #include "engine/face/tracking/Face111.h"
 #include "engine/face/props/FacePropCatalog.h"
 #include "engine/face/props/FacePropImport.h"
+#include "engine/packages/assets/StickerCatalog.h"
+#include "engine/packages/assets/StickerPackImport.h"
 #include "engine/face/props/FaceModelTransform.h"
 #include "engine/render3d/models/ModelAsset.h"
 #include "engine/render3d/models/ModelAnimation.h"
@@ -144,6 +146,7 @@
 #include "engine/compositor/layers/MaskApplier.h"
 #include "engine/encode/writers/MatteWriter.h"
 #include "engine/encode/proxies/ReverseProxyCache.h"
+#include "engine/encode/proxies/ProxyLocation.h"
 #include "engine/encode/proxies/ProxyNaming.h"
 #include "engine/encode/proxies/ReverseRenderer.h"
 #include "engine/encode/MediaEditor.h"
@@ -195,6 +198,8 @@ private slots:
     void proxyNamingLearnsAndMatchesRules();
     void sidecarProxiesOutrankTheCache();
     void reversedSidecarNamesRoundTrip();
+    void folderProxyNamesAreStableAndDistinct();
+    void proxyTargetFollowsTheLocationSetting();
     void reversedSidecarsOutrankTheIndex();
     void variableFrameRateIsDetected();
     void mediaEditorCropsAnImage();
@@ -257,6 +262,9 @@ private slots:
     void audioWindowOfSilenceIsFlat();
     void audioWindowSineLandsInItsLogBin();
     void audioWindowBassSplitsLowFromHigh();
+    void timelineAudioSourceFollowsSolo();
+    void timelineAudioSourceFingerprintTracksAudibility();
+    void exportAutoRangeSkipsSilencedAudio();
     void audioFrameTextureLayout();
     void clipGizmoSolvesDrags();
     void clipGizmoPivotsOnBoundsCentre();
@@ -302,6 +310,9 @@ private slots:
     void faceModelFillWireDoesNotLeakGlState();
     void faceMesh3dEffectPackageLoads();
     void facePropsEffectPackageLoads();
+    void stickerPackPlansManifestAndFolders();
+    void stickerPackImportFromZipAndCatalog();
+    void stickerPackImportRejectsUnsafePaths();
     void facePropImportFromMultiPropZip();
     void facePropImportFromFolder();
     void facePropImportRejectsUnsafeManifests();
@@ -402,8 +413,23 @@ private slots:
     void pastSourceFrameServesThePreviousFrame();
     void trendingTimeEffectsLoadAndCompile();
     void motionBlurSmearsMovementInsideTheFootage();
+    void motionSmoothingPlacesInBetweenFramesOnTheMotionPath();
+    void motionSmoothingNoticeKnowsWhenFramesAlreadyCoverTheProject();
+    void motionBlurSmearsPastTheOutline();
     void motionBlurLeavesStaticFootageAlone();
     void motionBlurNeedsThePreviousFrame();
+    void historyExactDecodesThePreviousFrameOnDemand();
+    void effectPackageLoaderParsesBufferFormat();
+    void floatIntermediateBufferKeepsValuesOutsideZeroToOne();
+    void motionBlurStillBlursWithoutFloatBuffers();
+    void effectPackageLoaderParsesHistoryExact();
+    void futureFramesReadTheNextFrame();
+    void effectPackageLoaderParsesFuture();
+    void effectPackageLoaderParsesHistoryUnits();
+    void sourceUnitNeighboursAreTheMediasOwnFrames();
+    void motionBlurBlendsRealFramesOfHighRateFootage();
+    void motionBlurAutoKeepsFlowAtTheTimelineRate();
+    void motionBlurFollowsAcceleratingMotionBothWays();
     void gpuGaussianBlurChangesImage();
     void gpuMultiPassPreservesVerticalOrientation();
     void gpuBrokenShaderPassthrough();
@@ -462,6 +488,7 @@ private slots:
     void maskShapesUseBothSizeAxes();
     void maskRoundnessRoundsRectangleCorners();
     void splitMaskRevealsOneSideOfASeam();
+    void largeFeatherSpreadsAcrossTheFrame();
     void starMaskRotatesOnceNotTwice();
     void maskAdjustmentLaneMasksItsParentsClips();
     void maskLaneOpsCombineAcrossLanes();
@@ -488,6 +515,9 @@ private slots:
     void exporterTagsSdrBt709ColorMetadata();
     void gpuNv12MatchesSwsBt709();
     void exporterDefaultCrfIsNearLosslessForH264();
+    void exporterEstimatesSizeFromBitrate();
+    void exporterEstimatesSizeFromCrf();
+    void exporterEstimatesNothingForGif();
     void exporterHardwareCodecsListedForThisOs();
     void exporterHardwarePreferredContainerIsMp4();
     void exporterSettingsFromMapRoundTripsHardwareCodec();
@@ -4314,6 +4344,115 @@ void EngineTest::facePropsEffectPackageLoads()
     QVERIFY(hasScale);
 }
 
+void EngineTest::stickerPackPlansManifestAndFolders()
+{
+    // No manifest: a root image forms a category named after the pack, each folder another.
+    const StickerPackLayout plain = planStickerPack(
+        {QStringLiteral("wave.png"), QStringLiteral("faces/Smile_big.webp"), QStringLiteral("faces/sub/deep.png"),
+         QStringLiteral("animals/cat.png"), QStringLiteral("notes.txt"), QStringLiteral(".hidden/x.png")},
+        {}, QStringLiteral("Mine"));
+    QCOMPARE(plain.name, QStringLiteral("Mine"));
+    QCOMPARE(plain.categories.size(), 3);
+    QCOMPARE(plain.categories.at(0).label, QStringLiteral("Mine"));
+    QCOMPARE(plain.categories.at(0).files, QStringList{QStringLiteral("wave.png")});
+    QCOMPARE(plain.categories.at(1).label, QStringLiteral("animals"));
+    QCOMPARE(plain.categories.at(2).files.size(), 2);
+
+    const QByteArray manifest = R"({"name":"Fancy","categories":[
+        {"id":"f","name":"Faces","stickers":["faces/Smile_big.webp","../evil.png","missing.png"]},
+        {"name":"Pets","folder":"animals"},
+        {"id":"empty","name":"Nothing","folder":"nowhere"}]})";
+    const StickerPackLayout fancy = planStickerPack(
+        {QStringLiteral("faces/Smile_big.webp"), QStringLiteral("animals/cat.png"), QStringLiteral("other.png")},
+        manifest, QStringLiteral("Ignored"));
+    QCOMPARE(fancy.name, QStringLiteral("Fancy"));
+    QCOMPARE(fancy.categories.size(), 2);
+    QCOMPARE(fancy.categories.at(0).id, QStringLiteral("f"));
+    QCOMPARE(fancy.categories.at(0).files, QStringList{QStringLiteral("faces/Smile_big.webp")});
+    QCOMPARE(fancy.categories.at(1).label, QStringLiteral("Pets"));
+    QCOMPARE(fancy.categories.at(1).files, QStringList{QStringLiteral("animals/cat.png")});
+}
+
+void EngineTest::stickerPackImportFromZipAndCatalog()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString zip = tmp.filePath(QStringLiteral("pack.zip"));
+    QVERIFY(writeStoredZip(zip, {
+        {QStringLiteral("Emoji Set/manifest.json"), QByteArray(R"({"name":"Emoji Set","categories":[{"id":"a","name":"Alpha","folder":"a"}]})")},
+        {QStringLiteral("Emoji Set/a/one.png"), QByteArray("png1")},
+        {QStringLiteral("Emoji Set/a/two_two.webp"), QByteArray("webp2")},
+        {QStringLiteral("Emoji Set/readme.txt"), QByteArray("x")},
+    }));
+
+    const QString dest = tmp.filePath(QStringLiteral("stickers"));
+    const StickerPackImportResult result = importStickerPackFromZip(zip, dest);
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
+    QCOMPARE(result.packId, QStringLiteral("custom-emoji-set"));
+    QCOMPARE(result.count, 2);
+    QVERIFY(QFileInfo::exists(dest + QStringLiteral("/custom-emoji-set/a/one.png")));
+    QVERIFY(!QFileInfo::exists(dest + QStringLiteral("/custom-emoji-set/readme.txt")));
+
+    reloadStickerCatalog({dest});
+    const QList<StickerEntry> entries = stickers();
+    QCOMPARE(entries.size(), 2);
+    for (const StickerEntry &entry : entries) {
+        QVERIFY(entry.id.startsWith(QStringLiteral("custom-emoji-set/")));
+        QVERIFY(QFileInfo::exists(entry.path));
+    }
+    QCOMPARE(entries.at(1).label, QStringLiteral("two two"));
+    QVERIFY(stickerCategories().at(0).custom);
+    QCOMPARE(stickerCategories().at(0).label, QStringLiteral("Alpha"));
+
+    // Importing again replaces the pack instead of duplicating it.
+    QCOMPARE(importStickerPackFromZip(zip, dest).count, 2);
+    reloadStickerCatalog({dest});
+    QCOMPARE(stickers().size(), 2);
+
+    // Folder import, no manifest.
+    const QString src = tmp.filePath(QStringLiteral("My Folder"));
+    QVERIFY(QDir().mkpath(src + QStringLiteral("/smile")));
+    QVERIFY(writeTestFile(src + QStringLiteral("/smile/s.png"), QByteArray("p")));
+    QVERIFY(writeTestFile(src + QStringLiteral("/top.png"), QByteArray("p")));
+    const StickerPackImportResult folder = importStickerPackFromDirectory(src, dest);
+    QVERIFY2(folder.error.isEmpty(), qPrintable(folder.error));
+    QCOMPARE(folder.packId, QStringLiteral("custom-my-folder"));
+    reloadStickerCatalog({dest});
+    QCOMPARE(stickers().size(), 4);
+
+    QString error;
+    QVERIFY(!removeUserStickerPack(QStringLiteral("../stickers"), &error, dest));
+    QVERIFY(removeUserStickerPack(result.packId, &error, dest));
+    QVERIFY(!QFileInfo::exists(dest + QStringLiteral("/custom-emoji-set")));
+    reloadStickerCatalog();
+}
+
+void EngineTest::stickerPackImportRejectsUnsafePaths()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString zip = tmp.filePath(QStringLiteral("evil.zip"));
+    QVERIFY(writeStoredZip(zip, {
+        {QStringLiteral("../escape.png"), QByteArray("x")},
+        {QStringLiteral("/abs.png"), QByteArray("x")},
+        {QStringLiteral("a/../../escape2.png"), QByteArray("x")},
+        {QStringLiteral("notes.txt"), QByteArray("x")},
+    }));
+    const QString dest = tmp.filePath(QStringLiteral("stickers"));
+    const StickerPackImportResult result = importStickerPackFromZip(zip, dest);
+    QVERIFY(!result.error.isEmpty());
+    QVERIFY(!QFileInfo::exists(tmp.filePath(QStringLiteral("escape.png"))));
+    QVERIFY(!QFileInfo::exists(tmp.filePath(QStringLiteral("escape2.png"))));
+    QVERIFY(QDir(dest).entryList(QDir::Dirs | QDir::NoDotAndDotDot).isEmpty());
+
+    // The manifest cannot name a file outside the pack either.
+    const StickerPackLayout layout = planStickerPack(
+        {QStringLiteral("ok.png")}, QByteArray(R"({"categories":[{"name":"X","stickers":["../ok.png","/ok.png","ok.png"]}]})"),
+        QStringLiteral("P"));
+    QCOMPARE(layout.categories.size(), 1);
+    QCOMPARE(layout.categories.at(0).files, QStringList{QStringLiteral("ok.png")});
+}
+
 void EngineTest::facePropImportFromMultiPropZip()
 {
     QTemporaryDir tmp;
@@ -6102,6 +6241,103 @@ void EngineTest::reversedSidecarNamesRoundTrip()
     QVERIFY(!parseReversedSidecarName(src, head + QStringLiteral("1-5.mov")));
     QVERIFY(!parseReversedSidecarName(src, QStringLiteral("garbage")));
     QVERIFY(!parseReversedSidecarName(src, QString()));
+}
+
+void EngineTest::folderProxyNamesAreStableAndDistinct()
+{
+    using namespace drift;
+    const QString folder = QStringLiteral("/drives/proxies");
+    const QString a = QStringLiteral("/cards/a/clip01.MP4");
+    const QString b = QStringLiteral("/cards/b/clip01.MP4");
+
+    const QString key = proxySourceKey(a);
+    QCOMPARE(key.size(), 8);
+    QVERIFY(QRegularExpression(QStringLiteral("^[0-9a-f]{8}$")).match(key).hasMatch());
+    QCOMPARE(proxySourceKey(a), key);
+    QVERIFY(proxySourceKey(b) != key);
+    // An unclean spelling of the same path maps to the same key.
+    QCOMPARE(proxySourceKey(QStringLiteral("/cards/a/../a/clip01.MP4")), key);
+
+    QCOMPARE(folderProxyPath(folder, a, 720), QStringLiteral("/drives/proxies/clip01_%1_proxy_720.mp4").arg(key));
+    QVERIFY(folderProxyPath(folder, a, 720) != folderProxyPath(folder, b, 720));
+
+    // A very long stem is cut so the name stays a legal file name even in 4-byte characters.
+    const QString longSource = QStringLiteral("/cards/") + QStringLiteral("\U0001F600").repeated(150) + QStringLiteral(".mp4");
+    QVERIFY(QFileInfo(folderProxyPath(folder, longSource, 720)).fileName().toUtf8().size() <= 255);
+    QVERIFY(QFileInfo(folderReversedPath(folder, longSource, 0, 4'000'000'000)).fileName().toUtf8().size() <= 255);
+
+    // 80 CJK characters are 240 bytes: the stem is cut by bytes, whole characters only.
+    const QString cjkSource = QStringLiteral("/cards/") + QString(QChar(0x65E5)).repeated(80) + QStringLiteral(".mp4");
+    const QString cjkName = QFileInfo(folderProxyPath(folder, cjkSource, 1080)).fileName();
+    QVERIFY(cjkName.toUtf8().size() <= 255);
+    QVERIFY(QFileInfo(folderReversedPath(folder, cjkSource, 0, 4'000'000'000)).fileName().toUtf8().size() <= 255);
+    QVERIFY(cjkName.startsWith(QString(QChar(0x65E5)).repeated(60) + QLatin1Char('_')));
+    QVERIFY(!cjkName.contains(QChar::ReplacementCharacter));
+    QVERIFY(parseFolderReversedName(cjkSource, QFileInfo(folderReversedPath(folder, cjkSource, 0, 2000)).fileName()));
+
+    const QString reversed = folderReversedPath(folder, a, 1'500'400, 4'000'100);
+    QCOMPARE(reversed, QStringLiteral("/drives/proxies/clip01_%1_reversed_1500-4001.mp4").arg(key));
+    const auto range = parseFolderReversedName(a, QFileInfo(reversed).fileName());
+    QVERIFY(range);
+    QCOMPARE(range->inUs, TimeUs(1'500'000));
+    QCOMPARE(range->outUs, TimeUs(4'001'000));
+    // Another source's file, and a beside-style name, are not this source's.
+    QVERIFY(!parseFolderReversedName(b, QFileInfo(reversed).fileName()));
+    QVERIFY(!parseFolderReversedName(a, QStringLiteral("clip01_reversed_1500-4001.mp4")));
+    QVERIFY(!parseFolderReversedName(a, QStringLiteral("clip01_%1_reversed_9-5.mp4").arg(key)));
+    // The beside-style parser still takes its own names.
+    QVERIFY(parseReversedSidecarName(a, QStringLiteral("clip01_reversed_1500-4001.mp4")));
+}
+
+void EngineTest::proxyTargetFollowsTheLocationSetting()
+{
+    using namespace drift;
+    QTemporaryDir source;
+    QTemporaryDir folder;
+    QVERIFY(source.isValid() && folder.isValid());
+    const QString src = source.filePath(QStringLiteral("clip.mp4"));
+    const QString beside = generatedProxyPath(src, 720);
+    const QString inFolder = folderProxyPath(folder.path(), src, 720);
+    using Where = ProxyTarget::Where;
+
+    ProxyTarget t = chooseProxyTarget(ProxyLocation::Beside, folder.path(), src, beside, inFolder);
+    QCOMPARE(t.where, Where::Beside);
+    QCOMPARE(t.path, beside);
+    QVERIFY(!t.folderUnavailable && !t.besideRefused);
+
+    t = chooseProxyTarget(ProxyLocation::Folder, folder.path(), src, beside, inFolder);
+    QCOMPARE(t.where, Where::Folder);
+    QCOMPARE(t.path, inFolder);
+    QVERIFY(!t.folderUnavailable);
+
+    // A missing folder: the cache, flagged, and nothing is created there or beside the source.
+    const QString missing = folder.filePath(QStringLiteral("gone/deeper"));
+    t = chooseProxyTarget(ProxyLocation::Folder, missing, src, beside, folderProxyPath(missing, src, 720));
+    QCOMPARE(t.where, Where::Cache);
+    QVERIFY(t.folderUnavailable);
+    QVERIFY(!t.besideRefused);
+    QVERIFY(t.path.startsWith(reverseCacheDir()));
+    QVERIFY(!QFileInfo::exists(missing));
+    QVERIFY(QDir(source.path()).entryList(QDir::Files).isEmpty());
+
+    // Folder mode without a folder behaves the same way.
+    t = chooseProxyTarget(ProxyLocation::Folder, QString(), src, beside, QString());
+    QCOMPARE(t.where, Where::Cache);
+    QVERIFY(t.folderUnavailable);
+
+    t = chooseProxyTarget(ProxyLocation::Cache, folder.path(), src, beside, inFolder);
+    QCOMPARE(t.where, Where::Cache);
+    QVERIFY(!t.folderUnavailable && !t.besideRefused);
+
+    // A source that isn't a local file always goes to the cache, with no complaint.
+    const QString uri = QStringLiteral("content://media/x");
+    t = chooseProxyTarget(ProxyLocation::Folder, folder.path(), uri, beside, inFolder);
+    QCOMPARE(t.where, Where::Cache);
+    QVERIFY(!t.folderUnavailable && !t.besideRefused);
+
+    QCOMPARE(proxyLocationToString(ProxyLocation::Folder), QStringLiteral("folder"));
+    QVERIFY(!proxyLocationFromString(QStringLiteral("nowhere")));
+    QCOMPARE(*proxyLocationFromString(QStringLiteral("cache")), ProxyLocation::Cache);
 }
 
 void EngineTest::reversedSidecarsOutrankTheIndex()
@@ -10503,17 +10739,17 @@ void EngineTest::pastSourceFrameServesThePreviousFrame()
 namespace {
 
 // A white 32x32 square on black, 256x128 at 25 fps, moving `speed` px a frame from x = 20.
-QString makeMovingSquareVideo(QTemporaryDir &dir, int speed)
+QString makeMovingSquareVideo(QTemporaryDir &dir, int speed, int fps = 25)
 {
     const QString ffmpeg = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
     if (ffmpeg.isEmpty())
         return {};
-    const QString out = dir.filePath(QStringLiteral("square_%1.mp4").arg(speed));
+    const QString out = dir.filePath(QStringLiteral("square_%1_%2.mp4").arg(speed).arg(fps));
     QProcess proc;
     proc.start(ffmpeg,
                {QStringLiteral("-y"), QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
-                QStringLiteral("color=c=black:s=256x128:r=25:d=2"), QStringLiteral("-f"), QStringLiteral("lavfi"),
-                QStringLiteral("-i"), QStringLiteral("color=c=white:s=32x32:r=25:d=2"),
+                QStringLiteral("color=c=black:s=256x128:r=%1:d=2").arg(fps), QStringLiteral("-f"), QStringLiteral("lavfi"),
+                QStringLiteral("-i"), QStringLiteral("color=c=white:s=32x32:r=%1:d=2").arg(fps),
                 QStringLiteral("-filter_complex"),
                 QStringLiteral("[0][1]overlay=x='20+%1*n':y=48:eval=frame[v]").arg(speed),
                 QStringLiteral("-map"), QStringLiteral("[v]"), QStringLiteral("-c:v"), QStringLiteral("libx264"),
@@ -10524,10 +10760,12 @@ QString makeMovingSquareVideo(QTemporaryDir &dir, int speed)
     return out;
 }
 
-drift::Project motionBlurProject(const QString &video, bool blurred)
+drift::Project motionBlurProject(const QString &video, bool blurred, double strength = 1.0)
 {
     drift::Effect blur;
     blur.catalogId = QStringLiteral("motion.blur");
+    if (strength != 1.0)
+        blur.parameters.insert(QStringLiteral("strength"), strength);
     HistoryProject history;
     history.setUp(video, blur);
     history.project.setResolution(256, 128);
@@ -10574,10 +10812,122 @@ void EngineTest::motionBlurSmearsMovementInsideTheFootage()
     QVERIFY2(lum(sharp, 149) < 20 && lum(sharp, 185) < 20, qPrintable(QString::number(lum(sharp, 149))));
     QVERIFY2(lum(smeared, 150) > lum(sharp, 150) + 30, qPrintable(QString::number(lum(smeared, 150))));
     QVERIFY2(lum(smeared, 184) > lum(sharp, 184) + 30, qPrintable(QString::number(lum(smeared, 184))));
-    QVERIFY2(lum(smeared, 152) < lum(sharp, 152) - 30, qPrintable(QString::number(lum(smeared, 152))));
+    QVERIFY2(lum(smeared, 152) < lum(sharp, 152) - 15, qPrintable(QString::number(lum(smeared, 152))));
     QVERIFY2(lum(smeared, 166) > 240, qPrintable(QString::number(lum(smeared, 166))));
     // Nothing is touched beyond the smear, nor above the square, where nothing moves.
     QVERIFY2(lum(smeared, 100) < 8 && lum(smeared, 200) < 8, qPrintable(QString::number(lum(smeared, 100))));
+    QVERIFY2(smeared.pixelColor(166, 20).red() < 8, qPrintable(QString::number(smeared.pixelColor(166, 20).red())));
+}
+
+void EngineTest::motionSmoothingPlacesInBetweenFramesOnTheMotionPath()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+    QVERIFY(effectDefForId(QStringLiteral("motion.smooth")));
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString video = makeMovingSquareVideo(dir, 8, 15);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    const auto atRate = [](const FrameCompositor &compositor, int frame, int fps) {
+        return compositor.compositeAt(drift::TimeUs(std::llround(double(frame) * 1'000'000.0 / fps)))
+            .convertToFormat(QImage::Format_RGBA8888);
+    };
+    const auto centroid = [](const QImage &img) {
+        double sum = 0.0;
+        double weight = 0.0;
+        for (int x = 0; x < img.width(); ++x) {
+            const double v = img.pixelColor(x, 64).red();
+            sum += v * x;
+            weight += v;
+        }
+        return weight > 0.0 ? sum / weight + 0.5 : -1.0;
+    };
+
+    // The 32 px square moves 8 px per source frame from x = 20. At 30 fps with x2 the odd project frames
+    // lie half way between two source frames, so the left edge is at 20 + 4 * n.
+    for (const int fps : {30, 60}) {
+        const int multiplier = fps / 15;
+        drift::Effect effect;
+        effect.catalogId = QStringLiteral("motion.smooth");
+        effect.parameters.insert(QStringLiteral("multiplier"), multiplier == 2 ? 0 : 2);
+        drift::Project smoothProject = motionBlurProject(video, true);
+        smoothProject.tracks()[0].clips[0].effects[0] = effect;
+        smoothProject.setFps(fps);
+        drift::Project plainProject = motionBlurProject(video, false);
+        plainProject.setFps(fps);
+        FrameCompositor smooth;
+        smooth.setProject(&smoothProject);
+        FrameCompositor plain;
+        plain.setProject(&plainProject);
+
+        for (int n = 4; n <= 9; ++n) {
+            const QImage out = atRate(smooth, n, fps);
+            QVERIFY(!out.isNull());
+            if (n % multiplier == 0) {
+                QCOMPARE(out, atRate(plain, n, fps));
+                continue;
+            }
+            const double left = 28.0 + 8.0 * n / multiplier;
+            const double centre = centroid(out);
+            QVERIFY2(qAbs(centre - (left + 16.0)) <= 2.0,
+                     qPrintable(QStringLiteral("fps %1 frame %2 centre %3 expected %4")
+                                    .arg(fps).arg(n).arg(centre).arg(left + 16.0)));
+            const auto lum = [&](int x) { return out.pixelColor(x, 64).red(); };
+            QVERIFY2(lum(int(left) + 16) > 230, qPrintable(QString::number(lum(int(left) + 16))));
+            // A cross-fade of the two source frames would leave half-bright squares where each stood.
+            const int shown = 28 + 8 * (n / multiplier);
+            QVERIFY2(lum(shown + 1) < 60, qPrintable(QStringLiteral("shown frame's edge %1").arg(lum(shown + 1))));
+            QVERIFY2(lum(shown + 8 + 30) < 60, qPrintable(QStringLiteral("next frame's edge %1").arg(lum(shown + 38))));
+        }
+    }
+}
+
+void EngineTest::motionSmoothingNoticeKnowsWhenFramesAlreadyCoverTheProject()
+{
+    QVERIFY(!drift::framesAlreadyCoverProject(15.0, 1.0, 30.0));
+    QVERIFY(drift::framesAlreadyCoverProject(30.0, 1.0, 30.0));
+    QVERIFY(drift::framesAlreadyCoverProject(29.97, 1.0, 30.0));
+    QVERIFY(drift::framesAlreadyCoverProject(60.0, 1.0, 30.0));
+    QVERIFY(drift::framesAlreadyCoverProject(15.0, 2.0, 30.0));
+    QVERIFY(!drift::framesAlreadyCoverProject(30.0, 0.5, 30.0));
+    QVERIFY(drift::framesAlreadyCoverProject(30.0, -1.0, 30.0));
+    QVERIFY(!drift::framesAlreadyCoverProject(0.0, 1.0, 30.0));
+}
+
+void EngineTest::motionBlurSmearsPastTheOutline()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+    QVERIFY(effectDefForId(QStringLiteral("motion.blur")));
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString video = makeMovingSquareVideo(dir, 12);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    drift::Project plainProject = motionBlurProject(video, false);
+    drift::Project blurProject = motionBlurProject(video, true, 3.0);
+    FrameCompositor plain;
+    plain.setProject(&plainProject);
+    FrameCompositor blurred;
+    blurred.setProject(&blurProject);
+
+    // Strength 3 makes the smear 18 px long, so the square's pixels reach 9 px past each edge. A
+    // gather-only blur cannot do that: the background there has no motion of its own.
+    QImage sharp;
+    QImage smeared;
+    for (int frame = 8; frame <= 10; ++frame) {
+        sharp = frameAt(plain, frame);
+        smeared = frameAt(blurred, frame);
+    }
+    QVERIFY(!sharp.isNull() && !smeared.isNull());
+    const auto lum = [](const QImage &img, int x) { return img.pixelColor(x, 64).red(); };
+    QVERIFY2(lum(sharp, 187) < 20 && lum(sharp, 148) < 20, qPrintable(QString::number(lum(sharp, 187))));
+    QVERIFY2(lum(smeared, 187) > 30, qPrintable(QString::number(lum(smeared, 187))));
+    QVERIFY2(lum(smeared, 148) > 30, qPrintable(QString::number(lum(smeared, 148))));
+    QVERIFY2(lum(smeared, 100) < 8 && lum(smeared, 230) < 8, qPrintable(QString::number(lum(smeared, 230))));
     QVERIFY2(smeared.pixelColor(166, 20).red() < 8, qPrintable(QString::number(smeared.pixelColor(166, 20).red())));
 }
 
@@ -10620,10 +10970,724 @@ void EngineTest::motionBlurNeedsThePreviousFrame()
     FrameCompositor blurred;
     blurred.setProject(&blurProject);
 
-    QCOMPARE(frameAt(blurred, 10), frameAt(plain, 10));
+    // The first frame of the clip has no frame before it, but the next one still gives it a blur.
+    QVERIFY(frameAt(blurred, 0) != frameAt(plain, 0));
     QVERIFY(frameAt(blurred, 11) != frameAt(plain, 11));
-    // A seek forgets the previous frame.
-    QCOMPARE(frameAt(blurred, 30), frameAt(plain, 30));
+
+    // Motion Blur asks for its previous frame to be decoded on demand, so a frame rendered cold
+    // after a seek, and again while paused, equals the one reached by playing up to it.
+    drift::Project sequentialProject = motionBlurProject(video, true);
+    FrameCompositor sequential;
+    sequential.setProject(&sequentialProject);
+    QImage played;
+    for (int frame = 0; frame <= 10; ++frame)
+        played = frameAt(sequential, frame);
+    drift::Project coldProject = motionBlurProject(video, true);
+    FrameCompositor cold;
+    cold.setProject(&coldProject);
+    const QImage seeked = frameAt(cold, 10);
+    QVERIFY(seeked != frameAt(plain, 10));
+    QCOMPARE(seeked, played);
+    QCOMPARE(frameAt(cold, 10), played);
+    QCOMPARE(frameAt(cold, 10), played);
+
+    // A scrub reads the clip approximately and does not decode extra frames; the settled frame does.
+    FrameCompositor::RenderOptions scrub;
+    scrub.approximateSeek = true;
+    cold.compositeAt(drift::TimeUs(14) * 40'000, scrub);
+    for (int frame = 11; frame <= 14; ++frame)
+        played = frameAt(sequential, frame);
+    QCOMPARE(frameAt(cold, 14), played);
+    QVERIFY(played != frameAt(plain, 14));
+}
+
+void EngineTest::historyExactDecodesThePreviousFrameOnDemand()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+
+    QTemporaryDir videoDir;
+    QVERIFY(videoDir.isValid());
+    const QString video = makeColorSegmentsVideo(videoDir);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    QTemporaryDir fixtures;
+    QVERIFY(fixtures.isValid());
+    const QString body = QStringLiteral("void main(){ fragColor = historyFrame(1.0, v_texCoord); }\n");
+    QVERIFY(!writeHistoryFixture(fixtures, QStringLiteral("history_exact"),
+                                 QStringLiteral(R"("history": 1, "historyExact": 1, "nextFeatures": ["history:exact"],)"),
+                                 QString(), body).isEmpty());
+    QVERIFY(!writeHistoryFixture(fixtures, QStringLiteral("history_ring"),
+                                 QStringLiteral(R"("history": 1,)"), QString(), body).isEmpty());
+    QStringList roots = historyTestEffectRoots();
+    roots.append(fixtures.path());
+    reloadEffectCatalog(roots);
+    const auto restore = qScopeGuard([] { reloadEffectCatalog(historyTestEffectRoots()); });
+    QVERIFY(effectDefForId(QStringLiteral("test.history_exact")));
+    QVERIFY(effectDefForId(QStringLiteral("test.history_exact"))->gpu.valid);
+
+    // Red until frame 24, lime from 25: frame 25 reading the frame before it shows red.
+    const auto isRed = [](const QColor &c) { return c.red() > 200 && c.green() < 60; };
+    const auto isLime = [](const QColor &c) { return c.green() > 200 && c.red() < 60; };
+
+    drift::Effect exact;
+    exact.catalogId = QStringLiteral("test.history_exact");
+    HistoryProject exactProject;
+    exactProject.setUp(video, exact);
+    FrameCompositor compositor;
+    compositor.setProject(&exactProject.project);
+
+    // Cold, right after opening: no frame was ever rendered before this one.
+    const QColor cold = centreAtFrame(compositor, 25);
+    QVERIFY2(isRed(cold), qPrintable(cold.name()));
+    // Paused re-renders stay the same, and a later seek is served the same way.
+    QCOMPARE(centreAtFrame(compositor, 25), cold);
+    QCOMPARE(centreAtFrame(compositor, 25), cold);
+    QVERIFY2(isLime(centreAtFrame(compositor, 40)), "frame 40 follows lime");
+    QCOMPARE(centreAtFrame(compositor, 25), cold);
+    // In sequence nothing needs decoding on demand and the result is the same.
+    FrameCompositor sequential;
+    sequential.setProject(&exactProject.project);
+    QColor played;
+    for (int frame = 20; frame <= 25; ++frame)
+        played = centreAtFrame(sequential, frame);
+    QCOMPARE(played, cold);
+
+    // The clip's first frame has none before it: it shows itself.
+    QVERIFY2(isRed(centreAtFrame(compositor, 0)), "first frame");
+
+    // Without historyExact the ring is all there is, and a seek forgets.
+    drift::Effect ring;
+    ring.catalogId = QStringLiteral("test.history_ring");
+    HistoryProject ringProject;
+    ringProject.setUp(video, ring);
+    FrameCompositor forgetful;
+    forgetful.setProject(&ringProject.project);
+    const QColor afterSeek = centreAtFrame(forgetful, 25);
+    QVERIFY2(isLime(afterSeek), qPrintable(afterSeek.name()));
+}
+
+void EngineTest::effectPackageLoaderParsesHistoryExact()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString body = QStringLiteral("void main(){ fragColor = historyFrame(1.0, v_texCoord); }\n");
+
+    QString error;
+    const EffectPresetEntry ok = EffectPackageLoader::loadPackage(
+        writeHistoryFixture(dir, QStringLiteral("exact_ok"),
+                            QStringLiteral(R"("history": 4, "historyExact": 2, "nextFeatures": ["history:exact"],)"),
+                            QString(), body),
+        &error);
+    QVERIFY2(ok.gpu.valid, qPrintable(error));
+    QCOMPARE(ok.gpu.historyExactFrames, 2);
+
+    int n = 0;
+    for (const QString &fields : {QStringLiteral(R"("history": 4, "historyExact": 0,)"),
+                                  QStringLiteral(R"("history": 4, "historyExact": 3,)"),
+                                  QStringLiteral(R"("history": 1, "historyExact": 2,)"),
+                                  QStringLiteral(R"("historyExact": 1,)")}) {
+        const EffectPresetEntry bad = EffectPackageLoader::loadPackage(
+            writeHistoryFixture(dir, QStringLiteral("exact_bad_%1").arg(n++), fields, QString(), body), &error);
+        QVERIFY2(!bad.gpu.valid, qPrintable(fields));
+        QVERIFY2(error.contains(QStringLiteral("historyExact")) || error.contains(QStringLiteral("history")),
+                 qPrintable(error));
+    }
+}
+
+void EngineTest::effectPackageLoaderParsesBufferFormat()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const auto write = [&](const QString &name, const QString &bufferJson, const QString &features) {
+        const QString pkg = dir.filePath(name);
+        QDir().mkpath(pkg);
+        QFile json(QDir(pkg).filePath(QStringLiteral("effect.json")));
+        json.open(QIODevice::WriteOnly | QIODevice::Text);
+        json.write(QStringLiteral(R"({
+          "id": "test.%1", "displayName": "%1", "category": "time", "backend": "gpu",
+          %3 "parameters": [],
+          "pipeline": {"intermediateBuffers": [%2], "passes": [
+            {"passIndex": 0, "fragmentShader": "main.frag",
+             "inputs": [{"type": "source_texture"}], "output": {"type": "buffer", "id": "b"}},
+            {"passIndex": 1, "fragmentShader": "main.frag",
+             "inputs": [{"type": "buffer", "id": "b"}], "output": {"type": "canvas"}}
+          ]}
+        })").arg(name, bufferJson, features).toUtf8());
+        json.close();
+        QFile frag(QDir(pkg).filePath(QStringLiteral("main.frag")));
+        frag.open(QIODevice::WriteOnly | QIODevice::Text);
+        frag.write("#version 330 core\nin vec2 v_texCoord; out vec4 fragColor;\nuniform sampler2D u_currentTexture;\n"
+                   "void main(){ fragColor = texture(u_currentTexture, v_texCoord); }\n");
+        return pkg;
+    };
+    const QString features = QStringLiteral(R"("nextFeatures": ["buffer:float"],)");
+    QString error;
+    const struct { const char *format; drift::GpuBufferFormat expected; } good[] = {
+        {R"(, "format": "rgba8")", drift::GpuBufferFormat::Rgba8},
+        {R"(, "format": "rgba16f")", drift::GpuBufferFormat::Rgba16F},
+        {R"(, "format": "rg16f")", drift::GpuBufferFormat::Rg16F},
+        {"", drift::GpuBufferFormat::Rgba8},
+    };
+    int n = 0;
+    for (const auto &c : good) {
+        const EffectPresetEntry entry = EffectPackageLoader::loadPackage(
+            write(QStringLiteral("fmt_%1").arg(n++), QStringLiteral(R"({"id": "b", "scale": 0.5%1})").arg(QLatin1String(c.format)),
+                  features),
+            &error);
+        QVERIFY2(entry.gpu.valid, qPrintable(error));
+        QCOMPARE(entry.gpu.intermediateBuffers.size(), 1);
+        QCOMPARE(entry.gpu.intermediateBuffers[0].format, c.expected);
+    }
+    const EffectPresetEntry bad = EffectPackageLoader::loadPackage(
+        write(QStringLiteral("fmt_bad"), QStringLiteral(R"({"id": "b", "format": "rgba32f"})"), features), &error);
+    QVERIFY(!bad.gpu.valid);
+    QVERIFY2(error.contains(QStringLiteral("format")), qPrintable(error));
+    const EffectPresetEntry old = EffectPackageLoader::loadPackage(
+        write(QStringLiteral("fmt_future"), QStringLiteral(R"({"id": "b", "format": "rg16f"})"),
+              QStringLiteral(R"("nextFeatures": ["buffer:float", "buffer:from-the-future"],)")),
+        &error);
+    QVERIFY(!old.gpu.valid);
+}
+
+namespace {
+
+// Pass 0 writes (-3.5, 7, 0) into a `format` buffer, pass 1 shows green when it reads that back and
+// red when the buffer clamped it.
+QString writeFloatRoundTripFixture(const QTemporaryDir &dir)
+{
+    const QString pkg = dir.filePath(QStringLiteral("float_roundtrip"));
+    QDir().mkpath(pkg);
+    QFile json(QDir(pkg).filePath(QStringLiteral("effect.json")));
+    json.open(QIODevice::WriteOnly | QIODevice::Text);
+    json.write(R"({
+      "id": "test.float_roundtrip", "displayName": "float", "category": "time", "backend": "gpu",
+      "nextFeatures": ["buffer:float"], "parameters": [],
+      "pipeline": {"intermediateBuffers": [{"id": "f", "scale": 0.5, "format": "rgba16f"}], "passes": [
+        {"passIndex": 0, "fragmentShader": "write.frag",
+         "inputs": [{"type": "source_texture"}], "output": {"type": "buffer", "id": "f"}},
+        {"passIndex": 1, "fragmentShader": "read.frag",
+         "inputs": [{"type": "buffer", "id": "f"}], "output": {"type": "canvas"}}
+      ]}
+    })");
+    json.close();
+    const char *head = "#version 330 core\nin vec2 v_texCoord; out vec4 fragColor;\nuniform sampler2D u_currentTexture;\n";
+    QFile write(QDir(pkg).filePath(QStringLiteral("write.frag")));
+    write.open(QIODevice::WriteOnly | QIODevice::Text);
+    write.write(QByteArray(head) + "void main(){ fragColor = vec4(-3.5, 7.0, 0.0, 1.0); }\n");
+    write.close();
+    QFile read(QDir(pkg).filePath(QStringLiteral("read.frag")));
+    read.open(QIODevice::WriteOnly | QIODevice::Text);
+    read.write(QByteArray(head)
+               + "void main(){ vec4 v = texture(u_currentTexture, v_texCoord);"
+                 " bool ok = abs(v.r + 3.5) < 0.01 && abs(v.g - 7.0) < 0.01;"
+                 " fragColor = ok ? vec4(0.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0); }\n");
+    read.close();
+    return pkg;
+}
+
+} // namespace
+
+void EngineTest::floatIntermediateBufferKeepsValuesOutsideZeroToOne()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+    QTemporaryDir videoDir;
+    QVERIFY(videoDir.isValid());
+    const QString video = makeColorSegmentsVideo(videoDir);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    QTemporaryDir fixtures;
+    QVERIFY(fixtures.isValid());
+    QVERIFY(!writeFloatRoundTripFixture(fixtures).isEmpty());
+    QStringList roots = historyTestEffectRoots();
+    roots.append(fixtures.path());
+    reloadEffectCatalog(roots);
+    const auto restore = qScopeGuard([] { reloadEffectCatalog(historyTestEffectRoots()); });
+    QVERIFY(effectDefForId(QStringLiteral("test.float_roundtrip")));
+    QVERIFY(effectDefForId(QStringLiteral("test.float_roundtrip"))->gpu.valid);
+
+    drift::Effect effect;
+    effect.catalogId = QStringLiteral("test.float_roundtrip");
+    HistoryProject project;
+    project.setUp(video, effect);
+    FrameCompositor compositor;
+    compositor.setProject(&project.project);
+
+    bool supported = false;
+    drift::gl::runtime().exec([&] { supported = drift::gl::runtime().supportsFloatTargets(); });
+    if (!supported)
+        QSKIP("Context cannot render to half-float targets");
+    const QColor c = centreAtFrame(compositor, 5);
+    QVERIFY2(c.green() > 200 && c.red() < 60, qPrintable(c.name()));
+
+    // The 8-bit fallback clamps, which the same shader reports as red.
+    drift::gl::runtime().exec([] { drift::gl::runtime().setFloatTargetsDisabledForTest(true); });
+    const auto reenable = qScopeGuard([] {
+        drift::gl::runtime().exec([] { drift::gl::runtime().setFloatTargetsDisabledForTest(false); });
+    });
+    const QColor clamped = centreAtFrame(compositor, 6);
+    QVERIFY2(clamped.red() > 200 && clamped.green() < 60, qPrintable(clamped.name()));
+}
+
+void EngineTest::motionBlurStillBlursWithoutFloatBuffers()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+    QVERIFY(effectDefForId(QStringLiteral("motion.blur")));
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString video = makeMovingSquareVideo(dir, 12);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    drift::gl::runtime().exec([] { drift::gl::runtime().setFloatTargetsDisabledForTest(true); });
+    const auto reenable = qScopeGuard([] {
+        drift::gl::runtime().exec([] { drift::gl::runtime().setFloatTargetsDisabledForTest(false); });
+    });
+
+    drift::Project plainProject = motionBlurProject(video, false);
+    drift::Project blurProject = motionBlurProject(video, true);
+    FrameCompositor plain;
+    plain.setProject(&plainProject);
+    FrameCompositor blurred;
+    blurred.setProject(&blurProject);
+    QImage sharp;
+    QImage smeared;
+    for (int frame = 8; frame <= 10; ++frame) {
+        sharp = frameAt(plain, frame);
+        smeared = frameAt(blurred, frame);
+    }
+    QVERIFY(!sharp.isNull() && !smeared.isNull());
+    const auto lum = [](const QImage &img, int x) { return img.pixelColor(x, 64).red(); };
+    QVERIFY2(lum(smeared, 150) > lum(sharp, 150) + 30, qPrintable(QString::number(lum(smeared, 150))));
+    QVERIFY2(lum(smeared, 184) > lum(sharp, 184) + 30, qPrintable(QString::number(lum(smeared, 184))));
+    QVERIFY2(lum(smeared, 100) < 8 && lum(smeared, 200) < 8, qPrintable(QString::number(lum(smeared, 100))));
+}
+
+void EngineTest::futureFramesReadTheNextFrame()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+
+    QTemporaryDir videoDir;
+    QVERIFY(videoDir.isValid());
+    const QString video = makeColorSegmentsVideo(videoDir);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    QTemporaryDir fixtures;
+    QVERIFY(fixtures.isValid());
+    const QString one = QStringLiteral("void main(){ fragColor = futureFrame(1.0, v_texCoord); }\n");
+    const QString two = QStringLiteral("void main(){ fragColor = futureFrame(2.0, v_texCoord); }\n");
+    const QString count = QStringLiteral("void main(){ fragColor = vec4(futureCount() / 2.0, 0.0, 0.0, 1.0); }\n");
+    const QString fields = QStringLiteral(R"("future": %1, "nextFeatures": ["history:future"],)");
+    QVERIFY(!writeHistoryFixture(fixtures, QStringLiteral("future_one"), fields.arg(1), QString(), one).isEmpty());
+    QVERIFY(!writeHistoryFixture(fixtures, QStringLiteral("future_two"), fields.arg(2), QString(), two).isEmpty());
+    QVERIFY(!writeHistoryFixture(fixtures, QStringLiteral("future_count"), fields.arg(2), QString(), count).isEmpty());
+    QStringList roots = historyTestEffectRoots();
+    roots.append(fixtures.path());
+    reloadEffectCatalog(roots);
+    const auto restore = qScopeGuard([] { reloadEffectCatalog(historyTestEffectRoots()); });
+    for (const char *id : {"test.future_one", "test.future_two", "test.future_count"}) {
+        QVERIFY(effectDefForId(QString::fromLatin1(id)));
+        QVERIFY(effectDefForId(QString::fromLatin1(id))->gpu.valid);
+    }
+
+    // Red until frame 24, lime from 25.
+    const auto isRed = [](const QColor &c) { return c.red() > 200 && c.green() < 60; };
+    const auto isLime = [](const QColor &c) { return c.green() > 200 && c.red() < 60; };
+    const auto projectWith = [&](const char *id) {
+        drift::Effect effect;
+        effect.catalogId = QString::fromLatin1(id);
+        auto project = std::make_unique<HistoryProject>();
+        project->setUp(video, effect);
+        return project;
+    };
+
+    const auto next = projectWith("test.future_one");
+    FrameCompositor cold;
+    cold.setProject(&next->project);
+    const QColor atCut = centreAtFrame(cold, 24);
+    QVERIFY2(isLime(atCut), qPrintable(atCut.name()));
+    QVERIFY2(isRed(centreAtFrame(cold, 23)), "frame 23 sees frame 24");
+    QCOMPARE(centreAtFrame(cold, 24), atCut);
+
+    FrameCompositor sequential;
+    sequential.setProject(&next->project);
+    QColor played;
+    for (int frame = 20; frame <= 24; ++frame)
+        played = centreAtFrame(sequential, frame);
+    QCOMPARE(played, atCut);
+
+    // A scrub decodes nothing extra: the effect's own input stands in.
+    FrameCompositor::RenderOptions scrub;
+    scrub.approximateSeek = true;
+    FrameCompositor scrubbing;
+    scrubbing.setProject(&next->project);
+    const QImage scrubbed = scrubbing.compositeAt(drift::TimeUs(24) * 40'000, scrub);
+    QVERIFY(isRed(scrubbed.pixelColor(32, 32)));
+
+    const auto ahead = projectWith("test.future_two");
+    FrameCompositor twoAhead;
+    twoAhead.setProject(&ahead->project);
+    QVERIFY2(isLime(centreAtFrame(twoAhead, 23)), "two frames ahead of frame 23");
+    QVERIFY2(isRed(centreAtFrame(twoAhead, 22)), "two frames ahead of frame 22");
+
+    const auto counted = projectWith("test.future_count");
+    FrameCompositor counting;
+    counting.setProject(&counted->project);
+    QCOMPARE(centreAtFrame(counting, 10).red(), 255);
+    FrameCompositor scrubCounting;
+    scrubCounting.setProject(&counted->project);
+    QCOMPARE(scrubCounting.compositeAt(drift::TimeUs(10) * 40'000, scrub).pixelColor(32, 32).red(), 0);
+}
+
+void EngineTest::effectPackageLoaderParsesFuture()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString body = QStringLiteral("void main(){ fragColor = futureFrame(1.0, v_texCoord); }\n");
+
+    QString error;
+    const EffectPresetEntry ok = EffectPackageLoader::loadPackage(
+        writeHistoryFixture(dir, QStringLiteral("future_ok"),
+                            QStringLiteral(R"("future": 2, "nextFeatures": ["history:future"],)"), QString(), body),
+        &error);
+    QVERIFY2(ok.gpu.valid, qPrintable(error));
+    QCOMPARE(ok.gpu.futureFrames, 2);
+    QCOMPARE(ok.gpu.historyFrames, 0);
+
+    int n = 0;
+    for (const QString &fields : {QStringLiteral(R"("future": 0,)"), QStringLiteral(R"("future": 3,)"),
+                                  QStringLiteral(R"("future": "one",)")}) {
+        const EffectPresetEntry bad = EffectPackageLoader::loadPackage(
+            writeHistoryFixture(dir, QStringLiteral("future_bad_%1").arg(n++), fields, QString(), body), &error);
+        QVERIFY2(!bad.gpu.valid, qPrintable(fields));
+        QVERIFY2(error.contains(QStringLiteral("future")), qPrintable(error));
+    }
+}
+
+namespace {
+
+// A white 32x32 square on black, 256x128 at 25 fps, moving 8 px a frame until frame 8 and 16 px a frame after.
+QString makeAcceleratingSquareVideo(QTemporaryDir &dir)
+{
+    const QString ffmpeg = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    if (ffmpeg.isEmpty())
+        return {};
+    const QString out = dir.filePath(QStringLiteral("square_accel.mp4"));
+    QProcess proc;
+    proc.start(ffmpeg,
+               {QStringLiteral("-y"), QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+                QStringLiteral("color=c=black:s=256x128:r=25:d=2"), QStringLiteral("-f"), QStringLiteral("lavfi"),
+                QStringLiteral("-i"), QStringLiteral("color=c=white:s=32x32:r=25:d=2"),
+                QStringLiteral("-filter_complex"),
+                QStringLiteral("[0][1]overlay=x='20+if(lt(n,8),8*n,64+16*(n-8))':y=48:eval=frame[v]"),
+                QStringLiteral("-map"), QStringLiteral("[v]"), QStringLiteral("-c:v"), QStringLiteral("libx264"),
+                QStringLiteral("-crf"), QStringLiteral("10"), QStringLiteral("-g"), QStringLiteral("50"),
+                QStringLiteral("-pix_fmt"), QStringLiteral("yuv420p"), out});
+    if (!proc.waitForFinished(30000) || proc.exitCode() != 0)
+        return {};
+    return out;
+}
+
+} // namespace
+
+void EngineTest::motionBlurFollowsAcceleratingMotionBothWays()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+    QVERIFY(effectDefForId(QStringLiteral("motion.blur")));
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString video = makeAcceleratingSquareVideo(dir);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    drift::Project plainProject = motionBlurProject(video, false);
+    drift::Project blurProject = motionBlurProject(video, true);
+    blurProject.tracks()[0].clips[0].effects[0].parameters.insert(QStringLiteral("shutter"), 360.0);
+    FrameCompositor plain;
+    plain.setProject(&plainProject);
+    FrameCompositor blurred;
+    blurred.setProject(&blurProject);
+
+    // At frame 7 the square (the clip's frame 8, as in the tests above) sits at x 84..115 after moving 8 px, and moves 16 px next: a full-frame
+    // shutter reaches about 4 px behind it and 8 px ahead.
+    QImage sharp;
+    QImage smeared;
+    for (int frame = 5; frame <= 7; ++frame) {
+        sharp = frameAt(plain, frame);
+        smeared = frameAt(blurred, frame);
+    }
+    const auto lum = [](const QImage &img, int x) { return img.pixelColor(x, 64).red(); };
+    QVERIFY2(lum(sharp, 79) < 20 && lum(sharp, 120) < 20, qPrintable(QString::number(lum(sharp, 79))));
+    const int behind = lum(smeared, 79);
+    const int ahead = lum(smeared, 120);
+    QVERIFY2(ahead > behind + 30, qPrintable(QStringLiteral("behind %1 ahead %2").arg(behind).arg(ahead)));
+    QVERIFY2(lum(smeared, 100) > 240, qPrintable(QString::number(lum(smeared, 100))));
+}
+
+namespace {
+
+// 64x64 gray, 120 fps, frame n a luma of 16 * n (distinct for n < 16), no B-frames.
+QString makeHighRateGrayVideo(QTemporaryDir &dir)
+{
+    const QString ffmpeg = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    if (ffmpeg.isEmpty())
+        return {};
+    const QString out = dir.filePath(QStringLiteral("gray120.mp4"));
+    QProcess proc;
+    proc.start(ffmpeg,
+               {QStringLiteral("-y"), QStringLiteral("-f"), QStringLiteral("lavfi"), QStringLiteral("-i"),
+                QStringLiteral("color=c=black:s=64x64:r=120:d=2,geq=lum='mod(N*16,256)':cb=128:cr=128"),
+                QStringLiteral("-c:v"), QStringLiteral("libx264"), QStringLiteral("-crf"), QStringLiteral("10"),
+                QStringLiteral("-g"), QStringLiteral("120"), QStringLiteral("-bf"), QStringLiteral("0"),
+                QStringLiteral("-pix_fmt"), QStringLiteral("yuv420p"), out});
+    if (!proc.waitForFinished(30000) || proc.exitCode() != 0)
+        return {};
+    return out;
+}
+
+drift::Project highRateProject(const QString &video, int fps, const drift::Effect *effect)
+{
+    HistoryProject history;
+    history.setUp(video, effect ? *effect : drift::Effect{});
+    history.project.setFps(fps);
+    if (!effect)
+        history.project.tracks()[0].clips[0].effects.clear();
+    return history.project;
+}
+
+QImage frameAtRate(const FrameCompositor &compositor, int frame, int fps)
+{
+    return compositor.compositeAt(drift::TimeUs(std::llround(double(frame) * 1'000'000.0 / fps)))
+        .convertToFormat(QImage::Format_RGBA8888);
+}
+
+} // namespace
+
+void EngineTest::effectPackageLoaderParsesHistoryUnits()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString body = QStringLiteral("void main(){ fragColor = futureFrame(1.0, v_texCoord) + historyFrame(1.0, v_texCoord); }\n");
+
+    QString error;
+    const EffectPresetEntry ok = EffectPackageLoader::loadPackage(
+        writeHistoryFixture(dir, QStringLiteral("units_ok"),
+                            QStringLiteral(R"("historyUnits": "source", "historyExact": 4, "future": 3,
+                                             "nextFeatures": ["history:exact", "history:future", "history:source-units"],)"),
+                            QString(), body),
+        &error);
+    QVERIFY2(ok.gpu.valid, qPrintable(error));
+    QVERIFY(ok.gpu.sourceUnits);
+    QCOMPARE(ok.gpu.historyExactFrames, 4);
+    QCOMPARE(ok.gpu.futureFrames, 3);
+    QVERIFY(ok.gpu.historyFrames > 0);
+
+    const EffectPresetEntry project = EffectPackageLoader::loadPackage(
+        writeHistoryFixture(dir, QStringLiteral("units_project"),
+                            QStringLiteral(R"("historyUnits": "project", "history": 2, "historyExact": 1,
+                                             "nextFeatures": ["history:exact"],)"),
+                            QString(), body),
+        &error);
+    QVERIFY2(project.gpu.valid, qPrintable(error));
+    QVERIFY(!project.gpu.sourceUnits);
+
+    int n = 0;
+    for (const QString &fields : {QStringLiteral(R"("historyUnits": "frames",)"),
+                                  QStringLiteral(R"("historyUnits": "source", "historyExact": 5,)"),
+                                  QStringLiteral(R"("historyUnits": "source", "future": 5,)"),
+                                  QStringLiteral(R"("historyUnits": "project", "future": 3,)")}) {
+        const EffectPresetEntry bad = EffectPackageLoader::loadPackage(
+            writeHistoryFixture(dir, QStringLiteral("units_bad_%1").arg(n++), fields, QString(), body), &error);
+        QVERIFY2(!bad.gpu.valid, qPrintable(fields));
+    }
+
+    const EffectPresetEntry blur = *effectDefForId(QStringLiteral("motion.blur"));
+    QVERIFY(blur.gpu.valid);
+    QVERIFY(blur.gpu.sourceUnits);
+    drift::Effect effect;
+    effect.catalogId = QStringLiteral("motion.blur");
+    QCOMPARE(resolvedEffectParameters(effect, blur).value(QStringLiteral("mode")).toInt(), 0);
+}
+
+void EngineTest::sourceUnitNeighboursAreTheMediasOwnFrames()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+    QTemporaryDir videoDir;
+    QVERIFY(videoDir.isValid());
+    const QString video = makeHighRateGrayVideo(videoDir);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    QTemporaryDir fixtures;
+    QVERIFY(fixtures.isValid());
+    QVERIFY(!writeHistoryFixture(
+                 fixtures, QStringLiteral("src_taps"),
+                 QStringLiteral(R"("historyUnits": "source", "historyExact": 2, "future": 2,
+                                  "nextFeatures": ["history:exact", "history:future", "history:source-units"],)"),
+                 QString(),
+                 QStringLiteral("void main(){ fragColor = vec4(historyFrame(1.0, v_texCoord).r, futureFrame(1.0, v_texCoord).r,"
+                                " futureFrame(2.0, v_texCoord).r, 1.0); }\n"))
+                 .isEmpty());
+    QVERIFY(!writeHistoryFixture(
+                 fixtures, QStringLiteral("src_info"), QStringLiteral(R"("historyUnits": "source", "historyExact": 4, "future": 4,
+                                  "nextFeatures": ["history:exact", "history:future", "history:source-units"],)"),
+                 QString(),
+                 QStringLiteral("void main(){ fragColor = vec4(sourceFrameRate() / 255.0, projectFrameRate() / 255.0,"
+                                " sourceStep() / 8.0, 1.0); }\n"))
+                 .isEmpty());
+    QStringList roots = historyTestEffectRoots();
+    roots.append(fixtures.path());
+    reloadEffectCatalog(roots);
+    const auto restore = qScopeGuard([] { reloadEffectCatalog(historyTestEffectRoots()); });
+    for (const char *id : {"test.src_taps", "test.src_info"}) {
+        QVERIFY(effectDefForId(QString::fromLatin1(id)));
+        QVERIFY2(effectDefForId(QString::fromLatin1(id))->gpu.valid,
+                 qPrintable(effectDefForId(QString::fromLatin1(id))->gpu.errorMessage));
+    }
+
+    drift::Project plainProject = highRateProject(video, 120, nullptr);
+    FrameCompositor plain;
+    plain.setProject(&plainProject);
+    const auto sourceRed = [&](int n) { return frameAtRate(plain, n, 120).pixelColor(32, 32).red(); };
+
+    drift::Effect taps;
+    taps.catalogId = QStringLiteral("test.src_taps");
+    drift::Project tapProject = highRateProject(video, 30, &taps);
+    FrameCompositor cold;
+    cold.setProject(&tapProject);
+    // Project frame 2 shows source frame 8: the taps are the source frames either side, not the
+    // frames 33 ms away.
+    const QColor atTwo = frameAtRate(cold, 2, 30).pixelColor(32, 32);
+    QVERIFY2(qAbs(atTwo.red() - sourceRed(7)) <= 3, qPrintable(QStringLiteral("%1 vs %2").arg(atTwo.red()).arg(sourceRed(7))));
+    QVERIFY2(qAbs(atTwo.green() - sourceRed(9)) <= 3, qPrintable(QStringLiteral("%1 vs %2").arg(atTwo.green()).arg(sourceRed(9))));
+    QVERIFY2(qAbs(atTwo.blue() - sourceRed(10)) <= 3, qPrintable(QStringLiteral("%1 vs %2").arg(atTwo.blue()).arg(sourceRed(10))));
+    QVERIFY(sourceRed(7) != sourceRed(9));
+
+    // Cold equals sequential, and a paused re-render stays put.
+    FrameCompositor sequential;
+    sequential.setProject(&tapProject);
+    QImage played;
+    for (int frame = 0; frame <= 2; ++frame)
+        played = frameAtRate(sequential, frame, 30);
+    QCOMPARE(frameAtRate(cold, 2, 30), played);
+    QCOMPARE(frameAtRate(cold, 2, 30), played);
+    FrameCompositor::RenderOptions scrub;
+    scrub.approximateSeek = true;
+    FrameCompositor scrubbing;
+    scrubbing.setProject(&tapProject);
+    scrubbing.compositeAt(drift::TimeUs(66'667), scrub);
+    QCOMPARE(frameAtRate(scrubbing, 2, 30), played);
+
+    drift::Effect info;
+    info.catalogId = QStringLiteral("test.src_info");
+    drift::Project infoProject = highRateProject(video, 30, &info);
+    FrameCompositor reporting;
+    reporting.setProject(&infoProject);
+    const QColor reported = frameAtRate(reporting, 3, 30).pixelColor(32, 32);
+    QVERIFY2(qAbs(reported.red() - 120) <= 1, qPrintable(QString::number(reported.red())));
+    QVERIFY2(qAbs(reported.green() - 30) <= 1, qPrintable(QString::number(reported.green())));
+    QVERIFY2(qAbs(reported.blue() - 255.0 * 4.0 / 8.0) <= 2, qPrintable(QString::number(reported.blue())));
+}
+
+void EngineTest::motionBlurBlendsRealFramesOfHighRateFootage()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+    QVERIFY(effectDefForId(QStringLiteral("motion.blur")));
+    QTemporaryDir videoDir;
+    QVERIFY(videoDir.isValid());
+    const QString video = makeHighRateGrayVideo(videoDir);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    drift::Project plainProject = highRateProject(video, 120, nullptr);
+    FrameCompositor plain;
+    plain.setProject(&plainProject);
+    const auto sourceRed = [&](int n) { return frameAtRate(plain, n, 120).pixelColor(32, 32).red(); };
+
+    drift::Effect blend;
+    blend.catalogId = QStringLiteral("motion.blur");
+    blend.parameters.insert(QStringLiteral("mode"), 2);
+    drift::Effect autoMode;
+    autoMode.catalogId = QStringLiteral("motion.blur");
+    drift::Effect flow;
+    flow.catalogId = QStringLiteral("motion.blur");
+    flow.parameters.insert(QStringLiteral("mode"), 1);
+    drift::Project blendProject = highRateProject(video, 30, &blend);
+    drift::Project autoProject = highRateProject(video, 30, &autoMode);
+    drift::Project flowProject = highRateProject(video, 30, &flow);
+    FrameCompositor blended;
+    blended.setProject(&blendProject);
+    FrameCompositor automatic;
+    automatic.setProject(&autoProject);
+    FrameCompositor flowing;
+    flowing.setProject(&flowProject);
+
+    // A 180 degree shutter at 30 fps is 1/60 s: two 120 fps frames, centred on source frame 8's start,
+    // so source frames 7 and 8.
+    const QImage blurred = frameAtRate(blended, 2, 30);
+    const int expected = (sourceRed(7) + sourceRed(8)) / 2;
+    QVERIFY2(qAbs(blurred.pixelColor(32, 32).red() - expected) <= 4,
+             qPrintable(QStringLiteral("%1 vs %2").arg(blurred.pixelColor(32, 32).red()).arg(expected)));
+    QVERIFY(sourceRed(7) != sourceRed(8));
+
+    // Auto picks blend at 4 source frames per project frame, and the result is the same cold or in order.
+    QCOMPARE(frameAtRate(automatic, 2, 30), blurred);
+    FrameCompositor sequential;
+    sequential.setProject(&autoProject);
+    QImage played;
+    for (int frame = 0; frame <= 2; ++frame)
+        played = frameAtRate(sequential, frame, 30);
+    QCOMPARE(played, blurred);
+
+    // A longer shutter widens the interval over frames it has: 360 degrees is four frames, 6 to 9.
+    blendProject.tracks()[0].clips[0].effects[0].parameters.insert(QStringLiteral("shutter"), 360.0);
+    FrameCompositor wide;
+    wide.setProject(&blendProject);
+    const int wideExpected = (sourceRed(6) + sourceRed(7) + sourceRed(8) + sourceRed(9)) / 4;
+    QVERIFY2(qAbs(frameAtRate(wide, 2, 30).pixelColor(32, 32).red() - wideExpected) <= 4, "360 degree shutter");
+}
+
+void EngineTest::motionBlurAutoKeepsFlowAtTheTimelineRate()
+{
+    if (!GpuCompositor::isAvailable())
+        QSKIP("No GPU compositor available");
+    QVERIFY(effectDefForId(QStringLiteral("motion.blur")));
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString video = makeMovingSquareVideo(dir, 12);
+    if (video.isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+
+    drift::Project plainProject = motionBlurProject(video, false);
+    drift::Project autoProject = motionBlurProject(video, true);
+    drift::Project flowProject = motionBlurProject(video, true);
+    flowProject.tracks()[0].clips[0].effects[0].parameters.insert(QStringLiteral("mode"), 1);
+    FrameCompositor plain;
+    plain.setProject(&plainProject);
+    FrameCompositor automatic;
+    automatic.setProject(&autoProject);
+    FrameCompositor flowing;
+    flowing.setProject(&flowProject);
+
+    QImage sharp;
+    QImage viaAuto;
+    QImage viaFlow;
+    for (int frame = 5; frame <= 8; ++frame) {
+        sharp = frameAt(plain, frame);
+        viaAuto = frameAt(automatic, frame);
+        viaFlow = frameAt(flowing, frame);
+    }
+    QVERIFY(viaFlow != sharp);
+    QCOMPARE(viaAuto, viaFlow);
 }
 
 void EngineTest::trendingTimeEffectsLoadAndCompile()
@@ -12740,6 +13804,24 @@ void EngineTest::maskRoundnessRoundsRectangleCorners()
     QVERIFY(!back.keyframes.value(QStringLiteral("roundness")).isEmpty());
 }
 
+void EngineTest::largeFeatherSpreadsAcrossTheFrame()
+{
+    drift::Mask mask;
+    mask.shape = drift::MaskShape::Split;
+    mask.feather = 512.0;
+    QElapsedTimer timer;
+    timer.start();
+    const QImage alpha = drift::maskAlphaMap(mask, 1024, 1024);
+    QVERIFY2(timer.elapsed() < 2000, "large feather must not scale with radius");
+    QCOMPARE(alpha.size(), QSize(1024, 1024));
+    const int left = qGray(alpha.pixel(100, 512));
+    const int mid = qGray(alpha.pixel(512, 512));
+    const int right = qGray(alpha.pixel(900, 512));
+    QVERIFY(left > mid && mid > right);
+    QVERIFY(left < 255 && right > 0);
+    QVERIFY(qAbs(mid - 128) < 20);
+}
+
 void EngineTest::splitMaskRevealsOneSideOfASeam()
 {
     drift::Mask mask;
@@ -14115,6 +15197,54 @@ void EngineTest::gpuNv12MatchesSwsBt709()
         }
     }
     QVERIFY2(maxUv <= 2, qPrintable(QStringLiteral("tiled interior UV delta %1").arg(maxUv)));
+}
+
+void EngineTest::exporterEstimatesSizeFromBitrate()
+{
+    ExportSettings s;
+    s.rateControl = QStringLiteral("bitrate");
+    s.videoBitrateKbps = 8000;
+    s.audioBitrateKbps = 128;
+    const ExportSizeEstimate e = Exporter::estimateSize(s, 1920, 1080, 30.0, 60.0);
+    QVERIFY(!e.approximate);
+    // (8000 + 128) kbit/s for a minute is 60.96 MB before the container's overhead.
+    QVERIFY(qAbs(e.bytes - 61'000'000) < 2'000'000);
+
+    s.audioOnly = true;
+    const ExportSizeEstimate a = Exporter::estimateSize(s, 1920, 1080, 30.0, 60.0);
+    QVERIFY(qAbs(a.bytes - 960'000) < 40'000);
+}
+
+void EngineTest::exporterEstimatesSizeFromCrf()
+{
+    ExportSettings s;
+    s.audioBitrateKbps = 128;
+    s.crf = 23;
+    const ExportSizeEstimate base = Exporter::estimateSize(s, 1920, 1080, 30.0, 60.0);
+    QVERIFY(base.approximate);
+    QVERIFY(base.bytes > 10'000'000 && base.bytes < 60'000'000);
+
+    s.crf = 29;
+    const ExportSizeEstimate lower = Exporter::estimateSize(s, 1920, 1080, 30.0, 60.0);
+    QVERIFY(lower.bytes < base.bytes);
+
+    s.crf = 23;
+    const ExportSizeEstimate half = Exporter::estimateSize(s, 1920, 1080, 30.0, 30.0);
+    QVERIFY(half.bytes < base.bytes * 6 / 10);
+    const ExportSizeEstimate small = Exporter::estimateSize(s, 960, 540, 30.0, 60.0);
+    QVERIFY(small.bytes < base.bytes / 2);
+
+    s.videoCodecId = QStringLiteral("h265");
+    s.crf = 28;
+    QVERIFY(Exporter::estimateSize(s, 1920, 1080, 30.0, 60.0).bytes < base.bytes);
+}
+
+void EngineTest::exporterEstimatesNothingForGif()
+{
+    ExportSettings s;
+    s.gifExport = true;
+    QCOMPARE(Exporter::estimateSize(s, 640, 360, 15.0, 5.0).bytes, qint64(0));
+    QCOMPARE(Exporter::estimateSize(ExportSettings(), 640, 360, 15.0, 0.0).bytes, qint64(0));
 }
 
 void EngineTest::exporterDefaultCrfIsNearLosslessForH264()
@@ -18929,6 +20059,172 @@ void EngineTest::audioWindowBassSplitsLowFromHigh()
     QVERIFY(low.bass > 0.8f);
     const AudioFrame high = analyzeWindow(sineWindow(5000.0).data(), 48000);
     QVERIFY(high.bass < 0.2f);
+}
+
+namespace {
+
+// Two audio tracks, each with a one-second tone: track 0 over 0-1 s, track 1 over 1-2 s.
+drift::Project soloTestProject(const QString &toneA, const QString &toneB)
+{
+    drift::Project project;
+    project.tracks().clear();
+    project.setSampleRate(48000);
+    const QString paths[2] = {toneA, toneB};
+    for (int i = 0; i < 2; ++i) {
+        drift::Track track{.type = drift::TrackType::Audio};
+        drift::Clip clip;
+        clip.id = QStringLiteral("tone%1").arg(i);
+        clip.type = drift::ClipType::Audio;
+        clip.path = paths[i];
+        clip.timelineStart = drift::secondsToUs(double(i));
+        clip.timelineDuration = drift::secondsToUs(1.0);
+        clip.srcIn = 0;
+        clip.srcOut = clip.timelineDuration;
+        track.clips.append(clip);
+        project.tracks().append(track);
+    }
+    project.ensureTrackIds();
+    return project;
+}
+
+float sourceEnergy(const drift::Project &project, const QString &trackId, double atSeconds)
+{
+    const QVector<float> mono = readSourceMono(project, trackId, drift::secondsToUs(atSeconds), 4800, 48000);
+    float energy = 0.0f;
+    for (const float v : mono)
+        energy += std::abs(v);
+    return energy;
+}
+
+} // namespace
+
+// The Timeline mix an audio-reactive effect reads is what the mixer plays: solo and hide apply. A
+// named track is read whatever the flags.
+void EngineTest::timelineAudioSourceFollowsSolo()
+{
+    if (ffmpegExe().isEmpty())
+        QSKIP("ffmpeg not on PATH");
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString a = dir.filePath(QStringLiteral("a.wav"));
+    const QString b = dir.filePath(QStringLiteral("b.wav"));
+    QVERIFY(makeToneWav(a, 1.0, 0.5));
+    QVERIFY(makeToneWav(b, 1.0, 0.5, 880));
+
+    drift::Project project = soloTestProject(a, b);
+    QVERIFY(sourceEnergy(project, QString(), 0.5) > 1.0f);
+    QVERIFY(sourceEnergy(project, QString(), 1.5) > 1.0f);
+
+    project.tracks()[1].solo = true;
+    QVERIFY(sourceEnergy(project, QString(), 0.5) < 0.01f);
+    QVERIFY(sourceEnergy(project, QString(), 1.5) > 1.0f);
+
+    project.tracks()[1].hidden = true;
+    QVERIFY(sourceEnergy(project, QString(), 0.5) < 0.01f);
+    QVERIFY(sourceEnergy(project, QString(), 1.5) < 0.01f);
+
+    project.tracks()[1].hidden = false;
+    QVERIFY(sourceEnergy(project, project.tracks().at(0).id, 0.5) > 1.0f);
+}
+
+void EngineTest::timelineAudioSourceFingerprintTracksAudibility()
+{
+    drift::Project project = soloTestProject(QStringLiteral("a.wav"), QStringLiteral("b.wav"));
+    const QString track0 = project.tracks().at(0).id;
+    const quint64 base = audioSourceFingerprint(project, QString());
+    const quint64 baseNamed = audioSourceFingerprint(project, track0);
+
+    project.tracks()[1].solo = true;
+    QVERIFY(audioSourceFingerprint(project, QString()) != base);
+    QCOMPARE(audioSourceFingerprint(project, track0), baseNamed);
+
+    project.tracks()[1].solo = false;
+    QCOMPARE(audioSourceFingerprint(project, QString()), base);
+    project.tracks()[0].hidden = true;
+    QVERIFY(audioSourceFingerprint(project, QString()) != base);
+
+    // Soloing the only audible track leaves the audible set as it was.
+    project.tracks()[0].hidden = false;
+    project.tracks()[0].muted = true;
+    const quint64 onlyOne = audioSourceFingerprint(project, QString());
+    project.tracks()[1].solo = true;
+    QCOMPARE(audioSourceFingerprint(project, QString()), onlyOne);
+}
+
+// V1 0-20 s, A1 0-30 s, A2 0-60 s. Only timing matters, so no media is needed.
+void EngineTest::exportAutoRangeSkipsSilencedAudio()
+{
+    drift::Project project;
+    project.tracks().clear();
+    const auto addTrack = [&](drift::TrackType type, double seconds) {
+        drift::Track track{.type = type};
+        drift::Clip clip;
+        clip.id = QStringLiteral("c%1").arg(project.tracks().size());
+        clip.type = type == drift::TrackType::Audio ? drift::ClipType::Audio : drift::ClipType::Video;
+        clip.timelineStart = 0;
+        clip.timelineDuration = drift::secondsToUs(seconds);
+        clip.srcIn = 0;
+        clip.srcOut = clip.timelineDuration;
+        track.clips.append(clip);
+        project.tracks().append(track);
+    };
+    addTrack(drift::TrackType::Video, 20.0);
+    addTrack(drift::TrackType::Audio, 30.0);
+    addTrack(drift::TrackType::Audio, 60.0);
+    project.ensureTrackIds();
+
+    const auto endSeconds = [&] {
+        drift::TimeUs start = -1;
+        drift::TimeUs end = -1;
+        QString error;
+        resolveExportRange(project, ExportSettings{}, &start, &end, &error);
+        return double(end) / drift::kUsPerSecond;
+    };
+
+    QCOMPARE(endSeconds(), 60.0);
+    project.tracks()[2].muted = true;
+    QCOMPARE(endSeconds(), 30.0);
+    project.tracks()[2].muted = false;
+    project.tracks()[1].solo = true;
+    QCOMPARE(endSeconds(), 30.0);
+    // A video track still counts for its picture.
+    project.tracks()[0].clips[0].timelineDuration = drift::secondsToUs(40.0);
+    project.tracks()[0].clips[0].srcOut = drift::secondsToUs(40.0);
+    QCOMPARE(endSeconds(), 40.0);
+    project.tracks()[0].clips[0].timelineDuration = drift::secondsToUs(20.0);
+    project.tracks()[0].clips[0].srcOut = drift::secondsToUs(20.0);
+
+    // The duration recorded for the finished export follows the same rule: A1 soloed (30 s), A2
+    // 60 s, V1 20 s renders 30 s, not 60.
+    QCOMPARE(double(renderedDurationUs(project, ExportSettings{})) / drift::kUsPerSecond, 30.0);
+
+    // An explicit range is honoured whatever is silenced.
+    ExportSettings explicitRange;
+    explicitRange.startUs = drift::secondsToUs(5.0);
+    explicitRange.endUs = drift::secondsToUs(10.0);
+    drift::TimeUs start = -1;
+    drift::TimeUs end = -1;
+    QString error;
+    resolveExportRange(project, explicitRange, &start, &end, &error);
+    QVERIFY(error.isEmpty());
+    QCOMPARE(start, drift::secondsToUs(5.0));
+    QCOMPARE(end, drift::secondsToUs(10.0));
+    QCOMPARE(double(renderedDurationUs(project, explicitRange)) / drift::kUsPerSecond, 5.0);
+
+    // With every audio track silenced and no video, nothing outputs: the range falls back to the
+    // whole project.
+    project.tracks().removeFirst();
+    project.tracks()[0].muted = true;
+    project.tracks()[1].muted = true;
+    project.tracks()[0].solo = false;
+    project.ensureTrackIds();
+    start = -1;
+    end = -1;
+    error.clear();
+    resolveExportRange(project, ExportSettings{}, &start, &end, &error);
+    QVERIFY(error.isEmpty());
+    QCOMPARE(start, drift::TimeUs(0));
+    QCOMPARE(end, project.durationUs());
 }
 
 void EngineTest::audioFrameTextureLayout()

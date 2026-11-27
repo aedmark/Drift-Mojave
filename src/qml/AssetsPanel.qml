@@ -554,7 +554,10 @@ PanelFrame {
     ThemedDialog {
         id: proxyFallbackDialog
         property string folders: ""
-        title: qsTr("Couldn’t save files next to the media")
+        // The chosen proxy folder is missing or read-only, as opposed to a source folder that is.
+        property bool chosenFolder: false
+        title: chosenFolder ? qsTr("Couldn’t save to the proxy folder")
+                            : qsTr("Couldn’t save files next to the media")
         acceptText: qsTr("OK")
         showReject: false
         preferredWidth: Theme.dialogWidthSm
@@ -567,7 +570,9 @@ PanelFrame {
                 width: parent.width
                 wrapMode: Text.WordWrap
                 size: "sm"
-                text: qsTr("Drift can’t write to the folders listed below, because of their permissions or because they are on a read-only network share. The proxies or reversed clips were saved to Drift’s cache instead.")
+                text: proxyFallbackDialog.chosenFolder
+                      ? qsTr("Drift can’t write to the proxy folder below. It may be unplugged or read-only. New proxies and reversed clips go to Drift’s cache until it’s back.")
+                      : qsTr("Drift can’t write to the folders listed below, because of their permissions or because they are on a read-only network share. The proxies or reversed clips were saved to Drift’s cache instead.")
             }
             TextEdit {
                 width: parent.width
@@ -600,7 +605,13 @@ PanelFrame {
             }
         }
         function onProxyLocationFallback(folders) {
+            proxyFallbackDialog.chosenFolder = false
             proxyFallbackDialog.folders = folders.join("\n")
+            proxyFallbackDialog.open()
+        }
+        function onProxyFolderUnavailable(folder) {
+            proxyFallbackDialog.chosenFolder = true
+            proxyFallbackDialog.folders = folder
             proxyFallbackDialog.open()
         }
     }
@@ -699,6 +710,12 @@ PanelFrame {
         }
     }
 
+    readonly property bool phoneHeaderActions: sheetMode && Theme.phone && assetsHeader.hasActions
+
+    function openNewFolder() {
+        newFolderDialog.open()
+    }
+
     function importMedia() {
         var urls = FileDialogs.openFiles(qsTr("Import Media"),
                                          [AssetLibrary.mediaNameFilter(),
@@ -717,6 +734,44 @@ PanelFrame {
         // The walk runs off-thread, so the outcome arrives as onFolderImportFinished below.
         if (!EditorState.bin.importFolder(url))
             Toasts.error(qsTr("Couldn’t import that folder."))
+    }
+
+    // The default microphone, or empty when there is none. A screen recording with no sound is
+    // almost never what someone recording a tutorial wanted, so one is chosen rather than asked
+    // for; which device, and whether to record at all, is a Settings matter.
+    function defaultAudioInputId() {
+        const inputs = EditorState.capture.audioInputs()
+        for (let i = 0; i < inputs.length; i++) {
+            if (inputs[i].isDefault)
+                return inputs[i].id
+        }
+        return inputs.length > 0 ? inputs[0].id : ""
+    }
+
+    function recordScreen(systemAudio) {
+        // No screen picker of our own: on Wayland the compositor shows its share dialog and
+        // ignores anything we nominated, so asking first would make the user choose twice.
+        const mic = systemAudio ? "" : root.defaultAudioInputId()
+        if (!EditorState.capture.recordScreen(mic, 30, systemAudio === true))
+            return
+        if (EditorState.capture.platformChoosesScreen())
+            Toasts.info(qsTr("Choose what to share in the dialog your desktop shows."))
+    }
+
+    function recordCamera() {
+        EditorState.capture.recordCamera("", root.defaultAudioInputId(), 30)
+    }
+
+    readonly property string recordingClock: {
+        const total = Math.floor(EditorState.capture.recordedSeconds)
+        const minutes = Math.floor(total / 60)
+        const seconds = total % 60
+        return qsTr("%1:%2").arg(minutes).arg(seconds < 10 ? "0" + seconds : "" + seconds)
+    }
+
+    Connections {
+        target: EditorState.capture
+        function onFailed(message) { Toasts.error(message) }
     }
 
     function collectMedia() {
@@ -772,6 +827,7 @@ PanelFrame {
     function assetVisible(kind) {
         const tabId = tabsModel.get(activeTab).tabId
         if (tabId === "text" || tabId === "subtitles" || tabId === "speech" || tabId === "stickers" || tabId === "shapes"
+                || tabId === "generators"
                 || tabId === "effects" || tabId === "templates" || tabId === "adjustment"
                 || tabId === "sounds" || tabId === "transitions" || tabId === "masks"
                 || tabId === "scenes")
@@ -789,12 +845,29 @@ PanelFrame {
         "speech": qsTr("Speech"),
         "stickers": qsTr("Stickers"),
         "shapes": qsTr("Shapes"),
+        "generators": qsTr("Generators"),
         "scenes": qsTr("Scenes"),
         "masks": qsTr("Masks"),
         "effects": qsTr("Effects"),
         "templates": qsTr("Templates"),
         "transitions": qsTr("Transitions"),
         "sounds": qsTr("Audio FX")
+    })
+
+    property var tabHints: ({
+        "media": qsTr("Your imported video, audio and images. Drag them onto the timeline."),
+        "text": qsTr("Titles and captions with ready-made styles."),
+        "subtitles": qsTr("Generate captions from speech, or import a subtitle file."),
+        "speech": qsTr("Turn text into a voiceover, or clone a voice."),
+        "stickers": qsTr("Emoji and stickers to place over your video."),
+        "shapes": qsTr("Shapes and arrows for callouts and backgrounds."),
+        "generators": qsTr("Solid colours, gradients, noise, test patterns, countdowns and particle effects."),
+        "scenes": qsTr("Find the cuts in a long clip so you can jump to each scene."),
+        "masks": qsTr("Show only part of a clip, or cut a subject out of its background."),
+        "effects": qsTr("Looks, glitches, blurs and more. Click one to apply it."),
+        "templates": qsTr("Ready-made effect combinations you can apply in one click."),
+        "transitions": qsTr("Fades, wipes and zooms between two clips."),
+        "sounds": qsTr("Audio effects like echo, EQ and noise gate.")
     })
 
     // Rail order: project media → on-canvas graphics → processing → prefs.
@@ -808,6 +881,7 @@ PanelFrame {
         ListElement { tabId: "speech"; icon: 13; separatorAfter: false }
         ListElement { tabId: "stickers"; icon: 3; separatorAfter: false }
         ListElement { tabId: "shapes"; icon: 4; separatorAfter: false }
+        ListElement { tabId: "generators"; icon: 14; separatorAfter: false }
         ListElement { tabId: "masks"; icon: 11; separatorAfter: true }
         ListElement { tabId: "scenes"; icon: 10; separatorAfter: true }
         ListElement { tabId: "effects"; icon: 5; separatorAfter: false }
@@ -829,7 +903,8 @@ PanelFrame {
         Theme.icons.listVideo,
         Theme.icons.mask,
         Theme.icons.store,
-        Theme.icons.micVocal
+        Theme.icons.micVocal,
+        Theme.icons.asterism
     ]
     property int activeTab: locked ? tabIndexOf(lockedTab) : tabIndexOf(LayoutMemory.layoutString("assets/tab", "media"))
     readonly property string currentTabId: tabsModel.get(activeTab).tabId
@@ -865,9 +940,11 @@ PanelFrame {
     // only clamp what is shown; the saved value is rewritten by a drag alone.
     property real railUnits: Math.max(1, LayoutMemory.layoutNumber("assets/railUnits", 1))
     property real railDragWidth: -1
-    readonly property real maxRailWidth: Math.max(Theme.tabRailWidth,
+    readonly property real railCell: EditorState.preferences.showRailLabels ? Theme.tabRailLabelWidth
+                                                                            : Theme.tabRailWidth
+    readonly property real maxRailWidth: Math.max(railCell,
         root.width - Theme.assetCardWidth * 2 - Theme.pagePadding * 2)
-    readonly property real railWidth: Math.max(Theme.tabRailWidth,
+    readonly property real railWidth: Math.max(railCell,
         Math.min(maxRailWidth, railDragWidth >= 0 ? railDragWidth : railUnits * Theme.tabRailWidth))
 
     onActiveTabChanged: {
@@ -915,9 +992,11 @@ PanelFrame {
             id: tabRail
             sheetMode: root.railHidden
             railWidth: root.railWidth
+            cellWidth: root.railCell
             activeTab: root.activeTab
             tabCount: tabsModel.count
             tabLabels: root.tabLabels
+            tabHints: root.tabHints
             tabIcons: root.tabIcons
             tabs: tabsModel
             onTabSelected: (index) => root.activeTab = index
@@ -938,7 +1017,7 @@ PanelFrame {
                 onPositionChanged: (mouse) => {
                     if (!pressed)
                         return
-                    root.railDragWidth = Math.max(Theme.tabRailWidth,
+                    root.railDragWidth = Math.max(root.railCell,
                         Math.min(root.maxRailWidth, mapToItem(tabRail, mouse.x, 0).x))
                 }
                 onReleased: {
@@ -960,10 +1039,10 @@ PanelFrame {
                 id: assetsHeader
                 readonly property string tabId: tabsModel.get(root.activeTab).tabId
                 readonly property bool hasActions: kindsForTab(tabId).length > 0
-                readonly property bool searchBarTab: ["text", "stickers", "shapes", "effects", "templates",
+                readonly property bool searchBarTab: ["text", "stickers", "shapes", "generators", "effects", "templates",
                                                       "transitions", "sounds"].indexOf(tabId) >= 0
                 width: parent.width
-                height: (searchBarTab && !root.locked) || (root.sheetMode && !hasActions) ? 0 : Theme.panelHeaderHeight
+                height: (searchBarTab && !root.locked) || (root.sheetMode && (!hasActions || Theme.phone)) ? 0 : Theme.panelHeaderHeight
                 visible: height > 0
                 title: tabLabels[tabId]
                 showTitle: !root.sheetMode
@@ -974,6 +1053,78 @@ PanelFrame {
                 onImportFilesRequested: root.importMedia()
                 onImportFolderRequested: root.importFolder()
                 onCollectMediaRequested: root.collectMedia()
+                onRecordScreenRequested: root.recordScreen(false)
+                onRecordScreenWithSystemAudioRequested: root.recordScreen(true)
+                onRecordCameraRequested: root.recordCamera()
+            }
+
+            // While a recording runs there is nothing else on screen to say so — the window can be
+            // behind whatever is being recorded — so this is also the only place to stop it from.
+            Rectangle {
+                id: recordingBar
+                width: parent.width
+                height: EditorState.capture.recording ? Theme.controlHeight + Theme.spacingSm * 2 : 0
+                visible: height > 0
+                clip: true
+                color: Theme.c.captureBar.background
+
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: Theme.c.captureBar.borderWidth
+                    color: Theme.c.captureBar.border
+                }
+
+                Row {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Theme.pagePadding
+                    anchors.rightMargin: Theme.pagePadding
+                    spacing: Theme.spacingSm
+
+                    IconGlyph {
+                        anchors.verticalCenter: parent.verticalCenter
+                        glyph: Theme.icons.circle
+                        iconSize: Theme.iconSizeSm
+                        iconColor: Theme.c.captureBar.indicator
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(0, parent.width - Theme.iconSizeSm - stopRecording.width
+                                           - discardRecording.width - Theme.spacingSm * 3)
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                        // The status carries the portal's "waiting for you to choose" as well as
+                        // plain recording, so it is shown rather than a fixed label.
+                        text: EditorState.capture.status.length > 0
+                              ? qsTr("%1 — %2").arg(EditorState.capture.status)
+                                               .arg(root.recordingClock)
+                              : root.recordingClock
+                        color: Theme.c.captureBar.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeXs
+                    }
+
+                    ThemedButton {
+                        id: stopRecording
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("Stop")
+                        variant: "secondary"
+                        glyph: Theme.icons.square
+                        onClicked: EditorState.capture.stop()
+                    }
+
+                    ThemedButton {
+                        id: discardRecording
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("Discard")
+                        variant: "ghost"
+                        glyph: Theme.icons.trash
+                        onClicked: EditorState.capture.cancel()
+                    }
+                }
             }
 
             EmojiPicker {
@@ -1082,6 +1233,23 @@ PanelFrame {
                         Component.onCompleted: root.restoreBrowserTab(this, "shapes")
                         onSearchTextChanged: root.rememberTab("shapes", "search", searchText)
                         onActiveCategoryChanged: root.rememberTab("shapes", "category", activeCategory)
+                    }
+                }
+            }
+
+            Loader {
+                active: root.currentTabId === "generators"
+                visible: active
+                width: parent.width
+                height: parent.height - assetsHeader.height
+                clip: true
+                opacity: root.tabOpacity
+                sourceComponent: Component {
+                    GeneratorsTab {
+                        onAdded: root.addCompleted()
+                        Component.onCompleted: root.restoreBrowserTab(this, "generators")
+                        onSearchTextChanged: root.rememberTab("generators", "search", searchText)
+                        onActiveCategoryChanged: root.rememberTab("generators", "category", activeCategory)
                     }
                 }
             }

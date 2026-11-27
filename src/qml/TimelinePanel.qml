@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Window
 import Drift
+import "components/timeline/TimelineWheel.js" as TimelineWheel
 PanelFrame {
     id: root
 
@@ -219,6 +220,20 @@ PanelFrame {
             "disabledScrim": Theme.c.timelineClipItem.disabledScrim,
             "disabledStripe": Theme.c.timelineClipItem.disabledStripe,
             "gapOutline": Theme.c.timelineClipItem.gapOutline,
+            "keyframeMarker": Theme.c.timelineClipItem.keyframeMarker,
+            "keyframeMarkerRim": Theme.c.timelineClipItem.keyframeMarkerRim,
+            "waveformBarBackground": Theme.c.timelineClipItem.waveformBarBackground,
+            "fadeFill": Theme.c.timelineClipItem.fadeFill,
+            "fadeStroke": Theme.c.timelineClipItem.fadeStroke,
+            "disabledChipForegroundOpacity": Theme.c.timelineClipItem.disabledChipForegroundOpacity,
+            "clipEdgeOpacity": Theme.c.timelineClipItem.clipEdgeOpacity,
+            "effectDropTintOpacity": Theme.c.timelineClipItem.effectDropTintOpacity,
+            "rippleTintOpacity": Theme.c.timelineClipItem.rippleTintOpacity,
+            "rippleOutlineOpacity": Theme.c.timelineClipItem.rippleOutlineOpacity,
+            "waveformDividerOpacity": Theme.c.timelineClipItem.waveformDividerOpacity,
+            "clipEdgeWidth": Theme.c.timelineClipItem.clipEdgeWidth,
+            "rippleOutlineWidth": Theme.c.timelineClipItem.rippleOutlineWidth,
+            "fadeStrokeWidth": Theme.c.timelineClipItem.fadeStrokeWidth,
             "fontFamily": Theme.fontFamily,
             "fontSizeTiny": Theme.fontSizeTiny,
             "fontSizeXs": Theme.fontSizeXs,
@@ -242,7 +257,8 @@ PanelFrame {
             "editFriendlyTooltip": qsTr("Converted to a constant frame rate for smooth editing"),
             "vfrTooltip": qsTr("Variable frame rate. This clip can drift out of sync with its audio. Right-click it and choose Convert to edit-friendly format."),
             "missingTooltip": qsTr("Media file not found. Use Replace media… on this item to point it at the file again."),
-            "spanToolTip": qsTr("Transform layer: moves, scales and turns every track its bracket covers")
+            "spanToolTip": qsTr("Transform layer: moves, scales and turns every track its bracket covers"),
+            "keyframeToolTip": qsTr("Keyframe. Right-click for easing presets, or to open the Keyframes tab.")
         })
     }
 
@@ -251,8 +267,13 @@ PanelFrame {
         active: root.visible
         onSecondsChanged: {
             if (EditorState.playing)
-                root.ensurePlayheadVisible()
+                root.ensurePlayheadVisible(needle.seconds)
         }
+    }
+    Connections {
+        target: EditorState
+        // The published playhead, not needle.seconds: while playing the needle trails it.
+        function onPlayheadJumped() { root.ensurePlayheadVisible(EditorState.playheadSeconds) }
     }
     // True between beginPlayheadSeek and endPlayheadSeek when playback was
     // interrupted so a click or drag could land, and should resume on release.
@@ -1066,64 +1087,17 @@ PanelFrame {
         placeAt(0, atSeconds, target)
     }
 
-    function handleTimelineWheel(wheel) {
-        const pixelScroll = wheel.pixelDelta.x !== 0 || wheel.pixelDelta.y !== 0
-        if (pixelScroll && !(wheel.modifiers & Qt.ControlModifier)) {
-            // The OS has already applied natural-scrolling direction to pixelDelta.
-            const maxY = Math.max(0, flick.contentHeight - flick.height)
-            panTimelineBy(wheel.pixelDelta.x, maxY > 0 ? wheel.pixelDelta.y : 0)
-            return
-        }
-        if (wheel.modifiers & Qt.ControlModifier) {
-            // Wheel MouseAreas live in content space, so wheel.x is already a
-            // content X — keep that time fixed under the cursor.
-            const anchorSeconds = Math.max(0, wheel.x / pxPerSecond)
-            const viewportX = wheel.x - flick.contentX
-            const factor = pixelScroll ? Math.pow(1.0015, wheel.pixelDelta.y)
-                                       : (wheel.angleDelta.y > 0 ? 1.15 : 1.0 / 1.15)
-            setZoomAround(zoom * factor, anchorSeconds, viewportX)
-            return
-        }
-
-        const dy = wheel.angleDelta.y
-        const dx = wheel.angleDelta.x
-        const invert = EditorState.preferences.invertTimelineScroll
-
-        // Invert (Kdenlive-style): wheel pans along time, Shift+wheel moves
-        // between tracks. Trackpad horizontal motion always pans time.
-        if (invert) {
-            if (wheel.modifiers & Qt.ShiftModifier) {
-                const delta = dy !== 0 ? dy : dx
-                panTimelineBy(0, delta)
-                return
-            }
-            if (dx !== 0)
-                panTimelineBy(dx, 0)
-            if (dy !== 0)
-                panTimelineBy(dy, 0)
-            return
-        }
-
-        // Shift forces horizontal scrolling regardless of overflow.
-        if (wheel.modifiers & Qt.ShiftModifier) {
-            const delta = dy !== 0 ? dy : dx
-            panTimelineBy(delta, 0)
-            return
-        }
-
-        // Trackpad horizontal component always scrolls horizontally.
-        if (dx !== 0)
-            panTimelineBy(dx, 0)
-
-        // Vertical wheel scrolls the tracks when they overflow the viewport;
-        // otherwise it falls back to horizontal so short timelines keep the
-        // previous wheel-to-pan behaviour.
-        if (dy !== 0) {
-            const maxY = Math.max(0, flick.contentHeight - flick.height)
-            if (maxY > 0)
-                panTimelineBy(0, dy)
-            else
-                panTimelineBy(dy, 0)
+    function handleTimelineWheel(wheel, zoomAtPlayhead) {
+        const r = TimelineWheel.route(TimelineWheel.input(wheel, PointerDevice.TouchPad),
+                                      EditorState.preferences.invertTimelineScroll,
+                                      flick.contentHeight > flick.height)
+        if (r.zoom !== 1) {
+            if (zoomAtPlayhead)          // from the track headers: no time under the pointer
+                setZoom(zoom * r.zoom)
+            else                         // wheel MouseAreas are in content space: keep wheel.x's time fixed
+                setZoomAround(zoom * r.zoom, Math.max(0, wheel.x / pxPerSecond), wheel.x - flick.contentX)
+        } else if (r.x !== 0 || r.y !== 0) {
+            panTimelineBy(r.x, r.y)
         }
     }
 
@@ -1154,6 +1128,21 @@ PanelFrame {
         convertToSubtitleDialog.open()
     }
 
+    function requestRenameBookmarkAtPlayhead() {
+        const marks = EditorState.bookmarks
+        let best = -1
+        let bestDistance = 0.15
+        for (let i = 0; i < marks.length; ++i) {
+            const distance = Math.abs(marks[i].seconds - EditorState.playheadSeconds)
+            if (distance <= bestDistance) {
+                best = i
+                bestDistance = distance
+            }
+        }
+        if (best >= 0)
+            seekStrip.openRename(best, marks[best].label)
+    }
+
     function requestReplaceClip(trackIndex, clipIndex) {
         replaceClipDialog.openFor(trackIndex, clipIndex)
     }
@@ -1164,6 +1153,10 @@ PanelFrame {
 
     function requestMediaFx(assetId) {
         mediaFxDialog.openForAsset(assetId)
+    }
+
+    function requestAutoReframe(trackIndex, clipIndex) {
+        autoReframeDialog.openFor(trackIndex, clipIndex)
     }
 
     function requestRenameClip(trackIndex, clipIndex) {
@@ -1199,8 +1192,8 @@ PanelFrame {
         EditorState.playing = true
     }
 
-    function ensurePlayheadVisible() {
-        const playheadX = needle.seconds * pxPerSecond;
+    function ensurePlayheadVisible(seconds) {
+        const playheadX = seconds * pxPerSecond;
         const margin = 64;
         var target = -1
         if (playheadX < flick.contentX + margin)
@@ -1405,8 +1398,8 @@ PanelFrame {
             width: parent.width
             height: parent.height - toolbar.height - overviewStrip.height
 
-            // Loaded only on the tabs it can show on; the graph still hides itself when the
-            // clip has no curves. Its height is left to the item, so the lane can resize.
+            // Hidden while the Keyframes panel is on screen, which shows the same keys. Its height
+            // is left to the item, so the lane can resize.
             Loader {
                 id: keyframesBar
                 width: parent.width - (audioMixer.visible ? audioMixer.width : 0)
@@ -1414,7 +1407,7 @@ PanelFrame {
                         && EditorState.selectedTrack >= 0 && EditorState.selectedClip >= 0
                 // A Loader keeps its last height after unloading; hiding it is what makes the
                 // Column give the space back.
-                visible: !!item && item.visible
+                visible: !!item && item.shown
                 sourceComponent: Component {
                     KeyframeGraph {
                         pxPerSecond: root.pxPerSecond
@@ -1534,6 +1527,7 @@ PanelFrame {
                     resizable: true
                     tracks: root.tracks
                     contentY: flick.contentY
+                    onTimelineWheel: (wheel) => root.handleTimelineWheel(wheel, true)
                     onScrollRequested: (dy) => {
                         flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height,
                                                               flick.contentY + dy))
@@ -1638,13 +1632,15 @@ PanelFrame {
                         }
                     }
 
-                    // Horizontal scroll / zoom wheel over track rows (below the drop overlay).
+                    // Wheel (scroll / zoom) and middle-drag pan over the track rows and the empty
+                    // space below the last track (below the drop overlay).
                     MouseArea {
                         id: tracksWheelArea
                         x: 0
                         y: Theme.timelineRulerHeight + Theme.timelineBookmarkRowHeight
                         width: parent.width
-                        height: Math.max(root.totalTracksHeightCached, Theme.trackHeightVideo)
+                        height: Math.max(root.totalTracksHeightCached,
+                                         flick.contentHeight - flick.headerHeight)
                         z: 150
                         acceptedButtons: Qt.MiddleButton
                         preventStealing: true
@@ -1827,12 +1823,8 @@ PanelFrame {
                                 // Faint row tint on hover, and an empty track now
                                 // reads as a track rather than as blank space.
                                 color: trackHover.hovered
-                                       ? Qt.rgba(Theme.c.timelinePanel.trackBackground.r,
-                                                 Theme.c.timelinePanel.trackBackground.g,
-                                                 Theme.c.timelinePanel.trackBackground.b, 0.5)
-                                       : Qt.rgba(Theme.c.timelinePanel.trackBackground.r,
-                                                 Theme.c.timelinePanel.trackBackground.g,
-                                                 Theme.c.timelinePanel.trackBackground.b, 0.22)
+                                       ? Qt.alpha(Theme.c.timelinePanel.trackBackground, Theme.c.timelinePanel.trackBackgroundOpacityHover)
+                                       : Qt.alpha(Theme.c.timelinePanel.trackBackground, Theme.c.timelinePanel.trackBackgroundOpacity)
 
                                 Behavior on color {
                                     ColorAnimation { duration: Theme.durationFast; easing.type: Theme.easing }
@@ -2389,24 +2381,42 @@ PanelFrame {
 
         ThemedMenuItem {
             text: qsTr("Paste here")
+            shortcutId: "paste"
             icon.name: Theme.icons.clipboardPaste
             enabled: trackAreaContextMenu.canPaste
             onTriggered: {
-                EditorState.setPlayheadSeconds(root.areaMenuSeconds)
+                EditorState.playheadSeconds = root.areaMenuSeconds
                 EditorState.pasteAtPlayhead()
             }
-        }
-        ThemedMenuItem {
-            visible: root.areaMenuGapStart >= 0
-            height: visible ? implicitHeight : 0
-            text: qsTr("Close Gap")
-            icon.name: Theme.icons.chevronsRightLeft
-            onTriggered: EditorState.closeGap(root.areaMenuTrack, root.areaMenuGapStart)
         }
         ThemedMenuItem {
             text: qsTr("Add bookmark here")
             icon.name: Theme.icons.bookmark
             onTriggered: EditorState.addBookmark(root.areaMenuSeconds, "")
+        }
+        ThemedMenuSeparator {
+            visible: root.areaMenuGapStart >= 0 || trackAreaContextMenu.track !== null
+        }
+        ThemedMenuItem {
+            visible: root.areaMenuGapStart >= 0
+            height: visible ? implicitHeight : 0
+            text: qsTr("Close gap")
+            icon.name: Theme.icons.chevronsRightLeft
+            onTriggered: EditorState.closeGap(root.areaMenuTrack, root.areaMenuGapStart)
+        }
+        ThemedMenuItem {
+            visible: root.areaMenuGapStart >= 0
+            height: visible ? implicitHeight : 0
+            text: qsTr("Close gap on all tracks")
+            icon.name: Theme.icons.chevronsRightLeft
+            onTriggered: EditorState.closeGapOnAllTracks(root.areaMenuTrack, root.areaMenuGapStart)
+        }
+        ThemedMenuItem {
+            visible: trackAreaContextMenu.track !== null
+            height: visible ? implicitHeight : 0
+            text: EditorState.workAreaActive ? qsTr("Close gaps in work area") : qsTr("Close all gaps on track")
+            icon.name: Theme.icons.chevronsRightLeft
+            onTriggered: EditorState.closeGapsInWorkArea(root.areaMenuTrack)
         }
         ThemedMenuSeparator {}
         ThemedMenuItem {
@@ -2425,39 +2435,57 @@ PanelFrame {
         }
         ThemedMenuItem {
             text: qsTr("Select all clips")
+            shortcutId: "selectAll"
             icon.name: Theme.icons.maximize
             onTriggered: EditorState.selectAllClips()
         }
-        ThemedMenuSeparator {
-            visible: trackAreaContextMenu.track !== null
+        ThemedMenuSeparator {}
+        ThemedContextMenu {
+            title: qsTr("Add track")
+
+            ThemedMenuItem {
+                text: qsTr("Video")
+                icon.name: Theme.icons.film
+                onTriggered: EditorState.addTrack("video")
+            }
+            ThemedMenuItem {
+                text: qsTr("Audio")
+                icon.name: Theme.icons.music
+                onTriggered: EditorState.addTrack("audio")
+            }
+            ThemedMenuItem {
+                text: qsTr("Text")
+                icon.name: Theme.icons.type
+                onTriggered: EditorState.addTrack("text")
+            }
+            ThemedMenuItem {
+                text: qsTr("Subtitle")
+                icon.name: Theme.icons.captions
+                onTriggered: EditorState.addTrack("subtitle")
+            }
+            ThemedMenuItem {
+                text: qsTr("Graphic")
+                icon.name: Theme.icons.shapes
+                onTriggered: EditorState.addTrack("shape")
+            }
+            ThemedMenuItem {
+                text: qsTr("Adjustment")
+                icon.name: Theme.icons.wand
+                onTriggered: EditorState.addAdjustmentTrack("videoEffects")
+            }
         }
         ThemedMenuItem {
-            readonly property bool on: trackAreaContextMenu.track !== null && trackAreaContextMenu.track.muted === true
-            visible: trackAreaContextMenu.track !== null
-            height: visible ? implicitHeight : 0
-            text: on ? qsTr("Unmute track") : qsTr("Mute track")
-            icon.name: on ? Theme.icons.volumeHigh : Theme.icons.volumeOff
-            onTriggered: EditorState.setTrackMuted(root.areaMenuTrack, !on)
-        }
-        ThemedMenuItem {
-            readonly property bool on: trackAreaContextMenu.track !== null && trackAreaContextMenu.track.hidden === true
-            visible: trackAreaContextMenu.track !== null
-            height: visible ? implicitHeight : 0
-            text: on ? qsTr("Show track") : qsTr("Hide track")
-            icon.name: on ? Theme.icons.eye : Theme.icons.eyeOff
-            onTriggered: EditorState.setTrackHidden(root.areaMenuTrack, !on)
-        }
-        ThemedMenuItem {
-            readonly property bool on: trackAreaContextMenu.track !== null && trackAreaContextMenu.track.locked === true
-            visible: trackAreaContextMenu.track !== null
-            height: visible ? implicitHeight : 0
-            text: on ? qsTr("Unlock track") : qsTr("Lock track")
-            icon.name: on ? Theme.icons.lockOpen : Theme.icons.lock
-            onTriggered: EditorState.setTrackLocked(root.areaMenuTrack, !on)
+            text: qsTr("Split all tracks here")
+            shortcutId: "splitAllTracks"
+            icon.name: Theme.icons.scissors
+            onTriggered: {
+                EditorState.playheadSeconds = root.areaMenuSeconds
+                EditorState.splitAtPlayhead()
+            }
         }
         ThemedMenuSeparator {}
         ThemedMenuItem {
-            text: qsTr("Remove empty tracks")
+            text: qsTr("Delete all empty tracks")
             icon.name: Theme.icons.trash
             enabled: trackAreaContextMenu.hasEmptyTracks
             onTriggered: EditorState.removeEmptyTracks()
@@ -2534,6 +2562,10 @@ PanelFrame {
         id: mediaFxDialog
     }
 
+    TimelineAutoReframeDialog {
+        id: autoReframeDialog
+    }
+
     ThemedDialog {
         id: clipRenameDialog
         title: qsTr("Rename clip")
@@ -2589,5 +2621,29 @@ PanelFrame {
             root.savePresetTrack = -1
             root.savePresetClip = -1
         }
+    }
+
+    property point dragPointer
+    function setDragPointer(sceneX, sceneY) {
+        dragPointer = dragReadout.parent.mapFromItem(null, sceneX, sceneY)
+    }
+    function formatTimecode(seconds, withFrames) {
+        const fps = Math.max(1, EditorState.projectFile.projectFps())
+        const total = Math.round(Math.max(0, seconds) * fps)
+        const whole = Math.floor(total / fps)
+        const pad = (n) => (n < 10 ? "0" : "") + n
+        const hms = Math.floor(whole / 3600) + ":" + pad(Math.floor(whole / 60) % 60) + ":" + pad(whole % 60)
+        return withFrames ? hms + ":" + pad(total - whole * fps) : hms
+    }
+    function formatDelta(seconds) {
+        return (seconds < 0 ? "-" : "+") + formatTimecode(Math.abs(seconds), false)
+    }
+
+    LiveReadout {
+        id: dragReadout
+        visible: EditorState.drag.interacting && text.length > 0
+                 && ["fadeIn", "fadeOut", "trimStart", "trimEnd", "transitionResize"].indexOf(EditorState.drag.kind) >= 0
+        text: EditorState.drag.hudText
+        pointer: root.dragPointer
     }
 }

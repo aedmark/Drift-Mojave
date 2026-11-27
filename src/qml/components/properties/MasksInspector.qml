@@ -22,6 +22,10 @@ Item {
     readonly property bool isMedia: maskShape === "media"
     readonly property bool isSequence: maskShape === "sequence"
     readonly property bool hasBox: ["rectangle", "ellipse", "star", "heart"].indexOf(maskShape) >= 0
+    readonly property real featherLimit: {
+        void clipDataRevision
+        return EditorState.masking.featherLimit(EditorState.selectedTrack, EditorState.selectedClip)
+    }
     readonly property bool aspectLocked: !!(clipData.mask && clipData.mask.lockAspect)
 
     height: contentCol.height
@@ -40,6 +44,12 @@ Item {
         id: contentCol
         width: root.width
         spacing: Theme.spacingXl
+
+        WorkspaceLink {
+            x: parent.width - width
+            label: qsTr("Draw & track ↗")
+            target: ({ panel: "masking" })
+        }
 
         // The tab used to open with a lone unlabelled combo box
         // and no explanation of what a mask does.
@@ -119,6 +129,24 @@ Item {
             }
         }
 
+        // Resetting puts the values back without throwing away the mask (issue #582): picking
+        // another shape or redrawing the same one used to be the only way back to the defaults.
+        SearchAnchor {
+            searchId: "masks-reset"
+            title: qsTr("Reset mask")
+            keywords: "default restore values geometry animation"
+            target: resetMaskButton
+        }
+        ThemedButton {
+            id: resetMaskButton
+            visible: root.maskShape !== "none"
+            text: qsTr("Reset mask")
+            tooltip: qsTr("Restore the default mask settings without deleting the mask")
+            glyph: Theme.icons.reset
+            onClicked: EditorState.masking.resetMask(EditorState.selectedTrack,
+                                                     EditorState.selectedClip)
+        }
+
         // Clearing a mask previously required knowing to reselect
         // "none" in the combo above.
         ThemedButton {
@@ -147,6 +175,10 @@ Item {
             title: qsTr("Roundness")
             keywords: "rounded corners radius pill"
         }
+        PathPointModeRow {
+            visible: root.maskShape === "freeform" && EditorState.masking.pathEdit.attached
+                     && EditorState.masking.pathEdit.selectionCount > 0
+        }
         Repeater {
             // `shapes` is what the rasterizer actually reads for each shape (see
             // MaskApplier::maskPath): Bars derives both bands from `h` alone and ignores the
@@ -168,7 +200,7 @@ Item {
                   min: 0, max: 1, percent: true, shapes: ["rectangle"] },
                 // Feather blurs the finished coverage map, so it applies to every shape.
                 { key: "mask.feather", label: qsTr("Feather"), def: 0, decimals: 0,
-                  min: 0, max: 64, unit: "px",
+                  min: 0, max: root.featherLimit, unit: "px",
                   shapes: ["rectangle", "ellipse", "star", "heart", "bars", "split", "freeform", "sequence"] }
             ]
             delegate: PropertyKeyframeRow {

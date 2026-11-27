@@ -65,6 +65,9 @@ EffectPresetEntry EffectPackageLoader::loadPackage(const QString &packageDir, QS
     entry.meta.category =
         GpuPackageParse::slugifyCategory(categoryRaw.isEmpty() ? QStringLiteral("dreamy") : categoryRaw);
     entry.catalogOrder = root.value(QStringLiteral("order")).toInt(0);
+    entry.meta.description = root.value(QStringLiteral("description")).toString();
+    for (const QJsonValue &keyword : root.value(QStringLiteral("keywords")).toArray())
+        entry.meta.keywords.append(keyword.toString());
 
     // A single name, or a list when a package needs more than one kind of per-frame data.
     const QJsonValue requiresValue = root.value(QStringLiteral("requires"));
@@ -162,6 +165,13 @@ EffectPresetEntry EffectPackageLoader::loadPackage(const QString &packageDir, QS
         }
         entry.gpu.needsDepth = entry.needsDepth;
         entry.gpu.needsMask = entry.needsMask;
+        const QString units = root.value(QStringLiteral("historyUnits")).toString(QStringLiteral("project"));
+        if (units != QLatin1String("project") && units != QLatin1String("source")) {
+            entry.gpu.valid = false;
+            setError(errorOut, &entry, QStringLiteral("historyUnits must be \"project\" or \"source\""));
+            return entry;
+        }
+        entry.gpu.sourceUnits = units == QLatin1String("source");
         if (root.contains(QStringLiteral("history"))) {
             const int frames = root.value(QStringLiteral("history")).toInt(0);
             if (frames < 1 || frames > drift::kMaxHistoryFrames) {
@@ -173,7 +183,46 @@ EffectPresetEntry EffectPackageLoader::loadPackage(const QString &packageDir, QS
             }
             entry.gpu.historyFrames = frames;
         }
+        const int maxExact = entry.gpu.sourceUnits ? drift::kMaxSourceNeighbourFrames : drift::kMaxHistoryExactFrames;
+        if (root.contains(QStringLiteral("historyExact"))) {
+            const int exact = root.value(QStringLiteral("historyExact")).toInt(0);
+            if (exact < 1 || exact > maxExact || (!entry.gpu.sourceUnits && exact > entry.gpu.historyFrames)) {
+                entry.gpu.valid = false;
+                setError(errorOut, &entry,
+                         entry.gpu.sourceUnits
+                             ? QStringLiteral("historyExact must be a whole number from 1 to %1").arg(maxExact)
+                             : QStringLiteral("historyExact must be a whole number from 1 to %1, "
+                                              "and no more than history")
+                                   .arg(maxExact));
+                return entry;
+            }
+            entry.gpu.historyExactFrames = exact;
+        }
+        if (root.contains(QStringLiteral("future"))) {
+            const int future = root.value(QStringLiteral("future")).toInt(0);
+            const int maxFuture = entry.gpu.sourceUnits ? drift::kMaxSourceNeighbourFrames : drift::kMaxFutureFrames;
+            if (future < 1 || future > maxFuture) {
+                entry.gpu.valid = false;
+                setError(errorOut, &entry,
+                         QStringLiteral("future must be a whole number from 1 to %1").arg(maxFuture));
+                return entry;
+            }
+            entry.gpu.futureFrames = future;
+        }
+        if (entry.gpu.sourceUnits) {
+            // The ring is not used, so "history" means nothing here: the prelude switch follows what is asked.
+            entry.gpu.historyFrames = qMax(entry.gpu.historyExactFrames, entry.gpu.futureFrames > 0 ? 1 : 0);
+        }
         entry.gpu.needsPrevOutput = root.value(QStringLiteral("previousOutput")).toBool(false);
+        if (root.contains(QStringLiteral("padding"))) {
+            const double padding = root.value(QStringLiteral("padding")).toDouble(-1.0);
+            if (!(padding > 0.0 && padding <= 1.0)) {
+                entry.gpu.valid = false;
+                setError(errorOut, &entry, QStringLiteral("padding must be greater than 0 and at most 1"));
+                return entry;
+            }
+            entry.gpu.padding = float(padding);
+        }
         return entry;
     }
 

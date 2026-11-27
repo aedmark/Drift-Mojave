@@ -41,7 +41,7 @@ enum class EffectParamType {
     Track,
     // Another track's folded mask lanes, by track id; bound as a sampler2D.
     TrackMask,
-    // Another track's audio, by track id ("" = Timeline mix); a sampler2D plus scalars.
+    // Another track's audio, by track id ("" = the Timeline mix as heard); a sampler2D plus scalars.
     Audio,
 };
 
@@ -213,6 +213,8 @@ struct EffectPresetMeta
     QString id;           // e.g. "rgb_split", "stylize.bloom"
     QString displayName;  // e.g. "RGB Split"
     QString category;     // stable slug, e.g. "glitch", "retro", "dreamy", "impact"
+    QString description;  // optional one-paragraph explainer from effect.json
+    QStringList keywords; // search vocabulary beyond the name, from effect.json
     QList<EffectParamSpec> parameters;
     bool compositorOnly = false; // true when not expressible via libavfilter alone
 };

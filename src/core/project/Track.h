@@ -109,6 +109,8 @@ struct Track
     // Shown and heard while editing, but never exported (a review lane: a VO script to read along,
     // notes). Export and composite flattening render Project::exportView, which drops it.
     bool excludeFromExport = false;
+    // Set on a track a project-folder script created; see Clip::generatedBy.
+    QString generatedBy;
     double volume = 1.0;
     double pan = 0.0;
     // Timeline-time track automation envelopes (VEGAS parity).
@@ -186,5 +188,16 @@ QString trackNumberKind(const Track &track);
 // The track's name, else its default label in English ("Video 2", "Transform 1", "Camera", or a
 // nested lane's "Effects" / "Audio FX" / "Mask"), as the timeline shows it. For replies to agents; the UI builds the same label translated.
 QString trackDefaultLabel(const Track &track);
+
+// True when any track in the list is soloed. While one is, the mixer plays only soloed tracks.
+bool anyTrackSoloed(const QList<Track> &tracks);
+
+// Whether the mixer plays this track's own audio: not muted, not hidden, and either nothing is
+// soloed or this track is. Every place that decides what is heard uses this, so the flags can't
+// drift apart again. Adjustment tracks are not subject to it: they carry no audio of their own.
+inline bool trackAudible(const Track &track, bool anySolo)
+{
+    return !track.muted && !track.hidden && (!anySolo || track.solo);
+}
 
 } // namespace drift

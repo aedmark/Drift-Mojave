@@ -73,6 +73,21 @@ PanelFrame {
         { suffix: "Lum", label: qsTr("Luminance") }
     ]
     property int hslBand: 0
+    readonly property var qualifierSliders: [
+        { key: "qualifierHue", label: qsTr("Hue Centre"), from: 0, to: 360, def: 180, step: 1, decimals: 0, rainbow: true },
+        { key: "qualifierHueWidth", label: qsTr("Hue Width"), from: 0, to: 360, def: 360, step: 1, decimals: 0 },
+        { key: "qualifierHueSoft", label: qsTr("Hue Softness"), from: 0, to: 180, def: 30, step: 1, decimals: 0 },
+        { key: "qualifierSatLow", label: qsTr("Saturation Low"), from: 0, to: 1, def: 0, step: 0.01, decimals: 2 },
+        { key: "qualifierSatHigh", label: qsTr("Saturation High"), from: 0, to: 1, def: 1, step: 0.01, decimals: 2 },
+        { key: "qualifierSatSoft", label: qsTr("Saturation Softness"), from: 0, to: 1, def: 0.1, step: 0.01, decimals: 2 },
+        { key: "qualifierLumLow", label: qsTr("Luminance Low"), from: 0, to: 1, def: 0, step: 0.01, decimals: 2 },
+        { key: "qualifierLumHigh", label: qsTr("Luminance High"), from: 0, to: 1, def: 1, step: 0.01, decimals: 2 },
+        { key: "qualifierLumSoft", label: qsTr("Luminance Softness"), from: 0, to: 1, def: 0.1, step: 0.01, decimals: 2 }
+    ]
+    readonly property var qualifierSwitches: [
+        { key: "qualifierInvert", label: qsTr("Invert") },
+        { key: "qualifierShowMatte", label: qsTr("Show matte") }
+    ]
     readonly property var finishingNames: ({
         "film_grain": qsTr("Film Grain"),
         "bloom_glow": qsTr("Glow"),
@@ -96,6 +111,7 @@ PanelFrame {
     readonly property bool curvesAreModified: modifiedGroups.indexOf("Curves") >= 0
     readonly property bool hueCurvesAreModified: modifiedGroups.indexOf("Hue Curves") >= 0
     readonly property bool hslModified: modifiedGroups.indexOf("HSL") >= 0
+    readonly property bool qualifierModified: modifiedGroups.indexOf("Qualifier") >= 0
 
     function isAnimated(key) {
         return animatedKeys.indexOf(key) >= 0
@@ -176,17 +192,25 @@ PanelFrame {
         } else if (tab === 2) {
             colorState.resetGroups(["Curves", "Hue Curves"])
         } else if (tab === 3) {
-            colorState.resetGroup("HSL")
+            colorState.resetGroups(["HSL", "Qualifier"])
         }
     }
 
     focus: true
     activeFocusOnTab: true
-    Shortcut {
-        sequence: "\\"
-        context: Qt.WindowShortcut
-        enabled: root.visible
-        onActivated: root.setBypass(!root.colorState.bypass)
+    readonly property string scope: "color"
+    readonly property int priority: 7
+    function handleAction(id) {
+        if (!root.visible || id !== "color.toggleBypass")
+            return false
+        root.setBypass(!root.colorState.bypass)
+        return true
+    }
+    onVisibleChanged: {
+        if (root.visible)
+            ShellBridge.registerActionHandler(root)
+        else
+            ShellBridge.unregisterActionHandler(root)
     }
 
     onShownChanged: {
@@ -206,6 +230,8 @@ PanelFrame {
         function onPanelRequestChanged() { root.applyPanelRequest() }
     }
     Component.onCompleted: {
+        if (root.visible)
+            ShellBridge.registerActionHandler(root)
         applyPanelRequest()
         const specs = {}
         const catalog = colorState.finishingCatalog()
@@ -213,7 +239,10 @@ PanelFrame {
             specs[catalog[i].id] = colorState.finishingParamSpecs(catalog[i].id)
         finishingSpecs = specs
     }
-    Component.onDestruction: setBypass(false)
+    Component.onDestruction: {
+        ShellBridge.unregisterActionHandler(root)
+        setBypass(false)
+    }
 
     TapHandler {
         acceptedButtons: Qt.LeftButton
@@ -536,6 +565,7 @@ PanelFrame {
                             required property var modelData
                             width: parent.width
                             label: modelData.label
+                            learnId: "color." + modelData.key
                             from: modelData.from
                             to: modelData.to
                             defaultValue: modelData.def
@@ -596,6 +626,7 @@ PanelFrame {
                             required property var modelData
                             width: parent.width
                             label: modelData.label
+                            learnId: "color." + modelData.key
                             from: modelData.from
                             to: modelData.to
                             defaultValue: modelData.def
@@ -624,7 +655,7 @@ PanelFrame {
                         readonly property bool none: (root.params.look || "") === ""
                         wrapMode: none ? Text.WordWrap : Text.NoWrap
                         elide: none ? Text.ElideNone : Text.ElideRight
-                        text: none ? qsTr("None. Choose one in the Color Grading LUTs panel.") : root.target.lookLabel
+                        text: none ? qsTr("None. Choose one in the Looks panel.") : root.target.lookLabel
                         color: Theme.mutedForeground
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeXs
@@ -773,6 +804,7 @@ PanelFrame {
                             onBegan: root.colorState.beginEdit(qsTr("Adjust curves"))
                             onChanged: (channel, json) => root.colorState.setText(root.curveKeys[channel], json)
                             onEnded: root.colorState.commitEdit()
+                            onCancelled: root.colorState.cancelEdit()
                         }
                     }
 
@@ -802,6 +834,7 @@ PanelFrame {
                             onBegan: root.colorState.beginEdit(qsTr("Adjust hue curves"))
                             onChanged: (channel, json) => root.colorState.setText(root.hueCurveKeys[channel], json)
                             onEnded: root.colorState.commitEdit()
+                            onCancelled: root.colorState.cancelEdit()
                         }
                     }
                 }
@@ -855,9 +888,9 @@ PanelFrame {
                                 Rectangle {
                                     width: swatch.width
                                     height: width
-                                    radius: width / 2
+                                    radius: Theme.radiusPill
                                     color: "transparent"
-                                    border.width: 2
+                                    border.width: Theme.c.colorPanel.swatchFocusBorderWidth
                                     border.color: Theme.focusRing
                                     visible: swatch.selected || swatch.activeFocus
                                 }
@@ -867,7 +900,7 @@ PanelFrame {
                                     y: swatch.inset
                                     width: Theme.controlHeightSm
                                     height: width
-                                    radius: width / 2
+                                    radius: Theme.radiusPill
                                     color: Theme.c.colorGradeBands[swatch.modelData.name]
                                 }
 
@@ -876,7 +909,7 @@ PanelFrame {
                                     y: swatch.width + 1
                                     width: 5
                                     height: width
-                                    radius: width / 2
+                                    radius: Theme.radiusPill
                                     color: Theme.accentOnPanel
                                     visible: root.hslBandModified(swatch.modelData.param)
                                 }
@@ -961,6 +994,103 @@ PanelFrame {
                             onEnded: {
                                 root.colorState.commitEdit()
                                 root.clearLive(hslSlider.paramKey)
+                            }
+                        }
+                    }
+                }
+
+                SectionHeader {
+                    title: qsTr("Qualifier")
+                    modified: root.qualifierModified
+                    onResetRequested: root.colorState.resetGroup("Qualifier")
+                    SearchAnchor {
+                        searchId: "color-qualifier"
+                        title: qsTr("Qualifier")
+                        keywords: "qualifier hsl key secondary select matte mask isolate hue saturation luminance range"
+                        searchTarget: "panel:color#tab=3/color-qualifier"
+                    }
+                }
+                Column {
+                    width: Math.min(parent.width, 480)
+                    spacing: Theme.spacingMd
+
+                    Item {
+                        width: parent.width
+                        height: Theme.controlHeightSm
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.right: qualifierSwitch.left
+                            anchors.rightMargin: Theme.spacingSm
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            text: qsTr("Limit the grade to a range of colours")
+                            color: Theme.mutedForeground
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeXs
+                        }
+                        ThemedSwitch {
+                            id: qualifierSwitch
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            checked: !!root.params.qualifierEnabled
+                            onToggled: root.colorState.setParam("qualifierEnabled", checked ? 1 : 0)
+                        }
+                    }
+                    Repeater {
+                        model: root.qualifierSliders
+                        delegate: GradeSlider {
+                            id: qualifierSlider
+                            required property var modelData
+                            width: parent.width
+                            enabled: !!root.params.qualifierEnabled
+                            label: modelData.label
+                            from: modelData.from
+                            to: modelData.to
+                            defaultValue: modelData.def
+                            stepSize: modelData.step
+                            decimals: modelData.decimals
+                            bipolar: false
+                            gradient: modelData.rainbow ? [0, 60, 120, 180, 240, 300, 360].map(h => Qt.hsla(h / 360, 1, 0.5, 1)) : []
+                            animated: root.isAnimated(modelData.key)
+                            value: root.liveOr(modelData.key, root.params[modelData.key] ?? modelData.def)
+                            onBegan: root.colorState.beginEdit(qsTr("Adjust %1").arg(label))
+                            onMoved: v => {
+                                root.setLive(modelData.key, v)
+                                root.colorState.setParam(modelData.key, v)
+                            }
+                            onEnded: {
+                                root.colorState.commitEdit()
+                                root.clearLive(modelData.key)
+                            }
+                        }
+                    }
+                    Repeater {
+                        model: root.qualifierSwitches
+                        delegate: Item {
+                            id: qualifierToggle
+                            required property var modelData
+                            width: parent.width
+                            height: Theme.controlHeightSm
+                            enabled: !!root.params.qualifierEnabled
+
+                            Text {
+                                anchors.left: parent.left
+                                anchors.right: toggleSwitch.left
+                                anchors.rightMargin: Theme.spacingSm
+                                anchors.verticalCenter: parent.verticalCenter
+                                elide: Text.ElideRight
+                                text: qualifierToggle.modelData.label
+                                color: Theme.mutedForeground
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeXs
+                            }
+                            ThemedSwitch {
+                                id: toggleSwitch
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                checked: !!root.params[qualifierToggle.modelData.key]
+                                onToggled: root.colorState.setParam(qualifierToggle.modelData.key, checked ? 1 : 0)
                             }
                         }
                     }

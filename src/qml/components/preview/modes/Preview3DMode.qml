@@ -33,49 +33,33 @@ Item {
             EditorState.preview.dolly(-1)
     }
 
-    // Blender's view keys: F frames the selection, Home frames everything, Shift+Home resets, Shift+F flies, Numpad 5 toggles orthographic, Numpad 0 looks through the camera,
-    // Numpad 1/3/7 look from the front/right/top (Ctrl: the opposite side), Numpad 4/6/8/2 orbit
-    // and Numpad +/− zoom. Shift+Numpad 4/6 rolls in Blender, which this view does not, so those
-    // are left alone. The owner forwards key presses that bubble up to the viewport, so they work
-    // from whatever in the preview has focus.
-    function handleKey(event) {
-        const keypad = (event.modifiers & Qt.KeypadModifier) !== 0
-        const opposite = (event.modifiers & Qt.ControlModifier) !== 0
-        const shifted = (event.modifiers & Qt.ShiftModifier) !== 0
-        if (event.key === Qt.Key_F && shifted && !opposite) {
-            EditorState.preview.flying = !EditorState.preview.flying
-        } else if (event.key === Qt.Key_F && !opposite) {
-            EditorState.preview.frameSelection()
-        } else if (event.key === Qt.Key_Home && shifted) {
-            EditorState.preview.resetView()
-        } else if (event.key === Qt.Key_Home) {
-            EditorState.preview.frameAll()
-        } else if (keypad && event.key === Qt.Key_5) {
-            EditorState.preview.toggleOrthographic()
-        } else if (keypad && event.key === Qt.Key_0) {
-            EditorState.preview.toggleLookThrough()
-        } else if (keypad && event.key === Qt.Key_1) {
-            EditorState.preview.setAxisView(opposite ? "back" : "front")
-        } else if (keypad && event.key === Qt.Key_3) {
-            EditorState.preview.setAxisView(opposite ? "left" : "right")
-        } else if (keypad && event.key === Qt.Key_7) {
-            EditorState.preview.setAxisView(opposite ? "bottom" : "top")
-        } else if (keypad && !shifted && event.key === Qt.Key_4) {
-            applyNav("left")
-        } else if (keypad && !shifted && event.key === Qt.Key_6) {
-            applyNav("right")
-        } else if (keypad && !shifted && event.key === Qt.Key_8) {
-            applyNav("up")
-        } else if (keypad && !shifted && event.key === Qt.Key_2) {
-            applyNav("down")
-        } else if (keypad && !shifted && event.key === Qt.Key_Plus) {
-            applyNav("in")
-        } else if (keypad && !shifted && event.key === Qt.Key_Minus) {
-            applyNav("out")
-        } else {
-            return
+    // Blender's view keys (see the viewport3d scope of the keymap for the defaults): frame the
+    // selection or everything, reset, fly, toggle orthographic, look through the camera, look from
+    // the front/right/top or the opposite side, orbit and dolly. Shift+Numpad 4/6 rolls in Blender,
+    // which this view does not. The panel hands it the actions its keys are bound to.
+    function handleViewAction(id) {
+        switch (id) {
+        case "viewport3d.toggleFly": EditorState.preview.flying = !EditorState.preview.flying; return true
+        case "viewport3d.toggleRecord": EditorState.preview.recordArmed = !EditorState.preview.recordArmed; return true
+        case "viewport3d.frameSelected": EditorState.preview.frameSelection(); return true
+        case "viewport3d.resetView": EditorState.preview.resetView(); return true
+        case "viewport3d.frameAll": EditorState.preview.frameAll(); return true
+        case "viewport3d.toggleOrthographic": EditorState.preview.toggleOrthographic(); return true
+        case "viewport3d.lookThrough": EditorState.preview.toggleLookThrough(); return true
+        case "viewport3d.viewFront": EditorState.preview.setAxisView("front"); return true
+        case "viewport3d.viewBack": EditorState.preview.setAxisView("back"); return true
+        case "viewport3d.viewRight": EditorState.preview.setAxisView("right"); return true
+        case "viewport3d.viewLeft": EditorState.preview.setAxisView("left"); return true
+        case "viewport3d.viewTop": EditorState.preview.setAxisView("top"); return true
+        case "viewport3d.viewBottom": EditorState.preview.setAxisView("bottom"); return true
+        case "viewport3d.orbitLeft": applyNav("left"); return true
+        case "viewport3d.orbitRight": applyNav("right"); return true
+        case "viewport3d.orbitUp": applyNav("up"); return true
+        case "viewport3d.orbitDown": applyNav("down"); return true
+        case "viewport3d.dollyIn": applyNav("in"); return true
+        case "viewport3d.dollyOut": applyNav("out"); return true
         }
-        event.accepted = true
+        return false
     }
 
     // Above the tools, so Alt-drag in the Maya scheme wins over a clip under the pointer. Presses that are
@@ -219,8 +203,9 @@ Item {
         }
     }
 
-    // Blender's fly mode. The view keeps turning toward the pointer, faster the farther it is from
-    // the centre, so steering needs no pointer lock (Wayland has none to give). W/S move along the
+    // Blender's fly mode. With the Mouse look setting the pointer is locked and the mouse's raw
+    // movement turns the view; otherwise (touchpads, or where no lock is available) the view keeps
+    // turning toward the pointer, faster the farther it is from the centre. W/S move along the
     // view, A/D strafe, Q/E sink and rise, Shift hurries and the wheel sets the speed. Esc, a click
     // or the tool button lands, keeping the view where it is.
     Item {
@@ -232,41 +217,73 @@ Item {
         readonly property real turnRate: 120
         // The still zone around the centre, as a fraction of the half size.
         readonly property real deadZone: 0.08
+        // Fly key (Qt.Key_*) -> the fly3d action it was pressed as; Shift is held by key alone.
         property var held: ({})
         // Steering waits until the pointer has visited the centre: starting from the tool button at
         // the edge would otherwise send the view spinning at once.
         property bool steering: false
         property point pointer: Qt.point(width / 2, height / 2)
+        // True while the pointer lock was granted for this flight; the look is then the mouse's.
+        property bool mouseLook: false
+        // Degrees per mouse count.
+        readonly property real lookSensitivity: 0.12
 
-        function isFlyKey(key) {
-            return key === Qt.Key_W || key === Qt.Key_A || key === Qt.Key_S || key === Qt.Key_D
-                    || key === Qt.Key_Q || key === Qt.Key_E || key === Qt.Key_Shift
-                    || key === Qt.Key_Escape
+        // Shift speeds the flight up, so a fly chord is looked up without it.
+        function flyAction(event) {
+            if (event.key === Qt.Key_Shift)
+                return "shift"
+            const keymap = EditorState.keymap
+            return keymap.actionFor("fly3d", keymap.chordFromKey(event.key, event.modifiers & ~Qt.ShiftModifier,
+                                                                 event.nativeScanCode, event.text))
         }
-        function setHeld(key, down) {
+        function setHeld(key, action) {
             const next = Object.assign({}, held)
-            next[key] = down
+            if (action !== "")
+                next[key] = action
+            else
+                delete next[key]
             held = next
         }
+        function has(action) {
+            return Object.values(held).indexOf(action) >= 0
+        }
         function axis(plus, minus) {
-            return (held[plus] ? 1 : 0) - (held[minus] ? 1 : 0)
+            return (has(plus) ? 1 : 0) - (has(minus) ? 1 : 0)
         }
         // Squared past the still zone, so small offsets steer finely.
         function steer(offset) {
             const t = Math.max(0, Math.abs(offset) - deadZone) / (1 - deadZone)
             return Math.sign(offset) * Math.min(1, t) * Math.min(1, t)
         }
+        // Whether a key of a held fly action is a controller button that is down now.
+        function padHeld(action) {
+            return EditorState.keymap.bindings(action).some((chord) => Gamepad.chordHeld(chord))
+        }
         function step(dt) {
             let right = 0
             let up = 0
-            if (steering && width > 0 && height > 0) {
+            if (!mouseLook && steering && width > 0 && height > 0) {
                 right = steer((pointer.x - width / 2) / (width / 2)) * turnRate * dt
                 up = -steer((pointer.y - height / 2) / (height / 2)) * turnRate * dt
             }
-            const move = speed * dt * (held[Qt.Key_Shift] ? 4 : 1)
-            const forward = axis(Qt.Key_W, Qt.Key_S) * move
-            const strafe = axis(Qt.Key_D, Qt.Key_A) * move
-            const rise = axis(Qt.Key_E, Qt.Key_Q) * move
+            const move = speed * dt * (has("shift") ? 4 : 1)
+            let forward = axis("fly3d.forward", "fly3d.back") * move
+            let strafe = axis("fly3d.right", "fly3d.left") * move
+            let rise = axis("fly3d.up", "fly3d.down") * move
+            if (Gamepad.connected) {
+                // Sticks move and turn, the triggers speed up and slow down, the shoulders sink and rise.
+                const padMove = speed * dt * Math.pow(4, Gamepad.rightTrigger - Gamepad.leftTrigger)
+                forward += Gamepad.leftY * padMove
+                strafe += Gamepad.leftX * padMove
+                rise += ((padHeld("fly3d.up") ? 1 : 0) - (padHeld("fly3d.down") ? 1 : 0)) * padMove
+                right += Gamepad.rightX * Gamepad.lookSpeed * dt
+                up += Gamepad.rightY * Gamepad.lookSpeed * dt
+                if (Gamepad.gyroEnabled) {
+                    const degrees = 57.29578 * Gamepad.gyroSensitivity * dt
+                    right -= Gamepad.gyroY * degrees
+                    up += Gamepad.gyroX * degrees
+                }
+            }
             if (right !== 0 || up !== 0 || forward !== 0 || strafe !== 0 || rise !== 0)
                 EditorState.preview.fly(right, up, forward, strafe, rise)
         }
@@ -279,33 +296,65 @@ Item {
         onOnChanged: {
             held = {}
             steering = false
-            if (on)
+            PointerLock.unlock()
+            mouseLook = false
+            if (on) {
                 forceActiveFocus()
+                mouseLook = EditorState.preview.flyLook === "mouse" && PointerLock.lock(fly)
+            }
         }
         onActiveFocusChanged: {
-            if (!activeFocus)
+            if (!activeFocus) {
                 held = {}
+                PointerLock.unlock()
+            }
+        }
+
+        Connections {
+            target: Gamepad
+            enabled: fly.on
+
+            function onButtonPressed(chord) {
+                if (EditorState.keymap.actionFor("fly3d", chord) === "fly3d.land")
+                    EditorState.preview.flying = false
+            }
+        }
+
+        Connections {
+            target: PointerLock
+
+            function onMoved(dx, dy) {
+                if (fly.on && fly.mouseLook)
+                    EditorState.preview.fly(dx * fly.lookSensitivity, -dy * fly.lookSensitivity, 0, 0, 0)
+            }
+            // Only a lock that was held can drop: the compositor or system took it back.
+            function onLockedChanged() {
+                if (!PointerLock.locked && fly.mouseLook && fly.on)
+                    EditorState.preview.flying = false
+            }
         }
 
         Keys.onShortcutOverride: (event) => {
-            if (fly.isFlyKey(event.key))
+            if (event.key === Qt.Key_Escape || fly.flyAction(event) !== "")
                 event.accepted = true
         }
         Keys.onPressed: (event) => {
+            const action = fly.flyAction(event)
             if (event.key === Qt.Key_Escape) {
                 EditorState.preview.flying = false
-            } else if (fly.isFlyKey(event.key)) {
+            } else if (action !== "") {
                 if (!event.isAutoRepeat)
-                    fly.setHeld(event.key, true)
+                    fly.setHeld(event.key, action)
             } else {
                 return
             }
             event.accepted = true
         }
+        // By key, not chord: a modifier pressed or let go mid-flight must not strand a held key.
         Keys.onReleased: (event) => {
-            if (!fly.isFlyKey(event.key) || event.isAutoRepeat)
+            if (event.isAutoRepeat || !(event.key in fly.held))
                 return
-            fly.setHeld(event.key, false)
+            fly.setHeld(event.key, "")
             event.accepted = true
         }
 
@@ -316,6 +365,8 @@ Item {
             cursorShape: Qt.CrossCursor
 
             onPositionChanged: (mouse) => {
+                if (fly.mouseLook)
+                    return
                 fly.pointer = Qt.point(mouse.x, mouse.y)
                 if (!fly.steering
                         && Math.abs(mouse.x - width / 2) <= fly.deadZone * width / 2
@@ -337,12 +388,16 @@ Item {
 
         // The still zone, so there is something to aim the pointer at.
         Preview3DFlyDeadZone {
+            visible: !fly.mouseLook
             steering: fly.steering
             fraction: fly.deadZone
         }
 
         Preview3DFlyHint {
-            message: fly.steering
+            message: fly.mouseLook
+                     ? qsTr("Mouse looks · W/A/S/D move · Q/E down/up · Shift faster · Wheel speed (%1×) · Esc or click to finish")
+                           .arg(fly.speed.toFixed(2))
+                     : fly.steering
                      ? qsTr("W/A/S/D move · Q/E down/up · Shift faster · Wheel speed (%1×) · Esc or click to finish")
                            .arg(fly.speed.toFixed(2))
                      : qsTr("Move the pointer to the centre ring to start steering")

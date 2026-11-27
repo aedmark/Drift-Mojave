@@ -7,6 +7,7 @@
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSet>
@@ -20,11 +21,48 @@ namespace drift {
 
 namespace {
 
+// [x, y] for a corner, which is also exactly what files before format 32 wrote for a polygon point;
+// otherwise [x, y, inX, inY, outX, outY] with the tangent mode appended unless it is Corner.
+QJsonArray maskVertexToJson(const ShapeVertex &v)
+{
+    QJsonArray a{v.p.x(), v.p.y()};
+    if (v.in.isNull() && v.out.isNull() && v.mode == TangentMode::Corner)
+        return a;
+    a.append(v.in.x());
+    a.append(v.in.y());
+    a.append(v.out.x());
+    a.append(v.out.y());
+    if (v.mode != TangentMode::Corner)
+        a.append(tangentModeToString(v.mode));
+    return a;
+}
+
+QVector<ShapeVertex> maskVerticesFromJson(const QJsonArray &array)
+{
+    QVector<ShapeVertex> out;
+    out.reserve(array.size());
+    for (const QJsonValue &value : array) {
+        const QJsonArray a = value.toArray();
+        if (a.size() < 2)
+            continue;
+        ShapeVertex v;
+        v.p = QPointF(a.at(0).toDouble(), a.at(1).toDouble());
+        if (a.size() >= 6) {
+            v.in = QPointF(a.at(2).toDouble(), a.at(3).toDouble());
+            v.out = QPointF(a.at(4).toDouble(), a.at(5).toDouble());
+        }
+        if (a.size() >= 7)
+            v.mode = tangentModeFromString(a.at(6).toString());
+        out.append(v);
+    }
+    return out;
+}
+
 QJsonObject maskToJson(const Mask &m)
 {
     QJsonArray points;
-    for (const QPointF &pt : m.points)
-        points.append(QJsonArray{pt.x(), pt.y()});
+    for (const ShapeVertex &v : m.vertices)
+        points.append(maskVertexToJson(v));
 
     QJsonObject maskKeyframesJson;
     for (auto it = m.keyframes.constBegin(); it != m.keyframes.constEnd(); ++it) {
@@ -33,13 +71,13 @@ QJsonObject maskToJson(const Mask &m)
         maskKeyframesJson.insert(it.key(), keyframesToJson(it.value()));
     }
 
-    // One entry per shape key: [timeUs, [[x, y], ...]]. An array rather than an object because
+    // One entry per shape key: [timeUs, [vertex, ...]]. An array rather than an object because
     // the key is a time, and JSON object keys would force it through a string round trip.
     QJsonArray pathKeys;
     for (auto it = m.pathKeys.constBegin(); it != m.pathKeys.constEnd(); ++it) {
         QJsonArray shape;
-        for (const QPointF &pt : it.value())
-            shape.append(QJsonArray{pt.x(), pt.y()});
+        for (const ShapeVertex &v : it.value())
+            shape.append(maskVertexToJson(v));
         pathKeys.append(QJsonArray{qint64(it.key()), shape});
     }
 
@@ -72,6 +110,8 @@ QJsonObject maskToJson(const Mask &m)
         object.insert(QStringLiteral("lockAspect"), true);
     if (!m.sequenceId.isEmpty())
         object.insert(QStringLiteral("sequenceId"), m.sequenceId);
+    if (m.faceSlot >= 0)
+        object.insert(QStringLiteral("faceSlot"), m.faceSlot);
     if (!m.mediaPatches.isEmpty()) {
         QJsonArray patches;
         for (auto it = m.mediaPatches.constBegin(); it != m.mediaPatches.constEnd(); ++it)
@@ -102,6 +142,7 @@ Mask maskFromJson(const QJsonObject &o)
     m.enabled = o.value(QStringLiteral("enabled")).toBool(m.enabled);
     m.name = o.value(QStringLiteral("name")).toString(m.name);
     m.cropShape = o.value(QStringLiteral("cropShape")).toString();
+    m.faceSlot = o.value(QStringLiteral("faceSlot")).toInt(m.faceSlot);
     // Media was called "matte" before v5 and only ever backed a segmentation cutout, so the old
     // keys map straight across.
     m.mediaPath = o.value(QStringLiteral("mediaPath"))
@@ -115,12 +156,9 @@ Mask maskFromJson(const QJsonObject &o)
     m.mediaChannel = maskMediaChannelFromString(o.value(QStringLiteral("mediaChannel")).toString());
     m.mediaLoop = o.value(QStringLiteral("mediaLoop")).toBool(m.mediaLoop);
     m.mediaTimeBase = maskMediaTimeBaseFromString(o.value(QStringLiteral("mediaTimeBase")).toString());
-    const QJsonArray points = o.value(QStringLiteral("points")).toArray();
-    for (const QJsonValue &value : points) {
-        const QJsonArray pair = value.toArray();
-        if (pair.size() >= 2)
-            m.points.append(QPointF(pair.at(0).toDouble(), pair.at(1).toDouble()));
-    }
+    // Format 32 widened a vertex from [x, y] to the form maskVertexToJson writes. The corner form is
+    // unchanged, so a polygon from an older file reads as corner-only vertices with no migration pass.
+    m.vertices = maskVerticesFromJson(o.value(QStringLiteral("points")).toArray());
 
     const QJsonObject maskKeyframesJson = o.value(QStringLiteral("keyframes")).toObject();
     for (auto it = maskKeyframesJson.constBegin(); it != maskKeyframesJson.constEnd(); ++it)
@@ -130,13 +168,7 @@ Mask maskFromJson(const QJsonObject &o)
         const QJsonArray entry = value.toArray();
         if (entry.size() < 2)
             continue;
-        QVector<QPointF> shape;
-        for (const QJsonValue &pointValue : entry.at(1).toArray()) {
-            const QJsonArray pair = pointValue.toArray();
-            if (pair.size() >= 2)
-                shape.append(QPointF(pair.at(0).toDouble(), pair.at(1).toDouble()));
-        }
-        m.pathKeys.insert(TimeUs(entry.at(0).toInteger()), shape);
+        m.pathKeys.insert(TimeUs(entry.at(0).toInteger()), maskVerticesFromJson(entry.at(1).toArray()));
     }
 
     for (const QJsonValue &value : o.value(QStringLiteral("patches")).toArray()) {
@@ -350,8 +382,10 @@ QJsonObject clipToJson(const Clip &clip)
         json.insert(QStringLiteral("model3d"), clip.model3d.toJson());
     if (clip.type == ClipType::Pdf)
         json.insert(QStringLiteral("pdf"), clip.pdf.toJson());
-    if (clip.type == ClipType::Procedural)
+    if (clip.type == ClipType::Procedural || clip.type == ClipType::Generator)
         json.insert(QStringLiteral("procedural"), clip.procedural.toJson());
+    if (!clip.textScript.isEmpty())
+        json.insert(QStringLiteral("textScript"), clip.textScript);
     if (!clip.sequenceId.isEmpty())
         json.insert(QStringLiteral("sequenceId"), clip.sequenceId);
     if (clip.sourceFrame != QRectF(0, 0, 1, 1))
@@ -421,6 +455,8 @@ QJsonObject clipToJson(const Clip &clip)
         json.insert(QStringLiteral("takes"), takesArray);
         json.insert(QStringLiteral("activeTakeIndex"), clip.activeTakeIndex);
     }
+    if (!clip.generatedBy.isEmpty())
+        json.insert(QStringLiteral("generatedBy"), clip.generatedBy);
     return json;
 }
 
@@ -503,7 +539,9 @@ Clip clipFromJsonV2(const QJsonObject &object, int version, int canvasW = 1920, 
     clip.hiddenInLane = object.value(QStringLiteral("hiddenInLane")).toBool(false);
     clip.name = object.value(QStringLiteral("name")).toString();
     clip.label = object.value(QStringLiteral("label")).toString();
+    clip.generatedBy = object.value(QStringLiteral("generatedBy")).toString();
     clip.textContent = object.value(QStringLiteral("textContent")).toString();
+    clip.textScript = object.value(QStringLiteral("textScript")).toString();
     clip.textStyle = textStyleFromJson(object.value(QStringLiteral("textStyle")).toObject());
     clip.subtitleCues = subtitleCuesFromJson(object.value(QStringLiteral("subtitleCues")).toArray());
     clip.shapeStyle = shapeStyleFromJson(object.value(QStringLiteral("shapeStyle")).toObject());
@@ -722,6 +760,8 @@ QJsonObject assetToJson(const MediaAsset &asset)
         object.insert(QStringLiteral("sequenceId"), asset.sequenceId);
     if (!asset.generator.isEmpty())
         object.insert(QStringLiteral("generator"), asset.generator);
+    if (!asset.generatedBy.isEmpty())
+        object.insert(QStringLiteral("generatedBy"), asset.generatedBy);
     // Only when known, like the keys above: an older project round-trips unchanged.
     if (drift::sourceFingerprintKnown(asset)) {
         object.insert(QStringLiteral("sourceSize"), static_cast<double>(asset.sourceSize));
@@ -778,6 +818,7 @@ MediaAsset assetFromJsonV2(const QJsonObject &object)
     asset.folderId = object.value(QStringLiteral("folderId")).toString();
     asset.sequenceId = object.value(QStringLiteral("sequenceId")).toString();
     asset.generator = object.value(QStringLiteral("generator")).toObject();
+    asset.generatedBy = object.value(QStringLiteral("generatedBy")).toString();
     asset.sourceSize = static_cast<qint64>(object.value(QStringLiteral("sourceSize")).toDouble());
     asset.sourceModifiedMs =
         static_cast<qint64>(object.value(QStringLiteral("sourceModifiedMs")).toDouble());
@@ -852,6 +893,27 @@ void Project::resetToDefaultTimeline()
 void Project::ensureTrackIds()
 {
     drift::ensureTrackIds(m_tracks);
+}
+
+QString projectPathKey(const QString &id)
+{
+    if (id.isEmpty())
+        return {};
+    const QUuid uuid = QUuid::fromString(id);
+    if (!uuid.isNull() && uuid.toString(QUuid::WithoutBraces) == id)
+        return id;
+    return QLatin1Char('x')
+        + QString::fromLatin1(QCryptographicHash::hash(id.toUtf8(), QCryptographicHash::Sha256).toHex().left(32));
+}
+
+QString bundleMediaKey(const QString &id, const QString &bundlePath)
+{
+    const QString key = projectPathKey(id);
+    if (!key.isEmpty())
+        return key;
+    const QByteArray path = QFileInfo(bundlePath).absoluteFilePath().toUtf8();
+    return QLatin1Char('b')
+        + QString::fromLatin1(QCryptographicHash::hash(path, QCryptographicHash::Sha256).toHex().left(32));
 }
 
 void ensureTrackIds(QList<Track> &tracks)
@@ -1042,7 +1104,7 @@ void detachClip(Clip &clip)
     clip.anchorZ.detachSharedData();
     clip.volume.detachSharedData();
     clip.speedCurve.detachSharedData();
-    clip.mask.points.detach();
+    clip.mask.vertices.detach();
     clip.mask.pathKeys.detach();
     clip.mask.mediaPatches.detach();
     for (auto it = clip.mask.pathKeys.begin(); it != clip.mask.pathKeys.end(); ++it)
@@ -1798,6 +1860,7 @@ Project Project::fromJson(const QJsonObject &object, QString *errorOut)
             track.locked = trackObject.value(QStringLiteral("locked")).toBool(false);
             track.solo = trackObject.value(QStringLiteral("solo")).toBool(false);
             track.excludeFromExport = trackObject.value(QStringLiteral("excludeFromExport")).toBool(false);
+            track.generatedBy = trackObject.value(QStringLiteral("generatedBy")).toString();
             track.volume = trackObject.value(QStringLiteral("volume")).toDouble(1.0);
             track.pan = trackObject.value(QStringLiteral("pan")).toDouble(0.0);
             if (trackObject.contains(QStringLiteral("volumeEnvelope")))
@@ -1958,6 +2021,13 @@ Project Project::fromJson(const QJsonObject &object, QString *errorOut)
     // Version 23 added the teleprompter script. Nothing to migrate; the bump is a gate so an older
     // build does not silently drop the script on save.
     // Version 22 moved the 3D world to After Effects' convention (migrateWorldTo22 above).
+    // Version 35 added generatedBy on clips, tracks and assets: the project-folder script that made the
+    // item, which the editor locks and the script replaces. Nothing to migrate; the bump is a gate, as
+    // for versions 6 and 9. An older build would drop the key on load and save the item back as plain,
+    // unlocked data that the next script run duplicates.
+    // Version 34 added ClipType::Generator and the text clip script (Clip::textScript). Nothing to
+    // migrate; the bump is a gate, as for versions 6 and 9. An older build would load generators as
+    // videos with no path and show a scripted text clip's placeholder text.
     // Version 24 added ClipType::Procedural. Nothing to migrate; the bump is a gate, as for versions
     // 6 and 9. An older build would load those clips as videos with no path.
     // Version 25 added looping clips. Nothing to migrate; the bump is a gate, as for versions 6
@@ -1968,6 +2038,12 @@ Project Project::fromJson(const QJsonObject &object, QString *errorOut)
     // versions 6 and 9. An older build would read the shape as none and drop the mask.
     // Version 28 added the Sequence mask shape. Nothing to migrate; the bump is a gate, as for
     // versions 6 and 9. An older build would read the shape as none and drop the mask.
+    // Version 33 added Mask::faceSlot, the marker on a mask generated from a face track. Nothing
+    // to migrate; the bump is a gate, as for versions 6 and 9. An older build would drop the
+    // marker and then lay a second set of face masks over the first instead of replacing them.
+    // Version 32 made Freeform mask vertices bezier (handles and a tangent mode). A format 31 polygon
+    // point is already a valid corner vertex, so there is nothing to migrate; an older build would
+    // drop the handles and draw the curve as a polygon.
     // Version 31 replaced the top-left layout rect with a frame placed by its anchor
     // (migrateClipLayoutTo31 above). An older build would read every clip as sitting at the canvas
     // centre at full size.
@@ -1990,6 +2066,11 @@ Project Project::fromJson(const QJsonObject &object, QString *errorOut)
             bookmark.timeUs = secondsToUs(bookmarkObject.value(QStringLiteral("seconds")).toDouble());
         }
         bookmark.label = bookmarkObject.value(QStringLiteral("label")).toString();
+        // Optional and additive: a project written before bookmarks had colours, or by a build
+        // without them, simply leaves every flag on the theme colour.
+        const QString color = bookmarkObject.value(QStringLiteral("color")).toString();
+        if (!color.isEmpty() && QColor::isValidColorName(color))
+            bookmark.color = QColor(color);
         project.m_bookmarks.append(bookmark);
     }
 
@@ -2146,6 +2227,8 @@ QJsonObject Project::toJson(bool includeTranscripts) const
             if (track.compositeBlendMode != BlendMode::Normal)
                 trackObject.insert(QStringLiteral("compositeBlendMode"),
                                    blendModeToString(track.compositeBlendMode));
+            if (!track.generatedBy.isEmpty())
+                trackObject.insert(QStringLiteral("generatedBy"), track.generatedBy);
             tracksArray.append(trackObject);
         }
         return tracksArray;
@@ -2165,10 +2248,15 @@ QJsonObject Project::toJson(bool includeTranscripts) const
 
     QJsonArray bookmarksArray;
     for (const Bookmark &bookmark : m_bookmarks) {
-        bookmarksArray.append(QJsonObject{
+        QJsonObject bookmarkObject{
             {QStringLiteral("timeUs"), static_cast<double>(bookmark.timeUs)},
             {QStringLiteral("label"), bookmark.label},
-        });
+        };
+        // Written only when set, so a project with no coloured flags is byte-for-byte what an
+        // older build wrote and keeps opening in one.
+        if (bookmark.color.isValid())
+            bookmarkObject.insert(QStringLiteral("color"), bookmark.color.name());
+        bookmarksArray.append(bookmarkObject);
     }
 
     QJsonObject root{

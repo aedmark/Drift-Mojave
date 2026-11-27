@@ -258,4 +258,3 @@ bool MediaProbe::isEditFriendlyCodec(const QString &codecName)
         || lower == QLatin1String("mjpeg")
         || lower == QLatin1String("cfhd");
 }
-

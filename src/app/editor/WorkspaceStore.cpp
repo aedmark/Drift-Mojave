@@ -51,7 +51,7 @@ const PanelType kPanelTypes[] = {
     {"teleprompter", QT_TRANSLATE_NOOP("WorkspaceStore", "Teleprompter")},
     {"denoise", QT_TRANSLATE_NOOP("WorkspaceStore", "Noise Removal")},
     {"color", QT_TRANSLATE_NOOP("WorkspaceStore", "Color")},
-    {"looks", QT_TRANSLATE_NOOP("WorkspaceStore", "Color Grading LUTs")},
+    {"looks", QT_TRANSLATE_NOOP("WorkspaceStore", "Looks")},
     {"scopes", QT_TRANSLATE_NOOP("WorkspaceStore", "Scopes")},
     {"keyframes", QT_TRANSLATE_NOOP("WorkspaceStore", "Keyframes")},
     {"masking", QT_TRANSLATE_NOOP("WorkspaceStore", "Masking")},
@@ -64,6 +64,12 @@ const PanelType kPanelTypes[] = {
     {"proceduralEditor", QT_TRANSLATE_NOOP("WorkspaceStore", "Procedural Code")},
     {"proceduralParams", QT_TRANSLATE_NOOP("WorkspaceStore", "Procedural Parameters")},
     {"proceduralConsole", QT_TRANSLATE_NOOP("WorkspaceStore", "Procedural Console")},
+    {"forgeGraph", QT_TRANSLATE_NOOP("WorkspaceStore", "Forge Graph")},
+    {"forgePalette", QT_TRANSLATE_NOOP("WorkspaceStore", "Forge Nodes")},
+    {"forgeInspector", QT_TRANSLATE_NOOP("WorkspaceStore", "Forge Inspector")},
+    {"audioForgeGraph", QT_TRANSLATE_NOOP("WorkspaceStore", "Audio Forge Graph")},
+    {"audioForgePalette", QT_TRANSLATE_NOOP("WorkspaceStore", "Audio Forge Pedals")},
+    {"audioForgeInspector", QT_TRANSLATE_NOOP("WorkspaceStore", "Audio Forge Inspector")},
 };
 
 // Tab ids and labels mirror AssetsPanel.qml / PropertiesPanel.qml.

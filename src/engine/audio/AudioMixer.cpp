@@ -863,13 +863,7 @@ void AudioMixer::mix(drift::TimeUs timelineStartUs, int sampleCount, int sampleR
 
     const int totalFloats = sampleCount * 2;
     const QList<drift::Track> &tracks = project->tracks();
-    bool anySolo = false;
-    for (const drift::Track &t : tracks) {
-        if (t.solo) {
-            anySolo = true;
-            break;
-        }
-    }
+    const bool anySolo = drift::anyTrackSoloed(tracks);
     const QList<drift::AudioBus> &buses = project->audioBuses();
     bool anyBusSolo = false;
     QHash<QString, QVector<float>> busBuffers;
@@ -900,7 +894,7 @@ void AudioMixer::mix(drift::TimeUs timelineStartUs, int sampleCount, int sampleR
     QHash<int, QPair<float, float>> newTrackLevels;
     for (int ti = 0; ti < tracks.size(); ++ti) {
         const drift::Track &track = tracks.at(ti);
-        if (track.muted || track.hidden || (anySolo && !track.solo))
+        if (!drift::trackAudible(track, anySolo))
             continue;
 
         // Adjustment tracks carry no audio of their own: a lane's effects reach the mix through

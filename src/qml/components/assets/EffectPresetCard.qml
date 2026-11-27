@@ -7,6 +7,7 @@ Column {
     id: root
     required property var modelData
     required property real cardSize
+    readonly property bool phone: Theme.touchInput && Theme.compact
     signal applyRequested(string effectId)
     signal deleteRequested(var preset)
     signal searchClearRequested()
@@ -66,10 +67,19 @@ Column {
 
         HoverHandler { id: cardHover }
 
-        ThemedToolTip {
-            text: EditorState.selectedClip >= 0
-                  ? qsTr("%1 — click to apply to the selection, or drag onto a clip").arg(root.modelData.label)
-                  : qsTr("%1 — click to add as an adjustment layer, or drag onto a clip").arg(root.modelData.label)
+        RichToolTip {
+            readonly property string description: root.modelData.description || ""
+            title: root.modelData.label
+            function firstSentence(text) {
+                const end = text.indexOf(". ")
+                const sentence = end >= 0 ? text.slice(0, end + 1) : text
+                return sentence.length > 90 ? sentence.slice(0, 89) + "…" : sentence
+            }
+            body: description.length > 0
+                  ? firstSentence(description)
+                  : (EditorState.selectedClip >= 0 ? qsTr("Click to apply to the selection, or drag onto a clip")
+                                                   : qsTr("Click to add as an adjustment layer, or drag onto a clip"))
+            preview: root.thumb.length > 0 ? EditorState.imageUrl(root.thumb) : ""
             visible: cardHover.hovered && !presetDrag.active
         }
 
@@ -141,15 +151,21 @@ Column {
             label: root.modelData.label
             thumbnail: root.thumb
             glyph: Theme.icons.wand
-            onLiftTapped: cardMenu.popup()
+            liftEnabled: !root.phone
+            onLiftTapped: root.phone ? root.applyRequested(root.modelData.id) : cardMenu.popup()
+            onHeld: if (root.phone) cardMenu.popup()
         }
 
         ThemedContextMenu {
             id: cardMenu
 
             property bool favorited: false
+            property bool editable: false
 
-            onAboutToShow: favorited = EditorState.isAssetFavorite("effects", root.modelData.id)
+            onAboutToShow: {
+                favorited = EditorState.isAssetFavorite("effects", root.modelData.id)
+                editable = Forge.canEdit("effect", root.modelData.id)
+            }
 
             ThemedMenuItem {
                 text: qsTr("Apply to selected clip")
@@ -161,6 +177,12 @@ Column {
                 text: cardMenu.favorited ? qsTr("Remove from favorites") : qsTr("Add to favorites")
                 icon.name: Theme.icons.star
                 onTriggered: EditorState.toggleAssetFavorite("effects", root.modelData.id)
+            }
+            ThemedMenuItem {
+                visible: cardMenu.editable && !ShellBridge.phoneShell
+                text: qsTr("Edit in Forge")
+                icon.name: Theme.icons.pencil
+                onTriggered: Forge.openPackage("effect", root.modelData.id)
             }
             ThemedMenuSeparator { visible: root.modelData.user === true }
             ThemedMenuItem {
@@ -180,6 +202,7 @@ Column {
         }
 
         AssetQuickAddButton {
+            visible: !root.phone
             z: 5
             anchors.right: parent.right
             anchors.bottom: parent.bottom

@@ -129,7 +129,7 @@ QList<Row> build(const QVariantList &entries, const Options &opts)
         const QString g = e.value(QStringLiteral("group")).toString();
         if (!byGroup.contains(g)) {
             byGroup.insert(g, groups.size());
-            groups.append({g, e.value(QStringLiteral("groupLabel")).toString(), {}});
+            groups.append(Group{g, e.value(QStringLiteral("groupLabel")).toString(), {}});
         }
         groups[byGroup.value(g)].items.append(e);
     }

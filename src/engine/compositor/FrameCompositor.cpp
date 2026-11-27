@@ -9,6 +9,9 @@
 #include "engine/compositor/effects/EffectProcessor.h"
 #include "engine/face/tracking/FaceTrack.h"
 #include "engine/compositor/GpuCompositor.h"
+#include "engine/compositor/ScriptedText.h"
+#include "engine/packages/assets/EmojiCatalog.h"
+#include "core/project/sources/GeneratorKinds.h"
 #include "engine/compositor/PreviewStream.h"
 #include "engine/encode/bake/BakeReader.h"
 #include "engine/gpu/effects/GpuEffectExecutor.h"
@@ -19,6 +22,7 @@
 #include "engine/compositor/layers/TransformLayer.h"
 #include "engine/compositor/SourceFrameCrop.h"
 #include "core/text/animation/TextAnimationPreset.h"
+#include "engine/packages/animations/AnimationCatalog.h"
 #include "engine/packages/transitions/TransitionCatalog.h"
 #include "engine/render3d/models/ModelAsset.h"
 #include "engine/render3d/models/ModelClipRenderer.h"
@@ -36,6 +40,7 @@
 #include "core/edit/TimelineOps.h"
 #include "core/project/Transition.h"
 #ifdef DRIFT_WITH_SKIA
+#include "engine/render2d/generators/SkiaGeneratorPainter.h"
 #include "engine/render2d/shapes/SkiaShapePainter.h"
 #include "engine/render2d/text/SkiaTextPainter.h"
 #endif
@@ -54,8 +59,27 @@
 #include <QtMath>
 
 #include <atomic>
+#include <map>
+#include <vector>
 #include <type_traits>
 #include <unordered_map>
+
+// What prepare() last did for each clip's frame history, so the frames a "historyExact" effect
+// needs are decoded only when the GPU ring cannot already hold them. It mirrors ClipHistory's
+// stepping from FrameHistory.cpp (same frame: repeat, the next one or two: advance, else restart),
+// and is only a hint: the ring seeds just the frames it is actually missing.
+struct ExactHistoryTracker
+{
+    struct Entry
+    {
+        qint64 lastFrame = 0;
+        int have = 0;
+        quint64 serial = 0;
+    };
+    QMutex mutex;
+    std::map<std::pair<quint64, quint64>, Entry> entries;
+    std::map<quint64, quint64> serials;
+};
 
 namespace {
 
@@ -112,6 +136,42 @@ struct HistoryScope
     explicit HistoryScope(quint64 scope) : previous(t_historyScope) { t_historyScope = scope; }
     ~HistoryScope() { t_historyScope = previous; }
     quint64 previous;
+};
+
+// The tracker, scope and scrub flag of the prepare() running on this thread.
+thread_local ExactHistoryTracker *t_exactTracker = nullptr;
+thread_local quint64 t_exactSerial = 0;
+thread_local bool t_exactApproximate = false;
+
+struct ExactHistoryScope
+{
+    ExactHistoryScope(ExactHistoryTracker *tracker, quint64 scope, bool approximate)
+        : previousTracker(t_exactTracker), previousSerial(t_exactSerial),
+          previousApproximate(t_exactApproximate)
+    {
+        t_exactTracker = tracker;
+        t_exactApproximate = approximate;
+        if (!tracker)
+            return;
+        QMutexLocker lock(&tracker->mutex);
+        t_exactSerial = ++tracker->serials[scope];
+        // A clip that sat out the last composite lost its ring with it (HistoryComposite).
+        for (auto it = tracker->entries.begin(); it != tracker->entries.end();) {
+            if (it->first.first == scope && it->second.serial + 1 < t_exactSerial)
+                it = tracker->entries.erase(it);
+            else
+                ++it;
+        }
+    }
+    ~ExactHistoryScope()
+    {
+        t_exactTracker = previousTracker;
+        t_exactSerial = previousSerial;
+        t_exactApproximate = previousApproximate;
+    }
+    ExactHistoryTracker *previousTracker;
+    quint64 previousSerial;
+    bool previousApproximate;
 };
 
 // Sequences being rendered on this thread, outermost first.
@@ -555,7 +615,7 @@ void collectActivePaths(const drift::Project *project, drift::TimeUs timelineUs,
             // the decoders must never open.
             if (clip.type == drift::ClipType::Shape || clip.type == drift::ClipType::Vector
                 || clip.type == drift::ClipType::Model3d || clip.type == drift::ClipType::Pdf
-                || clip.type == drift::ClipType::Procedural)
+                || clip.type == drift::ClipType::Procedural || clip.type == drift::ClipType::Generator)
                 continue;
 
             if ((track.type == drift::TrackType::Video || track.type == drift::TrackType::Shape)
@@ -1171,6 +1231,225 @@ void fillGpuLayerPixels(GpuLayer &layer, const drift::Clip &clip, drift::TimeUs 
     layer.source = decodeClipMediaFrame(clip, timelineUs, maxWidth, maxHeight);
 }
 
+int exactHistoryFrames(const QList<drift::Effect> &effects)
+{
+    int frames = 0;
+    for (const drift::Effect &effect : effects) {
+        const EffectPresetEntry *def =
+            effect.enabled && !effect.catalogId.isEmpty() ? effectDefForId(effect.catalogId) : nullptr;
+        if (def && def->isGpu && def->gpu.valid && !def->gpu.sourceUnits)
+            frames = qMax(frames, def->gpu.historyExactFrames);
+    }
+    return frames;
+}
+
+int futureFrameCount(const QList<drift::Effect> &effects)
+{
+    int frames = 0;
+    for (const drift::Effect &effect : effects) {
+        const EffectPresetEntry *def =
+            effect.enabled && !effect.catalogId.isEmpty() ? effectDefForId(effect.catalogId) : nullptr;
+        if (def && def->isGpu && def->gpu.valid && !def->gpu.sourceUnits)
+            frames = qMax(frames, def->gpu.futureFrames);
+    }
+    return frames;
+}
+
+// The most source frames either side that the "historyUnits": "source" effects in `effects` ask for.
+void sourceNeighbourFrames(const QList<drift::Effect> &effects, int *past, int *future)
+{
+    for (const drift::Effect &effect : effects) {
+        const EffectPresetEntry *def =
+            effect.enabled && !effect.catalogId.isEmpty() ? effectDefForId(effect.catalogId) : nullptr;
+        if (def && def->isGpu && def->gpu.valid && def->gpu.sourceUnits) {
+            *past = qMax(*past, def->gpu.historyExactFrames);
+            *future = qMax(*future, def->gpu.futureFrames);
+        }
+    }
+}
+
+// The clip's own source frames `first`..`last` project frames from timelineUs (negative is earlier),
+// ascending. Times go through resolveVideoRead, so speed, ramps and reverse give the temporal
+// neighbour. A frame that failed to decode is left invalid.
+std::vector<PreviewVideoFrame> readNeighbourFrames(const drift::Clip &clip, drift::TimeUs timelineUs, int rate,
+                                                   int first, int last, int maxWidth, int maxHeight)
+{
+    std::vector<PreviewVideoFrame> frames;
+    for (int k = first; k <= last; ++k) {
+        const drift::TimeUs at = timelineUs + std::llround(double(k) * 1'000'000.0 / rate);
+        const drift::VideoRead read = drift::resolveVideoRead(clip, at, t_allowProxies);
+        frames.push_back(ClipReaderPool::instance().readPreviewVideoFrame(
+            read.path, streamIdFor(clip.id), read.sourceUs, qCeil(maxWidth / clip.sourceFrame.width()),
+            qCeil(maxHeight / clip.sourceFrame.height()), clip.rotationCorrection));
+    }
+    return frames;
+}
+
+// The source frames before this one that a "historyExact" effect asked for (`want` of them),
+// decoded from the clip's own reader, oldest first, only when the GPU ring cannot already hold
+// them: after a seek, on a paused frame the ring never saw, or at the first frame of an export.
+// Skipped while scrubbing, and for frames that fall before the clip starts.
+void fillGpuLayerPast(GpuLayer &layer, const drift::Clip &clip, drift::TimeUs timelineUs, int fps,
+                      int want, int maxWidth, int maxHeight)
+{
+    if (want <= 0 || !t_exactTracker || t_historyScope == 0)
+        return;
+    const drift::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
+    const int rate = fps > 0 ? fps : 30;
+    const qint64 frame = std::llround(double(clipTimeUs) * rate / 1'000'000.0);
+
+    int reachable = 0;
+    for (int k = 1; k <= want; ++k) {
+        if (timelineUs - std::llround(double(k) * 1'000'000.0 / rate) >= clip.timelineStart)
+            reachable = k;
+    }
+
+    bool fetch = false;
+    {
+        QMutexLocker lock(&t_exactTracker->mutex);
+        ExactHistoryTracker::Entry &entry = t_exactTracker->entries[{t_historyScope, streamIdFor(clip.id)}];
+        int have = 0;
+        if (entry.serial + 1 == t_exactSerial) {
+            const qint64 gap = frame - entry.lastFrame;
+            if (gap == 0)
+                have = entry.have;
+            else if (gap >= 1 && gap <= 2)
+                have = entry.have + 1;
+        }
+        have = qMin(have, reachable);
+        fetch = have < reachable && !t_exactApproximate;
+        entry.lastFrame = frame;
+        entry.serial = t_exactSerial;
+        entry.have = have;
+    }
+    if (!fetch)
+        return;
+
+    std::vector<PreviewVideoFrame> frames =
+        readNeighbourFrames(clip, timelineUs, rate, -reachable, -1, maxWidth, maxHeight);
+    // The newest frames matter most: drop from the oldest end at the first one that failed.
+    int usable = 0;
+    while (usable < int(frames.size()) && frames[frames.size() - 1 - usable].isValid())
+        ++usable;
+    frames.erase(frames.begin(), frames.end() - usable);
+    {
+        QMutexLocker lock(&t_exactTracker->mutex);
+        t_exactTracker->entries[{t_historyScope, streamIdFor(clip.id)}].have = usable;
+    }
+    layer.pastVideo = std::move(frames);
+}
+
+// The source frames after this one that a "future" effect asked for (`want` of them), nearest
+// first, always decoded (the current frame was just read, so these are forward decodes, and during
+// playback the next composite finds the nearest in the reader's cache). Fewer when the clip ends
+// first or a decode fails; none while scrubbing.
+void fillGpuLayerFuture(GpuLayer &layer, const drift::Clip &clip, drift::TimeUs timelineUs, int fps, int want,
+                        int maxWidth, int maxHeight)
+{
+    if (want <= 0 || t_exactApproximate)
+        return;
+    const int rate = fps > 0 ? fps : 30;
+    int reachable = 0;
+    for (int k = 1; k <= want; ++k) {
+        if (timelineUs + std::llround(double(k) * 1'000'000.0 / rate) < clip.timelineEnd())
+            reachable = k;
+    }
+    if (reachable == 0)
+        return;
+    std::vector<PreviewVideoFrame> frames =
+        readNeighbourFrames(clip, timelineUs, rate, 1, reachable, maxWidth, maxHeight);
+    int usable = 0;
+    while (usable < int(frames.size()) && frames[usable].isValid())
+        ++usable;
+    frames.resize(usable);
+    layer.futureVideo = std::move(frames);
+}
+
+// The media's own frames around the one `layer.video` shows, for "historyUnits": "source" effects.
+// They are not taken from the history ring, which records one frame per project frame: that is
+// the wrong unit exactly where this matters (120 fps footage on a 30 fps timeline skips three of
+// every four frames, 24 fps footage on a 60 fps one repeats them). The frames come from the clip's
+// own reader, stepped from the shown frame's pts by the stream's frame duration, and are cache hits
+// during playback. Times go through the same direction logic as resolveVideoRead: a reverse proxy
+// plays forwards in its own time, a reversed clip without one plays backwards in the source's.
+//
+// How many are decoded is capped by the footage: taps further than one project frame of source
+// time away serve no time-local effect, so 30 fps footage on a 30 fps timeline decodes one each
+// side even for a package that asks for four. Also records the media's fps, the phase between the
+// shown frame and the next one, and how many source frames a project frame advances.
+void fillGpuLayerSourceNeighbours(GpuLayer &layer, const drift::Clip &clip, drift::TimeUs timelineUs, int fps,
+                                  int wantPast, int wantFuture, int maxWidth, int maxHeight)
+{
+    if ((wantPast <= 0 && wantFuture <= 0) || !layer.video.isValid() || layer.video.ptsUs < 0
+        || layer.video.frameDurUs <= 0)
+        return;
+    const drift::TimeUs dur = layer.video.frameDurUs;
+    const drift::TimeUs projectDur = std::llround(1'000'000.0 / (fps > 0 ? fps : 30));
+    const drift::VideoRead read = drift::resolveVideoRead(clip, timelineUs, t_allowProxies);
+    const bool backwards = clip.reverse && read.path == clip.path;
+
+    double sinceFrame = double(read.sourceUs - layer.video.ptsUs) / double(dur);
+    // The reader's cache answers with the nearest frame, so once a neighbour is cached the shown frame can be
+    // the one after the instant. The phase is measured from the frame at or before it: step back to that one,
+    // or the same instant would interpolate from the other side depending on what was decoded before.
+    if (!backwards && !t_exactApproximate && sinceFrame < -0.02) {
+        PreviewVideoFrame earlier = ClipReaderPool::instance().readPreviewVideoFrame(
+            read.path, streamIdFor(clip.id), layer.video.ptsUs - dur + dur / 8,
+            qCeil(maxWidth / clip.sourceFrame.width()), qCeil(maxHeight / clip.sourceFrame.height()),
+            clip.rotationCorrection);
+        if (earlier.isValid() && earlier.ptsUs >= 0 && earlier.ptsUs <= read.sourceUs) {
+            layer.video = std::move(earlier);
+            sinceFrame = double(read.sourceUs - layer.video.ptsUs) / double(dur);
+        }
+    }
+    layer.sourceFps = float(1'000'000.0 / double(dur));
+    layer.sourcePhase = float(qBound(0.0, backwards ? 1.0 - sinceFrame : sinceFrame, 1.0));
+    const drift::TimeUs here = clip.timelineToSourceUs(timelineUs);
+    drift::TimeUs moved = qAbs(clip.timelineToSourceUs(timelineUs + projectDur) - here);
+    if (moved == 0)
+        moved = qAbs(here - clip.timelineToSourceUs(timelineUs - projectDur));
+    layer.sourceStep = float(qBound(0.0, double(moved) / double(dur), 32.0));
+
+    if (t_exactApproximate)
+        return;
+    const int perProjectFrame = qMax(1, int(std::ceil(double(layer.sourceStep) - 0.05)));
+    wantPast = qMin(wantPast, perProjectFrame);
+    wantFuture = qMin(wantFuture, perProjectFrame);
+
+    const drift::TimeUs realHere = clip.timelineToSourceUs(timelineUs);
+    const int playback = clip.reverse ? -1 : 1;
+    const auto reachable = [&](int k) {
+        const drift::TimeUs at = realHere + playback * k * dur;
+        return at >= qMax<drift::TimeUs>(clip.srcIn, 0) && (clip.srcOut <= clip.srcIn || at < clip.srcOut);
+    };
+    const auto tap = [&](int k) {
+        const drift::TimeUs at = layer.video.ptsUs + (backwards ? -k : k) * dur + dur / 8;
+        return ClipReaderPool::instance().readPreviewVideoFrame(
+            read.path, streamIdFor(clip.id), at, qCeil(maxWidth / clip.sourceFrame.width()),
+            qCeil(maxHeight / clip.sourceFrame.height()), clip.rotationCorrection);
+    };
+
+    std::vector<PreviewVideoFrame> past;
+    for (int k = 1; k <= wantPast && reachable(-k); ++k) {
+        PreviewVideoFrame frame = tap(-k);
+        if (!frame.isValid())
+            break;
+        past.push_back(std::move(frame));
+    }
+    std::vector<PreviewVideoFrame> future;
+    for (int k = 1; k <= wantFuture && reachable(k); ++k) {
+        PreviewVideoFrame frame = tap(k);
+        if (!frame.isValid())
+            break;
+        future.push_back(std::move(frame));
+    }
+    layer.neighbourPast = int(past.size());
+    layer.neighbourFuture = int(future.size());
+    layer.neighbourVideo.assign(past.rbegin(), past.rend());
+    for (PreviewVideoFrame &frame : future)
+        layer.neighbourVideo.push_back(std::move(frame));
+}
+
 // The word the playhead sits on, for styles whose accent rule follows the speech. -1 for every
 // other rule, which keeps their raster time-independent and therefore cached across the clip.
 int karaokeWordIndex(const drift::Clip &clip, drift::TimeUs timelineUs)
@@ -1464,9 +1743,12 @@ GpuLayer buildGpuLayer(const drift::Project &project, const drift::Clip &clip,
         drift::textanim::BlockProps block;
         // Being edited, the text is what the editor holds, empty or not: the clip name is only
         // the stand-in for a clip that has never had text.
+        // A script replaces the text outright; one that fails shows nothing, and the inspector says why.
+        const bool scripted = !clip.textScript.isEmpty() && !editingText;
+        const QString shown = scripted ? drift::scriptedTextAt(project, clip, timelineUs).text
+                                       : (editingText || !clip.textContent.isEmpty() ? clip.textContent : clip.name);
         QRectF rasterRect =
-            fillTextLayer(layer, textClip->textStyle,
-                          editingText || !clip.textContent.isEmpty() ? clip.textContent : clip.name, layoutRect,
+            fillTextLayer(layer, textClip->textStyle, shown, layoutRect,
                           contentRenderScale, karaokeWordIndex(clip, timelineUs), clip.timelineStart,
                           clip.timelineDuration, timelineUs, projectFps, &block, editingText);
         if (editingText && !layer.hasPixels()) {
@@ -1476,6 +1758,13 @@ GpuLayer buildGpuLayer(const drift::Project &project, const drift::Clip &clip,
         }
         layer.effects = resolvedClipEffects(clip, clipTimeUs, &project);
         destRect = rasterRect;
+        if (!editingText && layer.hasPixels() && textClip->textStyle.scroll != drift::TextScroll::None) {
+            const QPointF scroll = drift::textScrollOffset(
+                textClip->textStyle, rasterRect, QSizeF(projectWidth * renderScale, projectHeight * renderScale),
+                clipTimeUs, clip.timelineDuration);
+            block.dx += scroll.x();
+            block.dy += scroll.y();
+        }
         applyTextBlockMotion(layer, block, &destRect, &opacity, &rotation);
     } else if (clip.type == drift::ClipType::Subtitle) {
         const drift::TimeUs localUs = timelineUs - clip.timelineStart;
@@ -1512,6 +1801,30 @@ GpuLayer buildGpuLayer(const drift::Project &project, const drift::Clip &clip,
         if (!warned) {
             warned = true;
             qWarning("shape clips need DRIFT_WITH_SKIA; nothing drawn");
+        }
+#endif
+        layer.effects = resolvedClipEffects(clip, clipTimeUs, &project);
+    } else if (clip.type == drift::ClipType::Generator) {
+#ifdef DRIFT_WITH_SKIA
+        drift::skia::GeneratorPaintRequest request;
+        request.source = clip.procedural;
+        request.resolved = clip.procedural.isAnimated() ? clip.procedural.resolvedAt(clipTimeUs) : clip.procedural;
+        request.clipId = clip.id;
+        request.layoutRect = layoutRect;
+        request.renderScale = contentRenderScale;
+        request.clipTimeUs = clipTimeUs;
+        request.frameRate = projectFps;
+        request.textStyle = clip.textStyle.isAnimated() ? clip.textStyle.resolvedAt(clipTimeUs) : clip.textStyle;
+        QString sprite = request.resolved.parameters.value(QStringLiteral("spriteImage")).toString();
+        if (!sprite.isEmpty() && !QFileInfo::exists(sprite))
+            sprite = emojiImagePath(sprite);
+        request.spriteImagePath = sprite;
+        layer.vector = drift::skia::makeGeneratorPainter(request).painter;
+#else
+        static bool warned = false;
+        if (!warned) {
+            warned = true;
+            qWarning("generator clips need DRIFT_WITH_SKIA; nothing drawn");
         }
 #endif
         layer.effects = resolvedClipEffects(clip, clipTimeUs, &project);
@@ -1588,8 +1901,28 @@ GpuLayer buildGpuLayer(const drift::Project &project, const drift::Clip &clip,
         // Bounded by the canvas, not the layout rect — see decodeClipMediaFrame.
         const QSize bound =
             decodeBoundForClip(clip, projectWidth, projectHeight, renderScale, canvasWidth, canvasHeight);
+        // A lone cutout swaps in its own foreground, which the ring records instead of this frame.
+        const bool cutout = laneMasks.size() == 1 && !laneMasks.first().mask.mediaFgrPath.isEmpty()
+                            && !laneMasks.first().mask.invert;
+        const bool neighbours = clip.type == drift::ClipType::Video && !cutout;
+        const QList<drift::Effect> clipEffects = resolvedClipEffects(clip, clipTimeUs);
+        if (neighbours)
+            fillGpuLayerPast(layer, clip, timelineUs, projectFps,
+                             qMax(exactHistoryFrames(clipEffects), exactHistoryFrames(laneEffects)),
+                             bound.width(), bound.height());
         fillGpuLayerPixels(layer, clip, timelineUs, bound.width(), bound.height());
-        layer.effects = resolvedClipEffects(clip, clipTimeUs, &project);
+        if (neighbours && layer.video.isValid()) {
+            fillGpuLayerFuture(layer, clip, timelineUs, projectFps,
+                               qMax(futureFrameCount(clipEffects), futureFrameCount(laneEffects)),
+                               bound.width(), bound.height());
+            int sourcePast = 0;
+            int sourceFuture = 0;
+            sourceNeighbourFrames(clipEffects, &sourcePast, &sourceFuture);
+            sourceNeighbourFrames(laneEffects, &sourcePast, &sourceFuture);
+            fillGpuLayerSourceNeighbours(layer, clip, timelineUs, projectFps, sourcePast, sourceFuture,
+                                         bound.width(), bound.height());
+        }
+        layer.effects = clipEffects;
     }
 
     if (!layer.hasPixels())
@@ -1627,6 +1960,24 @@ GpuLayer buildGpuLayer(const drift::Project &project, const drift::Clip &clip,
     layer.effects.append(laneEffects);
     layer.faceSlots = faceSlotsForClip(clip, layer.effects, timelineUs);
     layer.depth = depthFrameForClip(clip, layer.effects, timelineUs);
+    for (const bool isIn : {true, false}) {
+        const drift::ClipAnimation &anim = isIn ? clip.animIn : clip.animOut;
+        const AnimationPresetEntry *def = animationDefForId(anim.kindId);
+        if (!def || !def->gpu.valid)
+            continue;
+        const std::optional<double> progress = drift::clipAnimationProgress(
+            clip.timelineStart, clip.timelineDuration, anim, isIn, timelineUs);
+        if (!progress)
+            continue;
+        GpuShaderAnim shader;
+        shader.cacheKey = QLatin1String(kAnimationCacheKeyPrefix) + def->meta.id;
+        shader.gpu = &def->gpu;
+        shader.params = resolvedAnimationParameters(anim.parameters, *def);
+        shader.params.insert(QStringLiteral("u_direction"), isIn ? 0.0 : 1.0);
+        shader.progress = *progress;
+        shader.timeUs = clipTimeUs;
+        layer.shaderAnims.append(shader);
+    }
     layer.valid = true;
     return layer;
 }
@@ -2278,6 +2629,11 @@ FrameCompositor::TextEditGeometry FrameCompositor::textEditGeometry(const drift:
     return out;
 }
 
+std::shared_ptr<ExactHistoryTracker> FrameCompositor::makeExactHistory()
+{
+    return std::make_shared<ExactHistoryTracker>();
+}
+
 quint64 FrameCompositor::nextHistoryId()
 {
     static std::atomic<quint64> counter{0};
@@ -2361,6 +2717,7 @@ bool FrameCompositor::prepare(drift::TimeUs timelineUs, const RenderOptions &opt
     // each step their clips' frame histories on their own, so none disturbs another.
     const quint64 historyScope = (m_historyId << 4) | quint64(options.stream & 0xF);
     const HistoryScope historyScopeGuard(historyScope);
+    const ExactHistoryScope exactHistoryGuard(m_exactHistory.get(), historyScope, options.approximateSeek);
     // Covers the warm below and every read buildGpuScene makes, nested timelines included.
     const ClipReaderPool::ApproximateSeekScope approximate(options.approximateSeek);
     const NestedViewsScope nestedViews(m_nestedViews);

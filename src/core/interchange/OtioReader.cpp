@@ -5,6 +5,7 @@
 #include "core/project/Project.h"
 #include "core/project/Track.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -14,6 +15,7 @@
 #include <QUrl>
 #include <QUuid>
 #include <QtMath>
+#include <algorithm>
 
 namespace drift::otio {
 
@@ -51,6 +53,9 @@ QString resolveMediaPath(const QString &path, const QString &sourceDir)
         return norm;
 
     if (!sourceDir.isEmpty()) {
+        const QString relative = QDir(sourceDir).filePath(norm);
+        if (QFileInfo(norm).isRelative() && QFileInfo::exists(relative))
+            return QDir::cleanPath(relative);
         const QString candidate = QDir(sourceDir).filePath(QFileInfo(norm).fileName());
         if (QFileInfo::exists(candidate))
             return candidate;
@@ -66,6 +71,14 @@ TimeUs parseRationalTime(const QJsonObject &obj, double fallbackRate)
     if (rate <= 0.0)
         rate = fallbackRate > 0.0 ? fallbackRate : 24.0;
     return static_cast<TimeUs>(llround((val / rate) * 1000000.0));
+}
+
+const QStringList &audioExtensions()
+{
+    static const QStringList exts = {QStringLiteral("mp3"), QStringLiteral("wav"), QStringLiteral("aac"),
+                                     QStringLiteral("m4a"), QStringLiteral("flac"), QStringLiteral("ogg"),
+                                     QStringLiteral("opus"), QStringLiteral("aif"), QStringLiteral("aiff")};
+    return exts;
 }
 
 bool parseTimeRange(const QJsonObject &obj, TimeUs *outStartUs, TimeUs *outDurUs, double fallbackRate)
@@ -111,7 +124,7 @@ bool isOtioData(const QByteArray &data)
             || text.contains(QLatin1String("Track"), Qt::CaseInsensitive));
 }
 
-std::optional<Project> readProject(const QString &filePath, QString *error)
+std::optional<Project> readProject(const QString &filePath, QString *error, drift::interchange::InterchangeReport *report)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -122,10 +135,11 @@ std::optional<Project> readProject(const QString &filePath, QString *error)
 
     const QByteArray data = file.readAll();
     const QString sourceDir = QFileInfo(filePath).absolutePath();
-    return readProjectData(data, sourceDir, error);
+    return readProjectData(data, sourceDir, error, report);
 }
 
-std::optional<Project> readProjectData(const QByteArray &data, const QString &sourceDir, QString *error)
+std::optional<Project> readProjectData(const QByteArray &data, const QString &sourceDir, QString *error,
+                                      drift::interchange::InterchangeReport *report)
 {
     if (data.isEmpty()) {
         if (error)
@@ -149,6 +163,14 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
             *error = QObject::tr("Not an OpenTimelineIO Timeline or Stack (schema: %1)").arg(schema);
         return std::nullopt;
     }
+
+    using Severity = drift::interchange::InterchangeIssue::Severity;
+    const auto note = [report](Severity severity, const char *category, const QString &message,
+                               const QString &itemName = {}, TimeUs at = -1) {
+        if (report)
+            report->add(severity, QString::fromLatin1(category), message, itemName, at);
+    };
+    const auto tr = [](const char *text) { return QCoreApplication::translate("Interchange", text); };
 
     Project project;
 
@@ -182,6 +204,20 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
         }
     }
 
+    bool fpsFound = globalStart.value(QStringLiteral("rate")).toDouble() > 0.0;
+    bool sizeFound = false;
+    for (auto it = meta.constBegin(); it != meta.constEnd(); ++it) {
+        if (!it.value().isObject())
+            continue;
+        const QJsonObject sub = it.value().toObject();
+        sizeFound = sizeFound || sub.value(QStringLiteral("width")).toInt() > 0;
+        fpsFound = fpsFound || sub.value(QStringLiteral("rate")).toDouble() > 0.0;
+    }
+    if (!fpsFound)
+        note(Severity::Degraded, "format", tr("The file does not state a frame rate; 24 fps was assumed."));
+    if (!sizeFound)
+        note(Severity::Degraded, "format", tr("The file does not state a resolution; 1920x1080 was assumed."));
+
     project.setResolution(width, height);
     project.setFpsFromDouble(projectFps);
 
@@ -200,6 +236,8 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
         Bookmark bm;
         bm.timeUs = mStartUs;
         bm.label = mName.isEmpty() ? QStringLiteral("Marker") : mName;
+        if (!mColor.isEmpty())
+            note(Severity::Degraded, "marker", tr("Marker colours are not kept."), bm.label, mStartUs);
         project.bookmarks().append(bm);
     }
 
@@ -212,12 +250,8 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
         trackArray = root.value(QStringLiteral("children")).toArray();
     }
 
-    if (!trackArray.isEmpty()) {
-        project.tracks().clear();
-    }
-
     QMap<QString, QString> mediaUrlToAssetId;
-
+    QList<Track> builtTracks;
     for (const QJsonValue &tVal : trackArray) {
         if (!tVal.isObject())
             continue;
@@ -230,7 +264,12 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
         Track track;
         track.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
         track.type = trackType;
-        track.name = tName.isEmpty() ? (isAudio ? QStringLiteral("Audio Track") : QStringLiteral("Video Track")) : tName;
+        track.name = tName;
+        track.hidden = !isAudio && !tObj.value(QStringLiteral("enabled")).toBool(true);
+        track.muted = isAudio && !tObj.value(QStringLiteral("enabled")).toBool(true);
+        for (const QJsonValue &eVal : tObj.value(QStringLiteral("effects")).toArray())
+            note(Severity::Dropped, "effect", tr("Track effects are not imported."),
+                 eVal.toObject().value(QStringLiteral("name")).toString());
 
         const QJsonArray children = tObj.value(QStringLiteral("children")).toArray();
         TimeUs currentTimelineUs = 0;
@@ -242,73 +281,118 @@ std::optional<Project> readProjectData(const QByteArray &data, const QString &so
             const QJsonObject cObj = cVal.toObject();
             const QString itemSchema = cObj.value(QStringLiteral("OTIO_SCHEMA")).toString();
 
-            // Gap
-            if (itemSchema.startsWith(QLatin1String("Gap"), Qt::CaseInsensitive)) {
-                TimeUs gapDurUs = 0;
-                const QJsonObject rangeObj = cObj.value(QStringLiteral("source_range")).toObject();
-                parseTimeRange(rangeObj, nullptr, &gapDurUs, projectFps);
-                currentTimelineUs += gapDurUs;
+            // Transitions overlap their neighbours rather than taking track time.
+            if (itemSchema.startsWith(QLatin1String("Transition"), Qt::CaseInsensitive)) {
+                note(Severity::Dropped, "transition", tr("Transitions are not imported."),
+                     cObj.value(QStringLiteral("name")).toString(), currentTimelineUs);
                 continue;
             }
 
-            // Clip
-            if (itemSchema.startsWith(QLatin1String("Clip"), Qt::CaseInsensitive)) {
-                const QString clipName = cObj.value(QStringLiteral("name")).toString();
+            TimeUs srcInUs = 0;
+            TimeUs durUs = 0;
+            const QJsonObject rangeObj = cObj.value(QStringLiteral("source_range")).toObject();
+            if (!rangeObj.isEmpty())
+                parseTimeRange(rangeObj, &srcInUs, &durUs, projectFps);
 
-                TimeUs srcInUs = 0;
-                TimeUs durUs = 0;
-                const QJsonObject rangeObj = cObj.value(QStringLiteral("source_range")).toObject();
-                if (!rangeObj.isEmpty()) {
-                    parseTimeRange(rangeObj, &srcInUs, &durUs, projectFps);
-                }
-
-                if (durUs <= 0)
-                    durUs = 5000000LL; // default 5.0s
-
-                Clip clip;
-                clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-                clip.name = clipName.isEmpty() ? QStringLiteral("Clip") : clipName;
-                clip.timelineStart = currentTimelineUs;
-                clip.timelineDuration = durUs;
-                clip.srcIn = srcInUs;
-                clip.srcOut = srcInUs + durUs;
-                clip.type = isAudio ? ClipType::Audio : ClipType::Video;
-
-                // Media Reference
-                const QJsonObject mRef = cObj.value(QStringLiteral("media_reference")).toObject();
-                QString targetUrl = mRef.value(QStringLiteral("target_url")).toString();
-                if (targetUrl.isEmpty())
-                    targetUrl = mRef.value(QStringLiteral("name")).toString();
-
-                if (!targetUrl.isEmpty()) {
-                    const QString resolvedPath = resolveMediaPath(targetUrl, sourceDir);
-
-                    QString assetId;
-                    if (mediaUrlToAssetId.contains(resolvedPath)) {
-                        assetId = mediaUrlToAssetId.value(resolvedPath);
-                    } else {
-                        assetId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-                        MediaAsset asset;
-                        asset.id = assetId;
-                        asset.name = QFileInfo(resolvedPath).fileName();
-                        if (asset.name.isEmpty())
-                            asset.name = clip.name;
-                        asset.path = resolvedPath;
-                        asset.kind = isAudio ? MediaKind::Audio : MediaKind::Video;
-                        project.addAsset(asset);
-                        mediaUrlToAssetId.insert(resolvedPath, assetId);
-                    }
-
-                    clip.assetId = assetId;
-                }
-
-                track.clips.append(clip);
+            if (itemSchema.startsWith(QLatin1String("Gap"), Qt::CaseInsensitive)) {
                 currentTimelineUs += durUs;
+                continue;
             }
+
+            // Nested stacks/tracks: keep their time so the rest of the track stays in place.
+            if (!itemSchema.startsWith(QLatin1String("Clip"), Qt::CaseInsensitive)) {
+                note(Severity::Dropped, "nested", tr("Nested stacks and tracks are left as a gap."),
+                     cObj.value(QStringLiteral("name")).toString(), currentTimelineUs);
+                currentTimelineUs += durUs;
+                continue;
+            }
+
+            // OTIO 0.15+ keeps several references keyed by name; older files have one.
+            QJsonObject mRef = cObj.value(QStringLiteral("media_reference")).toObject();
+            if (mRef.isEmpty()) {
+                const QJsonObject refs = cObj.value(QStringLiteral("media_references")).toObject();
+                QString key = cObj.value(QStringLiteral("active_media_reference_key")).toString();
+                if (key.isEmpty())
+                    key = QStringLiteral("DEFAULT_MEDIA");
+                mRef = refs.value(key).toObject();
+            }
+
+            if (rangeObj.isEmpty())
+                parseTimeRange(mRef.value(QStringLiteral("available_range")).toObject(), &srcInUs, &durUs, projectFps);
+            if (durUs <= 0)
+                durUs = 5000000LL; // default 5.0s
+
+            const QString targetUrl = mRef.value(QStringLiteral("target_url")).toString();
+            // Missing/generator references (solid colours, offline media) have nothing to point at.
+            if (targetUrl.isEmpty()) {
+                const QString refSchema = mRef.value(QStringLiteral("OTIO_SCHEMA")).toString();
+                const bool generator = refSchema.startsWith(QLatin1String("GeneratorReference"));
+                note(Severity::Dropped, generator ? "generator" : "media",
+                     generator ? tr("Generated media (such as solid colours) is left as a gap.")
+                               : tr("The clip has no media file and is left as a gap."),
+                     cObj.value(QStringLiteral("name")).toString(), currentTimelineUs);
+                currentTimelineUs += durUs;
+                continue;
+            }
+
+            double speed = 1.0;
+            for (const QJsonValue &eVal : cObj.value(QStringLiteral("effects")).toArray()) {
+                const QJsonObject eObj = eVal.toObject();
+                if (eObj.value(QStringLiteral("OTIO_SCHEMA")).toString().startsWith(QLatin1String("LinearTimeWarp"))
+                    && eObj.value(QStringLiteral("time_scalar")).toDouble() != 0.0)
+                    speed = eObj.value(QStringLiteral("time_scalar")).toDouble();
+                else
+                    note(Severity::Dropped, "effect", tr("Effects other than a constant speed change are not imported."),
+                         eObj.value(QStringLiteral("name")).toString().isEmpty()
+                             ? eObj.value(QStringLiteral("effect_name")).toString()
+                             : eObj.value(QStringLiteral("name")).toString(),
+                         currentTimelineUs);
+            }
+
+            const QString clipName = cObj.value(QStringLiteral("name")).toString();
+            const QString resolvedPath = resolveMediaPath(targetUrl, sourceDir);
+            const QString ext = QFileInfo(resolvedPath).suffix().toLower();
+            const bool imageFile = imageExtensions().contains(ext);
+            const bool audioFile = audioExtensions().contains(ext);
+
+            // OTIO durations are in track time; a time warp only changes how much source plays.
+            Clip clip;
+            clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+            clip.name = clipName.isEmpty() ? QFileInfo(resolvedPath).fileName() : clipName;
+            clip.timelineStart = currentTimelineUs;
+            clip.timelineDuration = durUs;
+            clip.srcIn = srcInUs;
+            clip.srcOut = srcInUs + static_cast<TimeUs>(llround(static_cast<double>(durUs) * qAbs(speed)));
+            clip.speed = qAbs(speed);
+            clip.reverse = speed < 0.0;
+            clip.type = (isAudio || audioFile) ? ClipType::Audio : (imageFile ? ClipType::Image : ClipType::Video);
+            clip.path = resolvedPath;
+
+            QString assetId = mediaUrlToAssetId.value(resolvedPath);
+            if (assetId.isEmpty()) {
+                MediaAsset asset;
+                asset.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                asset.name = QFileInfo(resolvedPath).fileName();
+                asset.path = resolvedPath;
+                // By file, not by track: a video file's sound sits on an audio track.
+                asset.kind = audioFile ? MediaKind::Audio : (imageFile ? MediaKind::Image : MediaKind::Video);
+                assetId = project.addAsset(asset);
+                mediaUrlToAssetId.insert(resolvedPath, assetId);
+            }
+            clip.assetId = assetId;
+
+            track.clips.append(clip);
+            currentTimelineUs += durUs;
         }
 
-        project.tracks().append(track);
+        builtTracks.append(track);
     }
+
+    // OTIO stacks list tracks bottom to top; Drift's track 0 is the top, with audio below all video.
+    std::reverse(builtTracks.begin(), builtTracks.end());
+    std::stable_partition(builtTracks.begin(), builtTracks.end(),
+                          [](const Track &t) { return t.type != TrackType::Audio; });
+    project.tracks() = builtTracks;
 
     if (project.tracks().isEmpty()) {
         project.resetToDefaultTimeline();

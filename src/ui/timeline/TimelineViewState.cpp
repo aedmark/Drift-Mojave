@@ -87,6 +87,20 @@ void TimelineViewState::setStyle(const QVariantMap &style)
     color("disabledScrim", m_style.disabledScrim);
     color("disabledStripe", m_style.disabledStripe);
     color("gapOutline", m_style.gapOutline);
+    color("keyframeMarker", m_style.keyframeMarker);
+    color("keyframeMarkerRim", m_style.keyframeMarkerRim);
+    color("waveformBarBackground", m_style.waveformBarBackground);
+    color("fadeFill", m_style.fadeFill);
+    color("fadeStroke", m_style.fadeStroke);
+    real("disabledChipForegroundOpacity", m_style.disabledChipForegroundOpacity);
+    real("clipEdgeOpacity", m_style.clipEdgeOpacity);
+    real("effectDropTintOpacity", m_style.effectDropTintOpacity);
+    real("rippleTintOpacity", m_style.rippleTintOpacity);
+    real("rippleOutlineOpacity", m_style.rippleOutlineOpacity);
+    real("waveformDividerOpacity", m_style.waveformDividerOpacity);
+    real("clipEdgeWidth", m_style.clipEdgeWidth);
+    real("rippleOutlineWidth", m_style.rippleOutlineWidth);
+    real("fadeStrokeWidth", m_style.fadeStrokeWidth);
     text("fontFamily", m_style.fontFamily);
     real("fontSizeTiny", m_style.fontSizeTiny);
     real("fontSizeXs", m_style.fontSizeXs);
@@ -111,6 +125,7 @@ void TimelineViewState::setStyle(const QVariantMap &style)
     text("vfrTooltip", m_style.vfrTooltip);
     text("missingTooltip", m_style.missingTooltip);
     text("spanToolTip", m_style.spanToolTip);
+    text("keyframeToolTip", m_style.keyframeToolTip);
     emit styleChanged();
 }
 

@@ -63,13 +63,16 @@ extern "C" {
 
 namespace {
 
-// Matches what FrameCompositor and AudioMixer render: hidden tracks draw nothing, muted audio is silent.
-bool outputsToExport(const drift::Track &track)
+// Matches what FrameCompositor and AudioMixer render: hidden tracks draw nothing, and an audio
+// track the mixer drops (muted, or silenced by another track's solo) adds no sound.
+bool outputsToExport(const drift::Track &track, bool anySolo)
 {
     if (track.hidden)
         return false;
-    return !(track.type == drift::TrackType::Audio && track.muted);
+    return !(track.type == drift::TrackType::Audio && !drift::trackAudible(track, anySolo));
 }
+
+} // namespace
 
 void resolveExportRange(const drift::Project &project, const ExportSettings &settings,
                         drift::TimeUs *startUsOut, drift::TimeUs *endUsOut, QString *errorOut)
@@ -87,8 +90,9 @@ void resolveExportRange(const drift::Project &project, const ExportSettings &set
         drift::TimeUs visibleStart = 0;
         drift::TimeUs visibleEnd = 0;
         drift::TimeUs hiddenStart = 0;
+        const bool anySolo = drift::anyTrackSoloed(project.tracks());
         for (const drift::Track &track : project.tracks()) {
-            const bool trackVisible = outputsToExport(track);
+            const bool trackVisible = outputsToExport(track, anySolo);
             for (const drift::Clip &clip : track.clips) {
                 if (trackVisible && clip.enabled) {
                     visibleStart = anyVisible ? qMin(visibleStart, clip.timelineStart) : clip.timelineStart;
@@ -134,7 +138,14 @@ void resolveExportRange(const drift::Project &project, const ExportSettings &set
     *endUsOut = endUs;
 }
 
-} // namespace
+drift::TimeUs renderedDurationUs(const drift::Project &project, const ExportSettings &settings)
+{
+    drift::TimeUs startUs = 0;
+    drift::TimeUs endUs = 0;
+    QString error;
+    resolveExportRange(project, settings, &startUs, &endUs, &error);
+    return error.isEmpty() && endUs > startUs ? endUs - startUs : project.durationUs();
+}
 
 namespace {
 
@@ -1765,6 +1776,14 @@ const QList<ExportScalePreset> &Exporter::scalePresets()
     return kPresets;
 }
 
+bool Exporter::rendersAboveProjectSize(int projW, int projH, int targetHeight)
+{
+    int outW = 0;
+    int outH = 0;
+    scaleSize(projW, projH, targetHeight, outW, outH);
+    return outH > projH && GpuCompositor::maxCanvasDimension() >= qMax(outW, outH);
+}
+
 const ExportScalePreset *Exporter::scalePresetById(const QString &id)
 {
     for (const ExportScalePreset &preset : scalePresets()) {
@@ -1998,6 +2017,71 @@ QVariantList Exporter::frameRateOptions(int projectFps)
     return out;
 }
 
+QSize Exporter::scaledSize(int projectWidth, int projectHeight, int targetHeight)
+{
+    if (projectWidth <= 0 || projectHeight <= 0)
+        return {};
+    int w = 0;
+    int h = 0;
+    scaleSize(projectWidth, projectHeight, targetHeight, w, h);
+    return {w, h};
+}
+
+ExportSizeEstimate Exporter::estimateSize(const ExportSettings &settings, int outW, int outH, double fps,
+                                          double seconds)
+{
+    ExportSizeEstimate out;
+    if (settings.gifExport || seconds <= 0.0)
+        return out;
+
+    constexpr double kContainerOverhead = 1.015;
+    double bits = 0.0;
+
+    const AudioCodecDef *adef = findAudioDef(settings.audioCodecId);
+    const double audioKbps = adef && adef->lossless ? 900.0 : qMax(8, settings.audioBitrateKbps);
+    bits += audioKbps * 1000.0 * seconds;
+
+    if (!settings.audioOnly && outW > 0 && outH > 0 && fps > 0.0) {
+        const VideoCodecDef *vdef = findVideoDef(settings.videoCodecId);
+        const QString id = settings.videoCodecId;
+        if (vdef && vdef->rateMode == RateMode::Lossless) {
+            bits += 4.0 * outW * outH * fps * seconds;
+            out.approximate = true;
+        } else if (settings.rateControl == QLatin1String("bitrate") || (vdef && vdef->rateMode == RateMode::Bitrate)) {
+            bits += qMax(100, settings.videoBitrateKbps) * 1000.0 * seconds;
+        } else {
+            // Bits per pixel per frame for typical footage at each family's reference quality,
+            // doubling every `step` quality points. Hardware encoders spend about a quarter more.
+            double ref = 23.0;
+            double base = 0.065;
+            double step = 6.0;
+            if (id.startsWith(QLatin1String("h265"))) {
+                ref = 28.0;
+                base = 0.045;
+            } else if (id.startsWith(QLatin1String("vp"))) {
+                ref = 31.0;
+                base = 0.05;
+                step = 8.0;
+            } else if (id.startsWith(QLatin1String("av1"))) {
+                ref = 35.0;
+                base = 0.04;
+                step = 8.0;
+            }
+            double bpp = base * std::pow(2.0, (ref - settings.crf) / step);
+            if (vdef && vdef->hw != HwBackend::None)
+                bpp *= 1.25;
+            if (id.endsWith(QLatin1String("_10")) || id.endsWith(QLatin1String("_12")))
+                bpp *= 1.2;
+            bpp = qBound(0.005, bpp, 3.0);
+            bits += bpp * outW * outH * fps * seconds;
+            out.approximate = true;
+        }
+    }
+
+    out.bytes = static_cast<qint64>(std::llround(bits / 8.0 * kContainerOverhead));
+    return out;
+}
+
 bool Exporter::gifAvailable()
 {
     return avcodec_find_encoder(AV_CODEC_ID_GIF) != nullptr;
@@ -2156,7 +2240,7 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
     scaleSize(projW, projH, settings.targetHeight, outW, outH);
 
     // Past the driver's texture limit the canvas stays at project size and sws upscales.
-    const bool renderAtOutput = outH > projH && GpuCompositor::maxCanvasDimension() >= qMax(outW, outH);
+    const bool renderAtOutput = Exporter::rendersAboveProjectSize(projW, projH, settings.targetHeight);
     const int canvasW = renderAtOutput ? outW : projW;
     const int canvasH = renderAtOutput ? outH : projH;
 

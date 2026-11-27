@@ -83,10 +83,12 @@ Column {
             cursorShape: Qt.PointingHandCursor
         }
 
-        ThemedToolTip {
-            text: root.draggable
-                  ? qsTr("%1 — drag onto where two clips meet, or on touch hold then drag").arg(root.modelData.label)
-                  : root.modelData.label
+        RichToolTip {
+            title: root.modelData.label
+            body: root.draggable ? qsTr("Drag onto where two clips meet. On touch, hold then drag.")
+                                 : qsTr("Click to use this transition")
+            preview: root.strip.length > 0 ? EditorState.imageUrl(root.strip) : ""
+            previewFrames: root.frameCount
             visible: transitionHover.hovered
         }
 
@@ -136,13 +138,23 @@ Column {
             id: cardMenu
 
             property bool favorited: false
+            property bool editable: false
 
-            onAboutToShow: favorited = EditorState.isAssetFavorite("transitions", root.modelData.kind)
+            onAboutToShow: {
+                favorited = EditorState.isAssetFavorite("transitions", root.modelData.kind)
+                editable = Forge.canEdit("transition", root.modelData.kind)
+            }
 
             ThemedMenuItem {
                 text: cardMenu.favorited ? qsTr("Remove from favorites") : qsTr("Add to favorites")
                 icon.name: Theme.icons.star
                 onTriggered: EditorState.toggleAssetFavorite("transitions", root.modelData.kind)
+            }
+            ThemedMenuItem {
+                visible: cardMenu.editable && !ShellBridge.phoneShell
+                text: qsTr("Edit in Forge")
+                icon.name: Theme.icons.pencil
+                onTriggered: Forge.openPackage("transition", root.modelData.kind)
             }
         }
 
