@@ -89,6 +89,20 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.9.0" date="2026-11-27">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.9.0</url>
+      <description>
+        <p>Drift Mojave 1.9.0 achieves full upstream parity with CutWire-Studios/Drift (662b5185) while preserving all Drift Mojave VEGAS Parity Tier 1–10 features:</p>
+        <ul>
+          <li>Forge and Audio Forge node-based shader/audio-rack maker workspaces</li>
+          <li>Unified Import/Export compatibility report window integrated with Drift Mojave's Tier 1–10 VEGAS (.veg) reader and FCPXML/EDL/OTIO/TSV exporter</li>
+          <li>Screen, camera, and system-audio capture with zoom-to-clicks, plus one-click face-blur tracking masks and loop-fill/lasso/intelligent-scissors/magic-wand masking</li>
+          <li>Keyframe strip &amp; markers, generators, particle emitter, scrolling credits, beat-sync, and STFT spectral stem masking</li>
+          <li>Gamepad (SDL3) and MIDI/OSC/phone remote control surfaces, plus project folders, Lua scripting, templates, and LAN render farm</li>
+          <li>Upstream stability fixes including Linux NVDEC surface pool limit (#642), light_leak pattern sync, and Qt 6.11+ build support</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.8.0" date="2026-11-23">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.8.0</url>
       <description>
