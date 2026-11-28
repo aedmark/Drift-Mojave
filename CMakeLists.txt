@@ -6,7 +6,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Oldest macOS release Drift 
 
 # C is enabled for JUCE only: its modules compile a handful of C sources (zlib, flac, oggvorbis)
 # and its CMake refuses to configure without it.
-project(Drift VERSION 1.9.0 LANGUAGES CXX C)
+project(Drift VERSION 1.10.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -580,6 +580,8 @@ add_library(driftcore STATIC
     src/core/animation/SpeedCurve.cpp
     src/core/animation/VelocityEnvelope.h
     src/core/animation/VelocityEnvelope.cpp
+    src/core/audio/MusicRemix.h
+    src/core/audio/MusicRemix.cpp
     src/core/animation/FadeShape.h
     src/core/animation/FadeShape.cpp
     src/core/animation/Easing.h
@@ -919,6 +921,8 @@ add_library(driftengine STATIC
     src/engine/media/waveforms/WaveformBlockCache.cpp
     src/engine/audio/analysis/AudioOnsets.h
     src/engine/audio/analysis/AudioOnsets.cpp
+    src/engine/audio/analysis/AudioRemix.h
+    src/engine/audio/analysis/AudioRemix.cpp
     src/engine/audio/analysis/AudioEvents.h
     src/engine/audio/analysis/AudioEvents.cpp
     src/engine/audio/analysis/AudioSync.h
@@ -1436,6 +1440,8 @@ qt_add_executable(drift
     src/ui/imageproviders/clippreview/ClipPreviewImageProvider.cpp
     src/ui/imageproviders/splitpreview/SplitPreviewImageProvider.h
     src/ui/imageproviders/splitpreview/SplitPreviewImageProvider.cpp
+    src/ui/imageproviders/slippreview/SlipPreviewImageProvider.h
+    src/ui/imageproviders/slippreview/SlipPreviewImageProvider.cpp
     src/ui/imageproviders/TextStylePreviewImageProvider.h
     src/ui/imageproviders/TextStylePreviewImageProvider.cpp
     src/ui/imageproviders/ShapePreviewImageProvider.h
@@ -1544,6 +1550,8 @@ target_sources(driftapp PRIVATE
     src/playback/preview/ClipPreviewImageStore.cpp
     src/playback/preview/SplitPreviewImageStore.h
     src/playback/preview/SplitPreviewImageStore.cpp
+    src/ui/imageproviders/slippreview/SlipPreviewImageStore.h
+    src/ui/imageproviders/slippreview/SlipPreviewImageStore.cpp
     src/ui/imageproviders/multicam/MulticamImageProvider.h
     src/ui/imageproviders/multicam/MulticamImageProvider.cpp
     src/ui/imageproviders/multicam/MulticamImageStore.h
@@ -1804,6 +1812,8 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
     target_sources(drift PRIVATE
         src/app/HeadlessApp.h
         src/app/HeadlessApp.cpp
+        src/app/HeadlessBench.h
+        src/app/HeadlessBench.cpp
         src/app/ProjectDirCli.h
         src/app/ProjectDirCli.cpp
     )
@@ -2207,6 +2217,7 @@ qt_add_qml_module(drift
         src/qml/components/preview/ViewAxisWidget.qml
         src/qml/components/preview/PreviewViewport.qml
         src/qml/components/preview/PreviewSplitWipe.qml
+        src/qml/components/preview/SlipMonitorOverlay.qml
         src/qml/components/preview/PreviewStatusLayer.qml
         src/qml/components/preview/PreviewToolHost.qml
         src/qml/components/preview/InlineTextEditor.qml
@@ -2712,6 +2723,7 @@ qt_add_qml_module(drift
         src/qml/components/timeline/TimelineClipContextMenu.qml
         src/qml/components/timeline/TimelineKeyframeMenu.qml
         src/qml/components/timeline/TimelineAutoReframeDialog.qml
+        src/qml/components/timeline/TimelineMusicRemixDialog.qml
         src/qml/components/timeline/TimelineReplaceClipDialog.qml
         src/qml/components/timeline/TimelineBookmarkMarker.qml
         src/qml/components/timeline/TimelineBookmarkLaneHighlight.qml

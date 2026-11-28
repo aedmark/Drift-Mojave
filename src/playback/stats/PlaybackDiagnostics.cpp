@@ -233,6 +233,15 @@ QVariantMap PlaybackDiagnostics::collect(const PlaybackStats &stats, const drift
     rows.append(row(trDiag("Active decode"), decodeLabel));
     rows.append(row(trDiag("Hardware fallbacks"),
                     QString::number(ClipReader::hardwareFallbackCount())));
+    const ClipReader::DecodeStats dStats = ClipReader::decodeStats();
+    if (dStats.cacheRequests > 0) {
+        const double hitPct = 100.0 * double(dStats.cacheHits) / double(dStats.cacheRequests);
+        rows.append(row(trDiag("Decode cache hit rate"),
+                        QStringLiteral("%1% (%2/%3)").arg(hitPct, 0, 'f', 1).arg(dStats.cacheHits).arg(dStats.cacheRequests)));
+    }
+    if (dStats.framesSkippedCatchUp > 0) {
+        rows.append(row(trDiag("Catch-up non-ref skips"), QString::number(dStats.framesSkippedCatchUp)));
+    }
 
     rows.append(stats.reportRows());
     info.insert(QStringLiteral("rows"), rows);

@@ -2126,6 +2126,67 @@ QJsonObject McpDispatcher::applyOneExtended(const QString &tool, const QJsonObje
                                      {QStringLiteral("duration"), drift::usToSeconds(clip.timelineDuration)}}));
     }
 
+    if (tool == QLatin1String("remix_clip")) {
+        const ClipRef ref = resolveClip(args);
+        if (!ref.valid())
+            return clipRefError(args);
+        if (!args.contains(QStringLiteral("target_duration")))
+            return err("bad_args", QStringLiteral("target_duration required"));
+        const double targetDuration = jsonNumber(args.value(QStringLiteral("target_duration")), 0.0);
+        const int segments = args.value(QStringLiteral("segments")).toInt(50);
+        const int variations = args.value(QStringLiteral("variations")).toInt(50);
+        const bool previewOnly = jsonBool(args.value(QStringLiteral("preview_only")));
+
+        if (previewOnly) {
+            const QVariantMap preview =
+                m_controller->analyzeMusicRemix(ref.track, ref.clip, targetDuration, segments, variations);
+            if (!preview.value(QStringLiteral("ok")).toBool())
+                return err("bad_args", preview.value(QStringLiteral("error")).toString());
+            QJsonArray segArr;
+            for (const QVariant &v : preview.value(QStringLiteral("segments")).toList())
+                segArr.append(QJsonObject::fromVariantMap(v.toMap()));
+            return ok(clipFeedback(ref, {
+                {QStringLiteral("bpm"), preview.value(QStringLiteral("bpm")).toDouble()},
+                {QStringLiteral("target_duration"), targetDuration},
+                {QStringLiteral("actual_duration"), preview.value(QStringLiteral("actualDuration")).toDouble()},
+                {QStringLiteral("cut_count"), preview.value(QStringLiteral("cutCount")).toInt()},
+                {QStringLiteral("segments"), segArr},
+            }));
+        }
+
+        QString error;
+        if (!m_controller->applyMusicRemixDetailed(ref.track, ref.clip, targetDuration, segments, variations,
+                                                  &error)) {
+            return err("bad_args", error.isEmpty() ? QStringLiteral("Could not remix clip") : error);
+        }
+        const drift::Clip &clip = m_controller->project()->tracks().at(ref.track).clips.at(ref.clip);
+        QJsonArray segArr;
+        for (const drift::MusicRemixSegment &seg : clip.remix.plan) {
+            segArr.append(QJsonObject{
+                {QStringLiteral("src_start"), drift::usToSeconds(seg.srcStartUs)},
+                {QStringLiteral("src_end"), drift::usToSeconds(seg.srcEndUs)},
+                {QStringLiteral("crossfade_ms"), static_cast<double>(seg.crossfadeUs) / 1000.0},
+            });
+        }
+        return ok(clipFeedback(ref, {
+            {QStringLiteral("bpm"), clip.remix.bpm},
+            {QStringLiteral("target_duration"), targetDuration},
+            {QStringLiteral("actual_duration"), drift::usToSeconds(clip.timelineDuration)},
+            {QStringLiteral("cut_count"), qMax(0, static_cast<int>(clip.remix.plan.size()) - 1)},
+            {QStringLiteral("segments"), segArr},
+        }));
+    }
+
+    if (tool == QLatin1String("revert_remix")) {
+        const ClipRef ref = resolveClip(args);
+        if (!ref.valid())
+            return clipRefError(args);
+        if (!m_controller->revertMusicRemix(ref.track, ref.clip))
+            return err("bad_args", QStringLiteral("Clip does not have an active music remix"));
+        const drift::Clip &clip = m_controller->project()->tracks().at(ref.track).clips.at(ref.clip);
+        return ok(clipFeedback(ref, {{QStringLiteral("duration"), drift::usToSeconds(clip.timelineDuration)}}));
+    }
+
     if (tool == QLatin1String("set_clip_enabled")) {
         const ClipRef ref = resolveClip(args);
         if (!ref.valid())

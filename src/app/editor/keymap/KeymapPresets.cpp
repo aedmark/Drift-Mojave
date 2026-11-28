@@ -162,6 +162,14 @@ QHash<QString, QStringList> driftChords()
         {QStringLiteral("recordVoiceover"), {}},
         {QStringLiteral("toggleRipple"), {}},
         {QStringLiteral("toggleOverlap"), {}},
+        {QStringLiteral("toggleAutoRipple"), {}},
+        {QStringLiteral("toggleExpandedEdit"), {}},
+        {QStringLiteral("group"), {}},
+        {QStringLiteral("ungroup"), {}},
+        {QStringLiteral("nextTake"), {}},
+        {QStringLiteral("previousTake"), {}},
+        {QStringLiteral("dynamicRamPreview"), {}},
+        {QStringLiteral("addRegionFromWorkArea"), {}},
         {QStringLiteral("toggleAutoSelect"), {}},
         {QStringLiteral("toggleMixerStrip"), {}},
         {QStringLiteral("toggleKeyframeStrip"), {}},
@@ -473,6 +481,8 @@ QHash<QString, QStringList> vegasChords()
 {
     QHash<QString, QStringList> chords = driftChords();
     chords.insert(QStringLiteral("split"), {QStringLiteral("S")});
+    chords.insert(QStringLiteral("toggleGuides"), {QStringLiteral("Alt+Shift+G")});
+    chords.insert(QStringLiteral("toggleLoop"), {QStringLiteral("Alt+L")});
     chords.insert(QStringLiteral("toggleAutoRipple"), {QStringLiteral("Ctrl+L")});
     chords.insert(QStringLiteral("group"), {QStringLiteral("G")});
     chords.insert(QStringLiteral("ungroup"), {QStringLiteral("U")});

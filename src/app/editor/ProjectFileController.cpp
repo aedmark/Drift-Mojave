@@ -1540,7 +1540,8 @@ void ProjectFileController::loadProject(const QUrl &url)
     {
         const QString local = AndroidUri::filePath(url);
         const QString suffix = QFileInfo(local).suffix().toLower();
-        const QString formatId = suffix == QLatin1String("drift") || suffix == QLatin1String("json")
+        const QString formatId = (suffix == QLatin1String("drift") || suffix == QLatin1String("json")
+                                  || suffix == QLatin1String("veg") || drift::vegas::isVegasProject(local))
             ? QString()
             : drift::interchange::detectImportFormat(local);
         if (!formatId.isEmpty()) {
@@ -1939,45 +1940,6 @@ void ProjectFileController::finishLoad(int generation, const QUrl &url,
             result->parsed->project.setName(fileName);
     }
     m_app->applyParsedProject(std::move(*result->parsed));
-
-    // Automatically replace raw camera / MTS files with converted ProRes .mov files if they exist
-    QHash<QString, QString> autoRemap;
-    for (const auto &asset : m_app->m_project.assets()) {
-        if (asset.kind == drift::MediaKind::Video && !asset.editFriendly && !asset.path.isEmpty()) {
-            const QFileInfo info(asset.path);
-            const QString dir = info.absolutePath();
-            const QString base = info.completeBaseName();
-            const QString ext = info.suffix().toLower();
-            if (ext == QLatin1String("mov"))
-                continue;
-
-            const QString sameDirMov = QDir(dir).filePath(base + QStringLiteral(".mov"));
-            const QString transcodeMov = QDir(dir).filePath(QStringLiteral("Transcodes_ProRes/") + base + QStringLiteral(".mov"));
-            const QString parentTranscodeMov = QDir(dir).filePath(QStringLiteral("../Transcodes_ProRes/") + QDir(dir).dirName() + QStringLiteral("/") + base + QStringLiteral(".mov"));
-
-            if (QFileInfo::exists(sameDirMov) && QFileInfo(sameDirMov).size() > 1024 * 1024) {
-                autoRemap.insert(asset.path, sameDirMov);
-            } else if (QFileInfo::exists(transcodeMov) && QFileInfo(transcodeMov).size() > 1024 * 1024) {
-                autoRemap.insert(asset.path, transcodeMov);
-            } else if (QFileInfo::exists(parentTranscodeMov) && QFileInfo(parentTranscodeMov).size() > 1024 * 1024) {
-                autoRemap.insert(asset.path, parentTranscodeMov);
-            }
-        }
-    }
-    if (!autoRemap.isEmpty()) {
-        remapProjectPaths(autoRemap);
-        for (auto it = autoRemap.constBegin(); it != autoRemap.constEnd(); ++it) {
-            const QString &newPath = it.value();
-            for (drift::MediaAsset &asset : m_app->m_project.assets()) {
-                if (asset.path == newPath) {
-                    asset.editFriendly = true;
-                }
-            }
-        }
-        if (m_app->m_assetLibrary)
-            m_app->m_assetLibrary->setProject(&m_app->m_project);
-        m_app->notifyTracksChanged();
-    }
 
     m_embeddedSources.clear();
     for (const drift::bundle::MediaEntry &entry : bundle.media) {

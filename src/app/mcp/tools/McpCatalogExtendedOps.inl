@@ -424,6 +424,25 @@
           objectSchema(mergeProps({{QStringLiteral("loop"), boolProp(QStringLiteral("Loop on or off"))}},
                                   clipRefProps()),
                        {QStringLiteral("loop")}) },
+        { "remix_clip", "canvas", "Beat-match an audio clip to a target duration",
+          "Analyzes beats and musical similarity in an audio clip (at least 4 seconds, rhythmic) and "
+          "re-sequences segments with 20 ms equal-power crossfades to hit target_duration without altering "
+          "pitch or tempo. Undoable; revert with revert_remix. Returns {ok, clip, bpm, target_duration, "
+          "actual_duration, cut_count, segments}.",
+          objectSchema(mergeProps({{QStringLiteral("target_duration"),
+                                    numberProp(QStringLiteral("Target timeline duration in seconds"))},
+                                   {QStringLiteral("segments"),
+                                    integerProp(QStringLiteral("0..100 cut density (default 50: fewer longer vs more cuts)"))},
+                                   {QStringLiteral("variations"),
+                                    integerProp(QStringLiteral("0..100 flexibility in musical transitions (default 50)"))},
+                                   {QStringLiteral("preview_only"),
+                                    boolProp(QStringLiteral("Analyze and return the plan without modifying the clip"))}},
+                                  clipRefProps()),
+                       {QStringLiteral("target_duration")}) },
+        { "revert_remix", "canvas", "Restore an audio clip from a beat-matched remix",
+          "Removes the beat-matched remix plan from an audio clip and restores its pre-remix timeline "
+          "duration and source end. Undoable.",
+          objectSchema(clipRefProps()) },
         { "set_clip_enabled", "canvas", "Enable or disable a clip",
           "A disabled clip stays on the timeline (shown striped) but is skipped by preview and export, "
           "picture and sound; compact clips then show enabled:false. Its linked audio/video partners "

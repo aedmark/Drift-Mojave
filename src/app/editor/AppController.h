@@ -269,6 +269,9 @@ class AppController : public QObject
     Q_PROPERTY(int expandedEditTrack READ expandedEditTrack NOTIFY expandedEditChanged)
     Q_PROPERTY(int expandedEditLeftClip READ expandedEditLeftClip NOTIFY expandedEditChanged)
     Q_PROPERTY(QVariantMap expandedEditState READ expandedEditState NOTIFY expandedEditChanged)
+    Q_PROPERTY(bool slipPreviewActive READ slipPreviewActive NOTIFY slipPreviewChanged)
+    Q_PROPERTY(QVariantMap slipPreviewState READ slipPreviewState NOTIFY slipPreviewChanged)
+    Q_PROPERTY(int slipPreviewRevision READ slipPreviewRevision NOTIFY slipPreviewFramesChanged)
     Q_PROPERTY(bool rippleEnabled READ rippleEnabled WRITE setRippleEnabled NOTIFY rippleEnabledChanged)
     Q_PROPERTY(QString rippleMode READ rippleModeString WRITE setRippleModeString NOTIFY rippleModeChanged)
     Q_PROPERTY(int rippleModeIndex READ rippleModeIndex WRITE setRippleModeIndex NOTIFY rippleModeChanged)
@@ -1139,10 +1142,14 @@ public:
     // P9-03: Ctrl + Drag elastic time-stretching and compression for video, audio, and composite clips.
     Q_INVOKABLE QVariantMap previewStretchClip(int trackIndex, int clipIndex, int side, double targetSeconds) const;
     Q_INVOKABLE bool commitStretchClip(int trackIndex, int clipIndex, int side, double targetSeconds);
-    // P9-04: Alt + Drag slip editing tool within clip boundaries.
-    Q_INVOKABLE QVariantMap previewSlipClip(int trackIndex, int clipIndex, double deltaSeconds) const;
+    // P9-04: Alt + Drag slip editing tool within clip boundaries (also drives 4-Up Slip Monitor).
+    Q_INVOKABLE QVariantMap previewSlipClip(int trackIndex, int clipIndex, double deltaSeconds);
     Q_INVOKABLE bool commitSlipClip(int trackIndex, int clipIndex, double deltaSeconds);
     Q_INVOKABLE bool nudgeSlipClip(int trackIndex, int clipIndex, int frames);
+    bool slipPreviewActive() const { return m_slipPreviewActive; }
+    QVariantMap slipPreviewState() const { return m_slipPreviewState; }
+    int slipPreviewRevision() const { return m_slipPreviewRevision; }
+    Q_INVOKABLE void endSlipPreview();
     // Roll & Slide editing tools (VEGAS parity).
     Q_INVOKABLE int rollLeftClipForEdge(int trackIndex, int clipIndex, int side) const;
     Q_INVOKABLE QVariantMap previewRollEdit(int trackIndex, int leftClipIndex, double targetCutSeconds) const;
@@ -1446,6 +1453,15 @@ public:
     // speed ramp). Switching it off cuts the clip back to one pass from its head.
     // False when the clip can't loop (not video/audio, or ramped).
     Q_INVOKABLE bool setClipLoop(int trackIndex, int clipIndex, bool loop);
+    // Beat-matched Music Auto-Remix (11D): analyzes beats + harmonic/timbral similarity and plans
+    // or applies beat-accurate cut segments to match `targetDurationSec`.
+    Q_INVOKABLE QVariantMap analyzeMusicRemix(int trackIndex, int clipIndex, double targetDurationSec,
+                                              int segments = 50, int variations = 50) const;
+    Q_INVOKABLE bool applyMusicRemix(int trackIndex, int clipIndex, double targetDurationSec,
+                                     int segments = 50, int variations = 50);
+    Q_INVOKABLE bool revertMusicRemix(int trackIndex, int clipIndex);
+    bool applyMusicRemixDetailed(int trackIndex, int clipIndex, double targetDurationSec,
+                                 int segments, int variations, QString *errorOut);
     // Turns reverse on for a video clip and renders the proxy that makes it play back smoothly.
     // Reverse itself applies immediately; cancelling the render leaves the clip reversed on the
     // slow live-decode path, which is what clipHasReverseProxy reports.
@@ -2500,6 +2516,8 @@ signals:
     void quantizeToFramesChanged();
     void snapOptionsChanged();
     void expandedEditChanged();
+    void slipPreviewChanged();
+    void slipPreviewFramesChanged();
     void rippleEnabledChanged();
     void rippleModeChanged();
     void allowClipOverlapChanged();
@@ -2634,6 +2652,7 @@ protected:
         drift::TimeUs sourceDeltaUs = 0;
     };
     SlipComputation computeSlipClip(int trackIndex, int clipIndex, double deltaSeconds) const;
+    void updateSlipPreview(int trackIndex, int clipIndex, const SlipComputation &c);
 
     struct RollPartnerPair {
         int trackIndex = -1;
@@ -3102,6 +3121,24 @@ protected:
     bool m_expandedEditActive = false;
     int m_expandedEditTrack = -1;
     int m_expandedEditLeftClip = -1;
+    struct SlipQuadRequest {
+        int slot = 0;
+        QString path;
+        quint64 streamId = 0;
+        drift::TimeUs sourceUs = 0;
+        int rotationCorrection = 0;
+    };
+    void startSlipQuadDecode(const QList<SlipQuadRequest> &reads, const QList<int> &emptySlots);
+    void waitForSlipRefresh();
+    bool m_slipPreviewActive = false;
+    QVariantMap m_slipPreviewState;
+    int m_slipPreviewRevision = 0;
+    bool m_slipRefreshing = false;
+    bool m_slipRefreshPending = false;
+    int m_slipGeneration = 0;
+    QList<SlipQuadRequest> m_pendingSlipReads;
+    QList<int> m_pendingSlipEmptySlots;
+    QFuture<void> m_slipRefreshFuture;
     bool m_rippleEnabled = false;
     drift::RippleMode m_rippleMode = drift::RippleMode::AffectedTracks;
     drift::TimeUs m_snapThresholdUs = drift::kSnapThresholdUs;

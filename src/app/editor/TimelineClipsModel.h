@@ -83,6 +83,9 @@ public:
         AudioChannelModeRole,
         NormalizeGainRole,
         GeneratedByRole,
+        RemixEnabledRole,
+        RemixBpmRole,
+        RemixCutsRole,
     };
     Q_ENUM(Role)
 
@@ -145,6 +148,9 @@ public:
         double normalizeGain = 1.0;
         // The project-folder script that made this clip; it is locked while set.
         QString generatedBy;
+        bool remixEnabled = false;
+        double remixBpm = 0.0;
+        QList<double> remixCuts;
 
         // Not roles: typed copies for the scene-graph renderer, derived from the fields above so
         // any change to them already arrives as a changed row.

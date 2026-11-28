@@ -353,6 +353,8 @@ private slots:
     void clipReaderPicksHwAv1Decoder();
     void clipReaderStaysOnSoftwareWhenHardwareDisabled();
     void clipReaderAutoKeepsCheapClipsOnSoftware();
+    void catchUpSkipsDisposableFramesWithoutTargetDrift();
+    void decodeStatsTracksSeeksAndCacheHits();
     void debugReportListsCommonCodecs();
     void decodeBackendOrderFollowsTheRenderGpu();
     void playbackDiagnosticsReportsStagesAndFindings();
@@ -21933,6 +21935,111 @@ void EngineTest::mxfConvertsToProResAndEditFriendly()
             QStringLiteral("mov"), QStringLiteral("prores"), 2.0);
     runCase(QStringLiteral("420->h264"), mxf420, QStringLiteral("420_h264.mp4"),
             QString(), QString(), 2.0);
+}
+
+void EngineTest::catchUpSkipsDisposableFramesWithoutTargetDrift()
+{
+    const QString ffmpeg = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    if (ffmpeg.isEmpty())
+        QSKIP("ffmpeg not on PATH");
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString videoPath = dir.filePath(QStringLiteral("bframes.mp4"));
+
+    // 2-second 30fps long-GOP H.264 stream with B-frames (non-ref disposable packets)
+    QProcess proc;
+    proc.start(ffmpeg, {
+        QStringLiteral("-y"), QStringLiteral("-f"), QStringLiteral("lavfi"),
+        QStringLiteral("-i"), QStringLiteral("testsrc2=size=160x90:rate=30:duration=2"),
+        QStringLiteral("-c:v"), QStringLiteral("libx264"),
+        QStringLiteral("-g"), QStringLiteral("60"),
+        QStringLiteral("-bf"), QStringLiteral("3"),
+        QStringLiteral("-b_strategy"), QStringLiteral("0"),
+        QStringLiteral("-pix_fmt"), QStringLiteral("yuv420p"),
+        videoPath
+    });
+    QVERIFY(proc.waitForFinished(15000));
+    if (proc.exitCode() != 0)
+        QSKIP("ffmpeg failed to encode libx264 B-frame fixture");
+
+    ClipReader::setHardwareDecodeMode(ClipReader::HardwareDecodeMode::Software);
+    const auto restoreMode = qScopeGuard([] {
+        ClipReader::setHardwareDecodeMode(ClipReader::HardwareDecodeMode::Auto);
+    });
+
+    const drift::TimeUs targetUs = 1'500'000; // frame 45 inside a 60-frame GOP
+
+    ClipReader baseline;
+    QVERIFY(baseline.open(videoPath));
+    PreviewVideoFrame refFrame;
+    QVERIFY(baseline.readPreviewVideoFrame(targetUs, refFrame, 160, 90, false, false));
+    QVERIFY(refFrame.isValid() && refFrame.frame);
+
+    const ClipReader::DecodeStats before = ClipReader::decodeStats();
+    ClipReader catchUpReader;
+    QVERIFY(catchUpReader.open(videoPath));
+    PreviewVideoFrame catchUpFrame;
+    QVERIFY(catchUpReader.readPreviewVideoFrame(targetUs, catchUpFrame, 160, 90, false, true));
+    QVERIFY(catchUpFrame.isValid() && catchUpFrame.frame);
+    const ClipReader::DecodeStats after = ClipReader::decodeStats();
+
+    QVERIFY(after.framesSkippedCatchUp > before.framesSkippedCatchUp);
+    QCOMPARE(catchUpFrame.ptsUs, refFrame.ptsUs);
+    QCOMPARE(catchUpFrame.displayWidth(), refFrame.displayWidth());
+    QCOMPARE(catchUpFrame.displayHeight(), refFrame.displayHeight());
+
+    // Target frame pixels must match bit-for-bit on Y plane (or format)
+    const AVFrame *a = refFrame.frame.get();
+    const AVFrame *b = catchUpFrame.frame.get();
+    QCOMPARE(a->format, b->format);
+    QCOMPARE(a->width, b->width);
+    QCOMPARE(a->height, b->height);
+    for (int y = 0; y < a->height; ++y) {
+        QCOMPARE(std::memcmp(a->data[0] + y * a->linesize[0],
+                             b->data[0] + y * b->linesize[0],
+                             size_t(a->width)),
+                 0);
+    }
+}
+
+void EngineTest::decodeStatsTracksSeeksAndCacheHits()
+{
+    const QString ffmpeg = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    if (ffmpeg.isEmpty())
+        QSKIP("ffmpeg not on PATH");
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString videoPath = dir.filePath(QStringLiteral("stats.mp4"));
+
+    QProcess proc;
+    proc.start(ffmpeg, {
+        QStringLiteral("-y"), QStringLiteral("-f"), QStringLiteral("lavfi"),
+        QStringLiteral("-i"), QStringLiteral("color=c=blue:size=128x72:rate=30:duration=1"),
+        QStringLiteral("-c:v"), QStringLiteral("libx264"),
+        QStringLiteral("-pix_fmt"), QStringLiteral("yuv420p"),
+        videoPath
+    });
+    QVERIFY(proc.waitForFinished(15000));
+    if (proc.exitCode() != 0)
+        QSKIP("ffmpeg failed to encode stats fixture");
+
+    ClipReader reader;
+    QVERIFY(reader.open(videoPath));
+    const ClipReader::DecodeStats s0 = ClipReader::decodeStats();
+
+    PreviewVideoFrame f;
+    QVERIFY(reader.readPreviewVideoFrame(200'000, f, 128, 72, false, false));
+    const ClipReader::DecodeStats s1 = ClipReader::decodeStats();
+    QVERIFY(s1.seeks > s0.seeks);
+    QVERIFY(s1.cacheRequests > s0.cacheRequests);
+
+    // Second read of the same PTS must hit the preview cache without seeking.
+    QVERIFY(reader.readPreviewVideoFrame(200'000, f, 128, 72, false, false));
+    const ClipReader::DecodeStats s2 = ClipReader::decodeStats();
+    QCOMPARE(s2.seeks, s1.seeks);
+    QVERIFY(s2.cacheHits > s1.cacheHits);
 }
 
 #include "tst_engine.moc"

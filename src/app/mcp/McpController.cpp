@@ -2442,6 +2442,53 @@ QJsonObject McpController::memoryStats() const
     });
 }
 
+QJsonObject McpController::perfStats() const
+{
+    using namespace drift::mcp;
+    const ClipReader::DecodeStats d = ClipReader::decodeStats();
+    const double hitRate = d.cacheRequests > 0 ? double(d.cacheHits) / double(d.cacheRequests) : 0.0;
+    const auto backend = ClipReader::activeDecodeBackend();
+    const QString backendName = backend.has_value()
+        ? QString::fromLatin1(drift::hwaccel::name(*backend))
+        : QStringLiteral("none");
+
+    QJsonObject decode = decodersJson();
+    decode.insert(QStringLiteral("frames_decoded"), double(d.framesDecoded));
+    decode.insert(QStringLiteral("frames_skipped_catch_up"), double(d.framesSkippedCatchUp));
+    decode.insert(QStringLiteral("seeks"), double(d.seeks));
+    decode.insert(QStringLiteral("cache_requests"), double(d.cacheRequests));
+    decode.insert(QStringLiteral("cache_hits"), double(d.cacheHits));
+    decode.insert(QStringLiteral("cache_hit_rate"), hitRate);
+    decode.insert(QStringLiteral("hw_frames"), double(d.hwFrames));
+    decode.insert(QStringLiteral("sw_frames"), double(d.swFrames));
+    decode.insert(QStringLiteral("hw_fallbacks"), double(d.hwFallbacks));
+    decode.insert(QStringLiteral("active_backend"), backendName);
+
+    const PlaybackStats *ps = m_app->m_playback.stats();
+    QJsonObject playback{
+        {QStringLiteral("playing"), m_app->m_playback.isPlaying()},
+        {QStringLiteral("delivered_fps"), ps ? ps->deliveredFps() : 0.0},
+        {QStringLiteral("displayed_fps"), ps ? ps->displayedFps() : 0.0},
+        {QStringLiteral("refresh_rate"), ps ? ps->refreshRate() : 0.0},
+        {QStringLiteral("jitter_ms"), ps ? ps->jitterMs() : 0.0},
+        {QStringLiteral("composite_median_ms"), ps ? ps->compositeMedianMs() : 0.0},
+        {QStringLiteral("composite_p95_ms"), ps ? ps->compositeP95Ms() : 0.0},
+        {QStringLiteral("decode_wait_median_ms"), ps ? ps->decodeWaitMedianMs() : 0.0},
+        {QStringLiteral("adaptive_scale"), ps ? ps->adaptiveScale() : 1.0},
+        {QStringLiteral("dropped_frames"), ps ? ps->droppedFrames() : 0},
+        {QStringLiteral("coalesced_requests"), ps ? ps->coalescedRequests() : 0},
+        {QStringLiteral("in_flight_peak"), ps ? ps->inFlightPeak() : 0},
+        {QStringLiteral("upload_path"), ps ? ps->uploadPath() : QString()},
+        {QStringLiteral("audio_mix_load_p95"), ps ? ps->audioMixLoadP95() : 0.0},
+    };
+
+    return ok({
+        {QStringLiteral("decode"), decode},
+        {QStringLiteral("frame_cache"), frameCacheJson()},
+        {QStringLiteral("playback"), playback},
+    });
+}
+
 QJsonObject McpController::clearCache()
 {
     using namespace drift::mcp;

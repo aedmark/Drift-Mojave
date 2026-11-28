@@ -71,6 +71,9 @@ QList<int> changedRoles(const TimelineClipsModel::Row &a, const TimelineClipsMod
     diff(a.audioChannelMode != b.audioChannelMode, TimelineClipsModel::AudioChannelModeRole);
     diff(!qFuzzyCompare(a.normalizeGain + 1.0, b.normalizeGain + 1.0), TimelineClipsModel::NormalizeGainRole);
     diff(a.generatedBy != b.generatedBy, TimelineClipsModel::GeneratedByRole);
+    diff(a.remixEnabled != b.remixEnabled, TimelineClipsModel::RemixEnabledRole);
+    diff(!qFuzzyCompare(a.remixBpm + 1.0, b.remixBpm + 1.0), TimelineClipsModel::RemixBpmRole);
+    diff(a.remixCuts != b.remixCuts, TimelineClipsModel::RemixCutsRole);
     return roles;
 }
 
@@ -265,6 +268,9 @@ QVariant TimelineClipsModel::data(const QModelIndex &index, int role) const
     case AudioChannelModeRole: return row.audioChannelMode;
     case NormalizeGainRole: return row.normalizeGain;
     case GeneratedByRole: return row.generatedBy;
+    case RemixEnabledRole: return row.remixEnabled;
+    case RemixBpmRole: return row.remixBpm;
+    case RemixCutsRole: return QVariant::fromValue(row.remixCuts);
     default: return {};
     }
 }
@@ -323,6 +329,9 @@ QHash<int, QByteArray> TimelineClipsModel::roleNames() const
         {AudioChannelModeRole, "audioChannelMode"},
         {NormalizeGainRole, "normalizeGain"},
         {GeneratedByRole, "generatedBy"},
+        {RemixEnabledRole, "remixEnabled"},
+        {RemixBpmRole, "remixBpm"},
+        {RemixCutsRole, "remixCuts"},
     };
 }
 

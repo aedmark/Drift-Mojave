@@ -2970,6 +2970,38 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Group clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ungroup clips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next take</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Previous take</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle auto-ripple</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toggle expanded edit mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Build dynamic RAM preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create region from work area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Replace clip with…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4987,6 +5019,26 @@
     </message>
     <message>
         <source>Velocity envelope removed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clip not found</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remix music clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remixed to %1 s (%2 BPM)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Revert music remix</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Music remix reverted</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -29323,6 +29375,37 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
     </message>
 </context>
 <context>
+    <name>SlipMonitorOverlay</name>
+    <message>
+        <source>Clip</source>
+        <translation type="unfinished">Clip</translation>
+    </message>
+    <message>
+        <source>Slip Monitor: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Prev Out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Slip In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Slip Out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No Adjacent Clip</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SoundEffectDialog</name>
     <message>
         <source>Sound effect</source>
@@ -33950,6 +34033,14 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Remix to duration…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Revert music remix</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Transform</source>
         <translation type="unfinished">Chuyển đổi</translation>
     </message>
@@ -34541,6 +34632,45 @@ Nếu phát lại bị giật, hãy thử cách khác.</translation>
     <message>
         <source>REC </source>
         <translation>GHI </translation>
+    </message>
+</context>
+<context>
+    <name>TimelineMusicRemixDialog</name>
+    <message>
+        <source>Music Auto-Remix</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Apply Remix</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a positive target duration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Re-sequences beat-matched sections with 20 ms equal-power crossfades to fit a new duration without altering tempo or pitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Target duration (seconds)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cut density (Segments)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Transition flexibility (Variations)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Plan: %1 s at %2 BPM (%3 cut(s))</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cannot remix this audio clip</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

@@ -89,6 +89,19 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.10.0" date="2026-11-27">
+      <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.10.0</url>
+      <description>
+        <p>Drift Mojave 1.10.0 introduces Tier 11 Filmcraft-inspired editing ergonomics, decoder resilience, benchmarking, and Beat-Matched Music Auto-Remix alongside multi-platform CI fixes:</p>
+        <ul>
+          <li>4-Up Slip Monitor overlay displaying Prev Out, Slip In, Slip Out, and Next In frames live during Alt+Drag slip edits</li>
+          <li>Catch-up non-reference frame skipping (H.264/HEVC disposable NAL detection + AVDISCARD_NONREF with 4-frame safety margin) and decoder-bound lookback throttling</li>
+          <li>Beat-Matched Music Auto-Remix using onset/beat tracking + STFT chroma/timbre similarity to re-sequence music beds cleanly to a target duration with 20 ms equal-power crossfades</li>
+          <li>Golden render parity test suite, read-only perf_stats MCP tool, and drift --headless --bench throughput benchmark</li>
+          <li>Restored direct VEGAS .veg loading via File &gt; Open, VEGAS default keymap consistency, verified ProRes auto-relink dirty flagging, ProjectFolder schema parity, and MSVC C1061 fix</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.9.0" date="2026-11-27">
       <url type="details">https://github.com/aedmark/Drift-Mojave/releases/tag/v1.9.0</url>
       <description>

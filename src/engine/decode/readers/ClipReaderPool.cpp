@@ -291,6 +291,7 @@ void ClipReaderPool::setHardwareDecodeMode(ClipReader::HardwareDecodeMode mode,
 
 namespace {
 thread_local bool t_approximateSeek = false;
+thread_local bool t_catchUpSeek = false;
 } // namespace
 
 ClipReaderPool::ApproximateSeekScope::ApproximateSeekScope(bool approximate)
@@ -302,6 +303,17 @@ ClipReaderPool::ApproximateSeekScope::ApproximateSeekScope(bool approximate)
 ClipReaderPool::ApproximateSeekScope::~ApproximateSeekScope()
 {
     t_approximateSeek = previous;
+}
+
+ClipReaderPool::CatchUpScope::CatchUpScope(bool catchUp)
+    : previous(t_catchUpSeek)
+{
+    t_catchUpSeek = catchUp;
+}
+
+ClipReaderPool::CatchUpScope::~CatchUpScope()
+{
+    t_catchUpSeek = previous;
 }
 
 void ClipReaderPool::warmVideoFrames(const QList<VideoRequest> &requests)
@@ -440,6 +452,7 @@ PreviewVideoFrame ClipReaderPool::readPreviewVideoFrame(const QString &path, qui
     ClipReaderWorker *worker = entry->worker;
 
     const bool approximate = t_approximateSeek;
+    const bool catchUp = t_catchUpSeek;
     PreviewVideoFrame frame;
     QElapsedTimer decodeWait;
     decodeWait.start();
@@ -447,7 +460,8 @@ PreviewVideoFrame ClipReaderPool::readPreviewVideoFrame(const QString &path, qui
                                Q_RETURN_ARG(PreviewVideoFrame, frame), Q_ARG(quint64, streamId),
                                Q_ARG(drift::TimeUs, sourceUs), Q_ARG(int, maxWidth),
                                Q_ARG(int, maxHeight), Q_ARG(int, rotationCorrection),
-                               Q_ARG(bool, approximate), Q_ARG(quintptr, quintptr(QThread::currentThread())));
+                               Q_ARG(bool, approximate), Q_ARG(quintptr, quintptr(QThread::currentThread())),
+                               Q_ARG(bool, catchUp));
     t_decodeWaitNs += decodeWait.nsecsElapsed();
 
     // A scrub's next request is somewhere else entirely; a frame decoded ahead of this one would

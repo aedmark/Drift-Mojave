@@ -138,6 +138,12 @@ public:
     // quality is on (1.0 = full requested quality).
     double adaptiveScaleFactor() const;
 
+    // True during playback when smoothed per-frame decoder wait approaches or exceeds
+    // the frame interval, meaning deep read-ahead only adds stale decode latency.
+    bool isSourceDecoderBound(double framePeriodMs) const;
+    double smoothedDecodeWaitMs() const { return m_smoothedDecodeWaitMs; }
+    drift::TimeUs lastPresentedTimeUs(PreviewStream stream = PreviewStream::Camera) const;
+
     // Optional counter sink, owned by the caller. Everything reported here happens on the
     // GUI thread, so the stats block needs no locking of its own.
     void setStats(PlaybackStats *stats) { m_stats = stats; }
@@ -178,6 +184,8 @@ private:
     // Highest sequence already put on screen. Completions older than this are overtaken;
     // playback also rejects frames lagging far behind the latest requested timestamp.
     quint64 m_lastPresentedSequence[kPreviewStreamCount] = {};
+    drift::TimeUs m_lastPresentedTimeUs[kPreviewStreamCount] = {-1, -1};
+    double m_smoothedDecodeWaitMs = 0.0;
     // Dispatch time per sequence, for request-to-screen latency. Filled only under perf logging.
     QHash<quint64, qint64> m_perfDispatchNs;
     // The newest request, whole. Both writers (requestComposite and the catch-up dispatch in

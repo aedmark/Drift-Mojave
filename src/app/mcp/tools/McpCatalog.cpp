@@ -1381,6 +1381,14 @@ const QList<Op> &ops()
           "undo_history:{steps, undoable} "
           "(each step holds full project snapshots)}.",
           objectSchema({}), true, false, true },
+        { "perf_stats", "project", "Decode, cache and playback telemetry",
+          "Returns {decode:{frames_decoded, frames_skipped_catch_up, seeks, cache_requests, cache_hits, "
+          "cache_hit_rate, hw_frames, sw_frames, hw_fallbacks, active_backend, readers, video_workers, "
+          "audio_workers}, frame_cache:{bytes, frames, gpu_frames, budget_bytes, setting_mib}, "
+          "playback:{playing, delivered_fps, displayed_fps, refresh_rate, jitter_ms, composite_median_ms, "
+          "composite_p95_ms, decode_wait_median_ms, adaptive_scale, dropped_frames, coalesced_requests, "
+          "in_flight_peak, upload_path, audio_mix_load_p95}}. Read-only.",
+          objectSchema({}), true, false, true },
         { "clear_cache", "project", "Free decoded frames and decoders",
           "Close every decoder not in the middle of a read, and the frames it cached; the next frame "
           "reopens what it needs (a brief stutter). The project and undo history are untouched. "

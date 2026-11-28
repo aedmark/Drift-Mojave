@@ -2890,281 +2890,204 @@ void AppController::toggleAssetFavorite(const QString &tabId, const QString &ite
 void AppController::triggerAction(const QString &actionId)
 {
     // File ops need QML (dialogs + unsaved-change confirm). Emit so the header
-    // can gate them the same way the project menu does.
-    if (actionId == QStringLiteral("newProject"))
+    // can gate them the same way the project menu does. Early returns keep block nesting flat
+    // for MSVC's C1061 limit.
+    if (actionId == QStringLiteral("newProject")) {
         emit m_projectFile->newProjectRequested();
-    else if (actionId == QStringLiteral("open"))
+        return;
+    }
+    if (actionId == QStringLiteral("open")) {
         emit m_projectFile->openRequested();
-    else if (actionId == QStringLiteral("save"))
+        return;
+    }
+    if (actionId == QStringLiteral("save")) {
         emit m_projectFile->saveRequested();
-    else if (actionId == QStringLiteral("saveAs"))
+        return;
+    }
+    if (actionId == QStringLiteral("saveAs")) {
         emit m_projectFile->saveAsRequested();
-    else if (actionId == QStringLiteral("playPause"))
-        togglePlayback();
-    else if (actionId == QStringLiteral("multicam"))
-        emit openMulticamWindowRequested();
-    else if (actionId == QStringLiteral("toggleInlineMulticam"))
-        toggleInlineMulticam();
-    else if (actionId == QStringLiteral("openTrimmer"))
-        emit openTrimmerWindowRequested();
-    else if (actionId == QStringLiteral("dynamicRamPreview"))
-        triggerDynamicRamPreview();
-    else if (actionId == QStringLiteral("addRegionFromWorkArea"))
-        addRegionFromWorkArea();
-    else if (actionId == QStringLiteral("delete"))
-        deleteSelectedClip();
-    else if (actionId == QStringLiteral("deleteWithEffects"))
-        deleteSelectedClipWithEffects();
-    else if (actionId == QStringLiteral("rippleDelete"))
-        rippleDelete();
-    else if (actionId == QStringLiteral("toggleAutoRipple"))
-        toggleAutoRipple();
-    else if (actionId == QStringLiteral("toggleQuantizeToFrames"))
-        toggleQuantizeToFrames();
-    else if (actionId == QStringLiteral("toggleExpandedEdit"))
-        toggleExpandedEditMode();
-    else if (actionId == QStringLiteral("nextTake"))
-        nextTake();
-    else if (actionId == QStringLiteral("previousTake"))
-        previousTake();
-    else if (actionId == QStringLiteral("undo"))
-        undo();
-    else if (actionId == QStringLiteral("redo"))
-        redo();
-    else if (actionId == QStringLiteral("clearSelection"))
-        clearSelection();
-    else if (actionId == QStringLiteral("selectAll"))
-        selectAllClips();
-    else if (actionId == QStringLiteral("duplicate"))
-        duplicateSelectedClip();
-    else if (actionId == QStringLiteral("transformTogether"))
-        addTransformLayerForSelection();
-    else if (actionId == QStringLiteral("selectTransformLayer"))
-        selectTransformParent();
-    else if (actionId == QStringLiteral("copyEffects"))
-        copyClipEffectsToClipboard(m_selectedTrack, m_selectedClip);
-    else if (actionId == QStringLiteral("pasteEffects"))
-        pasteEffectsFromClipboard(m_selectedTrack, m_selectedClip);
-    else if (actionId == QStringLiteral("pasteAttributes"))
-        requestPasteAttributes();
-    else if (actionId == QStringLiteral("split"))
-        splitAtPlayheadForSelection();
-    else if (actionId == QStringLiteral("splitAllTracks"))
-        splitAtPlayhead();
-    else if (actionId == QStringLiteral("toggleClipEnabled"))
-        toggleSelectedClipsEnabled();
-    else if (actionId == QStringLiteral("toggleClipMuted"))
-        toggleSelectedClipsMuted();
-    else if (actionId == QStringLiteral("toggleClipLocked"))
-        toggleSelectedClipsLocked();
-    else if (actionId == QStringLiteral("splitSelection"))
-        splitSelectionAtPlayhead();
-    else if (actionId == QStringLiteral("addTransitionAtPlayhead"))
-        addTransitionAtPlayhead();
-    else if (actionId == QStringLiteral("merge"))
-        mergeSelectedClips();
-    else if (actionId == QStringLiteral("separateAudio"))
-        separateAudioFromSelection();
-    else if (actionId == QStringLiteral("unlink") || actionId == QStringLiteral("ungroup"))
-        ungroupSelectedClips();
-    else if (actionId == QStringLiteral("link") || actionId == QStringLiteral("group"))
-        groupSelectedClips();
-    else if (actionId == QStringLiteral("clearGroup"))
-        clearGroupSelectedClips();
-    else if (actionId == QStringLiteral("toggleIgnoreGrouping"))
-        toggleIgnoreGrouping();
-    else if (actionId == QStringLiteral("copy"))
-        copySelection();
-    else if (actionId == QStringLiteral("cut"))
-        cutSelection();
-    else if (actionId == QStringLiteral("paste"))
-        pasteAtPlayhead();
-    else if (actionId == QStringLiteral("nudgeLeft"))
-        nudgeSelection(-0.1);
-    else if (actionId == QStringLiteral("nudgeRight"))
-        nudgeSelection(0.1);
-    else if (actionId == QStringLiteral("toggleGuides"))
-        m_preview->setGuidesEnabled(!m_preview->guidesEnabled());
-    else if (actionId == QStringLiteral("toggleTrackHidden"))
-        setTrackHidden(m_selectedTrack, !trackHidden(m_selectedTrack));
-    else if (actionId == QStringLiteral("addSpeedPoint"))
-        addSpeedPointAtPlayhead();
-    else if (actionId == QStringLiteral("toggleBookmark"))
-        toggleBookmarkAtPlayhead();
-    else if (actionId == QStringLiteral("nextBookmark"))
-        goToNextBookmark();
-    else if (actionId == QStringLiteral("previousBookmark"))
-        goToPreviousBookmark();
-    else if (actionId == QStringLiteral("markIn"))
-        markWorkAreaIn();
-    else if (actionId == QStringLiteral("markOut"))
-        markWorkAreaOut();
-    else if (actionId == QStringLiteral("goToIn"))
-        goToWorkAreaIn();
-    else if (actionId == QStringLiteral("goToOut"))
-        goToWorkAreaOut();
-    else if (actionId == QStringLiteral("clearInOut"))
-        clearWorkArea();
-    else if (actionId == QStringLiteral("toggleLoop"))
-        toggleLoopWorkArea();
-    else if (actionId == QStringLiteral("previousEdit"))
-        goToPreviousEdit();
-    else if (actionId == QStringLiteral("nextEdit"))
-        goToNextEdit();
-    else if (actionId == QStringLiteral("stepBack"))
-        stepFrames(-1);
-    else if (actionId == QStringLiteral("stepForward"))
-        stepFrames(1);
-    else if (actionId == QStringLiteral("jumpBack"))
-        jumpSeconds(-1.0);
-    else if (actionId == QStringLiteral("jumpForward"))
-        jumpSeconds(1.0);
-    else if (actionId == QStringLiteral("jumpBackFar"))
-        jumpSeconds(-10.0);
-    else if (actionId == QStringLiteral("jumpForwardFar"))
-        jumpSeconds(10.0);
-    else if (actionId == QStringLiteral("goToStart")) {
+        return;
+    }
+    if (actionId == QStringLiteral("playPause")) { togglePlayback(); return; }
+    if (actionId == QStringLiteral("multicam")) { emit openMulticamWindowRequested(); return; }
+    if (actionId == QStringLiteral("toggleInlineMulticam")) { toggleInlineMulticam(); return; }
+    if (actionId == QStringLiteral("openTrimmer")) { emit openTrimmerWindowRequested(); return; }
+    if (actionId == QStringLiteral("dynamicRamPreview")) { triggerDynamicRamPreview(); return; }
+    if (actionId == QStringLiteral("addRegionFromWorkArea")) { addRegionFromWorkArea(); return; }
+    if (actionId == QStringLiteral("delete")) { deleteSelectedClip(); return; }
+    if (actionId == QStringLiteral("deleteWithEffects")) { deleteSelectedClipWithEffects(); return; }
+    if (actionId == QStringLiteral("rippleDelete")) { rippleDelete(); return; }
+    if (actionId == QStringLiteral("toggleAutoRipple")) { toggleAutoRipple(); return; }
+    if (actionId == QStringLiteral("toggleQuantizeToFrames")) { toggleQuantizeToFrames(); return; }
+    if (actionId == QStringLiteral("toggleExpandedEdit")) { toggleExpandedEditMode(); return; }
+    if (actionId == QStringLiteral("nextTake")) { nextTake(); return; }
+    if (actionId == QStringLiteral("previousTake")) { previousTake(); return; }
+    if (actionId == QStringLiteral("undo")) { undo(); return; }
+    if (actionId == QStringLiteral("redo")) { redo(); return; }
+    if (actionId == QStringLiteral("clearSelection")) { clearSelection(); return; }
+    if (actionId == QStringLiteral("selectAll")) { selectAllClips(); return; }
+    if (actionId == QStringLiteral("duplicate")) { duplicateSelectedClip(); return; }
+    if (actionId == QStringLiteral("transformTogether")) { addTransformLayerForSelection(); return; }
+    if (actionId == QStringLiteral("selectTransformLayer")) { selectTransformParent(); return; }
+    if (actionId == QStringLiteral("copyEffects")) { copyClipEffectsToClipboard(m_selectedTrack, m_selectedClip); return; }
+    if (actionId == QStringLiteral("pasteEffects")) { pasteEffectsFromClipboard(m_selectedTrack, m_selectedClip); return; }
+    if (actionId == QStringLiteral("pasteAttributes")) { requestPasteAttributes(); return; }
+    if (actionId == QStringLiteral("split")) { splitAtPlayheadForSelection(); return; }
+    if (actionId == QStringLiteral("splitAllTracks")) { splitAtPlayhead(); return; }
+    if (actionId == QStringLiteral("toggleClipEnabled")) { toggleSelectedClipsEnabled(); return; }
+    if (actionId == QStringLiteral("toggleClipMuted")) { toggleSelectedClipsMuted(); return; }
+    if (actionId == QStringLiteral("toggleClipLocked")) { toggleSelectedClipsLocked(); return; }
+    if (actionId == QStringLiteral("splitSelection")) { splitSelectionAtPlayhead(); return; }
+    if (actionId == QStringLiteral("addTransitionAtPlayhead")) { addTransitionAtPlayhead(); return; }
+    if (actionId == QStringLiteral("merge")) { mergeSelectedClips(); return; }
+    if (actionId == QStringLiteral("separateAudio")) { separateAudioFromSelection(); return; }
+    if (actionId == QStringLiteral("unlink") || actionId == QStringLiteral("ungroup")) { ungroupSelectedClips(); return; }
+    if (actionId == QStringLiteral("link") || actionId == QStringLiteral("group")) { groupSelectedClips(); return; }
+    if (actionId == QStringLiteral("clearGroup")) { clearGroupSelectedClips(); return; }
+    if (actionId == QStringLiteral("toggleIgnoreGrouping")) { toggleIgnoreGrouping(); return; }
+    if (actionId == QStringLiteral("copy")) { copySelection(); return; }
+    if (actionId == QStringLiteral("cut")) { cutSelection(); return; }
+    if (actionId == QStringLiteral("paste")) { pasteAtPlayhead(); return; }
+    if (actionId == QStringLiteral("nudgeLeft")) { nudgeSelection(-0.1); return; }
+    if (actionId == QStringLiteral("nudgeRight")) { nudgeSelection(0.1); return; }
+    if (actionId == QStringLiteral("toggleGuides")) { m_preview->setGuidesEnabled(!m_preview->guidesEnabled()); return; }
+    if (actionId == QStringLiteral("toggleTrackHidden")) { setTrackHidden(m_selectedTrack, !trackHidden(m_selectedTrack)); return; }
+    if (actionId == QStringLiteral("addSpeedPoint")) { addSpeedPointAtPlayhead(); return; }
+    if (actionId == QStringLiteral("toggleBookmark")) { toggleBookmarkAtPlayhead(); return; }
+    if (actionId == QStringLiteral("nextBookmark")) { goToNextBookmark(); return; }
+    if (actionId == QStringLiteral("previousBookmark")) { goToPreviousBookmark(); return; }
+    if (actionId == QStringLiteral("markIn")) { markWorkAreaIn(); return; }
+    if (actionId == QStringLiteral("markOut")) { markWorkAreaOut(); return; }
+    if (actionId == QStringLiteral("goToIn")) { goToWorkAreaIn(); return; }
+    if (actionId == QStringLiteral("goToOut")) { goToWorkAreaOut(); return; }
+    if (actionId == QStringLiteral("clearInOut")) { clearWorkArea(); return; }
+    if (actionId == QStringLiteral("toggleLoop")) { toggleLoopWorkArea(); return; }
+    if (actionId == QStringLiteral("previousEdit")) { goToPreviousEdit(); return; }
+    if (actionId == QStringLiteral("nextEdit")) { goToNextEdit(); return; }
+    if (actionId == QStringLiteral("stepBack")) { stepFrames(-1); return; }
+    if (actionId == QStringLiteral("stepForward")) { stepFrames(1); return; }
+    if (actionId == QStringLiteral("jumpBack")) { jumpSeconds(-1.0); return; }
+    if (actionId == QStringLiteral("jumpForward")) { jumpSeconds(1.0); return; }
+    if (actionId == QStringLiteral("jumpBackFar")) { jumpSeconds(-10.0); return; }
+    if (actionId == QStringLiteral("jumpForwardFar")) { jumpSeconds(10.0); return; }
+    if (actionId == QStringLiteral("goToStart")) {
         setPlayheadUs(0);
         emit playheadJumped();
-    } else if (actionId == QStringLiteral("goToEnd")) {
+        return;
+    }
+    if (actionId == QStringLiteral("goToEnd")) {
         setPlayheadUs(m_project.durationUs());
         emit playheadJumped();
+        return;
     }
-    else if (actionId == QStringLiteral("deleteLeft"))
-        splitSelectedClipLeft();
-    else if (actionId == QStringLiteral("deleteRight"))
-        splitSelectedClipRight();
-    else if (actionId == QStringLiteral("speedUp")) {
+    if (actionId == QStringLiteral("deleteLeft")) { splitSelectedClipLeft(); return; }
+    if (actionId == QStringLiteral("deleteRight")) { splitSelectedClipRight(); return; }
+    if (actionId == QStringLiteral("speedUp")) {
         m_playback.stepPlaybackRate(1);
         // Reviewing long footage is the whole point of the key, so from a stopped transport
         // the first press starts rolling rather than only arming a rate for later. This has
         // to follow the step: setPlaybackRate restarts the transport itself when it was
         // already playing, and would otherwise undo the resume.
         setPlaying(true);
-    } else if (actionId == QStringLiteral("speedDown"))
-        m_playback.stepPlaybackRate(-1);
-    else if (actionId == QStringLiteral("toggleTrackVolumeEnvelope"))
-        toggleSelectedTrackEnvelope(QStringLiteral("volume"));
-    else if (actionId == QStringLiteral("toggleTrackPanEnvelope"))
-        toggleSelectedTrackEnvelope(QStringLiteral("pan"));
-    else if (actionId == QStringLiteral("toggleTrackCompositeEnvelope"))
-        toggleSelectedTrackEnvelope(QStringLiteral("composite"));
-    else if (actionId == QStringLiteral("toggleTrackMuteEnvelope"))
-        toggleSelectedTrackEnvelope(QStringLiteral("mute"));
-    else if (actionId == QStringLiteral("normalizeAudio"))
-        normalizeSelectedClipAudio();
-    else if (actionId == QStringLiteral("pitchUp"))
-        nudgeSelectedClipPitch(1.0);
-    else if (actionId == QStringLiteral("pitchDown"))
-        nudgeSelectedClipPitch(-1.0);
-    else if (actionId == QStringLiteral("stop")) {
+        return;
+    }
+    if (actionId == QStringLiteral("speedDown")) { m_playback.stepPlaybackRate(-1); return; }
+    if (actionId == QStringLiteral("toggleTrackVolumeEnvelope")) { toggleSelectedTrackEnvelope(QStringLiteral("volume")); return; }
+    if (actionId == QStringLiteral("toggleTrackPanEnvelope")) { toggleSelectedTrackEnvelope(QStringLiteral("pan")); return; }
+    if (actionId == QStringLiteral("toggleTrackCompositeEnvelope")) { toggleSelectedTrackEnvelope(QStringLiteral("composite")); return; }
+    if (actionId == QStringLiteral("toggleTrackMuteEnvelope")) { toggleSelectedTrackEnvelope(QStringLiteral("mute")); return; }
+    if (actionId == QStringLiteral("normalizeAudio")) { normalizeSelectedClipAudio(); return; }
+    if (actionId == QStringLiteral("pitchUp")) { nudgeSelectedClipPitch(1.0); return; }
+    if (actionId == QStringLiteral("pitchDown")) { nudgeSelectedClipPitch(-1.0); return; }
+    if (actionId == QStringLiteral("stop")) {
         setPlaying(false);
         m_playback.setPlaybackRate(1.0);
-    } else if (actionId == QStringLiteral("stepBack5"))
-        stepFrames(-5);
-    else if (actionId == QStringLiteral("stepForward5"))
-        stepFrames(5);
-    else if (actionId == QStringLiteral("rippleDelete"))
-        rippleDeleteSelection();
-    else if (actionId == QStringLiteral("deselectAll"))
-        clearSelection();
-    else if (actionId == QStringLiteral("selectClipAtPlayhead"))
-        selectClipUnderPlayhead();
-    else if (actionId == QStringLiteral("selectNextClip"))
-        selectAdjacentClip(true);
-    else if (actionId == QStringLiteral("selectPreviousClip"))
-        selectAdjacentClip(false);
-    else if (actionId == QStringLiteral("removeAllEffects"))
-        removeAllEffects(m_selectedTrack, m_selectedClip);
-    else if (actionId == QStringLiteral("moveToOwnTrack"))
-        moveAdjustmentToOwnTrack(m_selectedTrack, m_selectedClip);
-    else if (actionId == QStringLiteral("swapWithPrevious"))
-        swapWithNeighbour(m_selectedTrack, m_selectedClip, false);
-    else if (actionId == QStringLiteral("swapWithNext"))
-        swapWithNeighbour(m_selectedTrack, m_selectedClip, true);
-    else if (actionId == QStringLiteral("makeComposite")) {
+        return;
+    }
+    if (actionId == QStringLiteral("stepBack5")) { stepFrames(-5); return; }
+    if (actionId == QStringLiteral("stepForward5")) { stepFrames(5); return; }
+    if (actionId == QStringLiteral("rippleDelete")) { rippleDeleteSelection(); return; }
+    if (actionId == QStringLiteral("deselectAll")) { clearSelection(); return; }
+    if (actionId == QStringLiteral("selectClipAtPlayhead")) { selectClipUnderPlayhead(); return; }
+    if (actionId == QStringLiteral("selectNextClip")) { selectAdjacentClip(true); return; }
+    if (actionId == QStringLiteral("selectPreviousClip")) { selectAdjacentClip(false); return; }
+    if (actionId == QStringLiteral("removeAllEffects")) { removeAllEffects(m_selectedTrack, m_selectedClip); return; }
+    if (actionId == QStringLiteral("moveToOwnTrack")) { moveAdjustmentToOwnTrack(m_selectedTrack, m_selectedClip); return; }
+    if (actionId == QStringLiteral("swapWithPrevious")) { swapWithNeighbour(m_selectedTrack, m_selectedClip, false); return; }
+    if (actionId == QStringLiteral("swapWithNext")) { swapWithNeighbour(m_selectedTrack, m_selectedClip, true); return; }
+    if (actionId == QStringLiteral("makeComposite")) {
         if (canMakeCompositeFromSelection())
             makeCompositeFromSelection();
-    } else if (actionId == QStringLiteral("openComposite")) {
+        return;
+    }
+    if (actionId == QStringLiteral("openComposite")) {
         if (isValidClipIndex(m_selectedTrack, m_selectedClip)
             && m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip).type == drift::ClipType::Composite)
             openCompositeClip(m_selectedTrack, m_selectedClip);
-    } else if (actionId == QStringLiteral("flattenComposite")) {
+        return;
+    }
+    if (actionId == QStringLiteral("flattenComposite")) {
         if (isValidClipIndex(m_selectedTrack, m_selectedClip) && !exportInProgress()
             && m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip).type == drift::ClipType::Composite)
             flattenComposite(m_selectedTrack, m_selectedClip);
-    } else if (actionId == QStringLiteral("freezeFrame"))
-        freezeFrameAtPlayhead();
-    else if (actionId == QStringLiteral("nudgeLeftFar"))
-        nudgeSelection(-1.0);
-    else if (actionId == QStringLiteral("nudgeRightFar"))
-        nudgeSelection(1.0);
-    else if (actionId == QStringLiteral("reverseClip")) {
+        return;
+    }
+    if (actionId == QStringLiteral("freezeFrame")) { freezeFrameAtPlayhead(); return; }
+    if (actionId == QStringLiteral("nudgeLeftFar")) { nudgeSelection(-1.0); return; }
+    if (actionId == QStringLiteral("nudgeRightFar")) { nudgeSelection(1.0); return; }
+    if (actionId == QStringLiteral("reverseClip")) {
         if (isValidClipIndex(m_selectedTrack, m_selectedClip)) {
             if (m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip).reverse)
                 setClipReverse(m_selectedTrack, m_selectedClip, false);
             else
                 requestClipReverse(m_selectedTrack, m_selectedClip);
         }
-    } else if (actionId == QStringLiteral("splitOnBeats")) {
+        return;
+    }
+    if (actionId == QStringLiteral("splitOnBeats")) {
         if (beatsAvailable() && isValidClipIndex(m_selectedTrack, m_selectedClip)
             && m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip).type != drift::ClipType::Subtitle)
             splitSelectionOnBeats(m_selectedTrack, m_selectedClip, QStringLiteral("beat"));
-    } else if (actionId == QStringLiteral("removeSilence")) {
+        return;
+    }
+    if (actionId == QStringLiteral("removeSilence")) {
         if (m_audioAlign->canRemoveSilence(m_selectedTrack, m_selectedClip) && !m_audioAlign->running())
             m_audioAlign->removeSilence(m_selectedTrack, m_selectedClip);
-    } else if (actionId == QStringLiteral("syncByAudio")) {
+        return;
+    }
+    if (actionId == QStringLiteral("syncByAudio")) {
         if (m_audioAlign->canSyncByAudio() && !m_audioAlign->running())
             m_audioAlign->syncByAudio();
-    } else if (actionId == QStringLiteral("markClip"))
-        markWorkAreaToClip();
-    else if (actionId == QStringLiteral("clearIn"))
-        clearWorkAreaIn();
-    else if (actionId == QStringLiteral("clearOut"))
-        clearWorkAreaOut();
-    else if (actionId == QStringLiteral("deleteBookmark"))
-        removeBookmarkNearPlayhead();
-    else if (actionId == QStringLiteral("deleteAllBookmarks"))
-        clearBookmarks();
-    else if (actionId == QStringLiteral("toggleSnapping"))
-        setSnapEnabled(!m_snapEnabled);
-    else if (actionId == QStringLiteral("toggleRipple"))
-        setRippleEnabled(!m_rippleEnabled);
-    else if (actionId == QStringLiteral("toggleOverlap"))
-        setAllowClipOverlap(!m_allowClipOverlap);
-    else if (actionId == QStringLiteral("toggleAutoSelect"))
-        m_preferences->setAutoSelectUnderPlayhead(!m_preferences->autoSelectUnderPlayhead());
-    else if (actionId == QStringLiteral("toggleMixerStrip"))
-        m_preferences->setAudioMixerVisible(!m_preferences->audioMixerVisible());
-    else if (actionId == QStringLiteral("toggleKeyframeStrip"))
-        m_preferences->setKeyframeStripVisible(!m_preferences->keyframeStripVisible());
-    else if (actionId == QStringLiteral("toggleOverview"))
-        m_preferences->setTimelineOverviewVisible(!m_preferences->timelineOverviewVisible());
-    else if (actionId == QStringLiteral("toggleTrackMuted"))
-        setTrackMuted(m_selectedTrack, !trackMuted(m_selectedTrack));
-    else if (actionId == QStringLiteral("toggleTrackSolo"))
-        setTrackSolo(m_selectedTrack, !trackSolo(m_selectedTrack));
-    else if (actionId == QStringLiteral("toggleTrackLocked"))
-        setTrackLocked(m_selectedTrack, !trackLocked(m_selectedTrack));
-    else if (actionId == QStringLiteral("addVideoTrack"))
-        addTrack(QStringLiteral("video"));
-    else if (actionId == QStringLiteral("addAudioTrack"))
-        addTrack(QStringLiteral("audio"));
-    else if (actionId == QStringLiteral("trackTaller"))
-        nudgeTrackHeightScale(m_selectedTrack, 1);
-    else if (actionId == QStringLiteral("trackShorter"))
-        nudgeTrackHeightScale(m_selectedTrack, -1);
-    else if (actionId == QStringLiteral("addAdjustmentLayer"))
-        addAdjustmentClip(-1, -1);
-    else if (actionId == QStringLiteral("addCamera"))
-        addCameraTrack();
-    else if (actionId == QStringLiteral("addText"))
-        addTextClip(QString(), -1);
-    else if (actionId == QStringLiteral("recordVoiceover")) {
+        return;
+    }
+    if (actionId == QStringLiteral("markClip")) { markWorkAreaToClip(); return; }
+    if (actionId == QStringLiteral("clearIn")) { clearWorkAreaIn(); return; }
+    if (actionId == QStringLiteral("clearOut")) { clearWorkAreaOut(); return; }
+    if (actionId == QStringLiteral("deleteBookmark")) { removeBookmarkNearPlayhead(); return; }
+    if (actionId == QStringLiteral("deleteAllBookmarks")) { clearBookmarks(); return; }
+    if (actionId == QStringLiteral("toggleSnapping")) { setSnapEnabled(!m_snapEnabled); return; }
+    if (actionId == QStringLiteral("toggleRipple")) { setRippleEnabled(!m_rippleEnabled); return; }
+    if (actionId == QStringLiteral("toggleOverlap")) { setAllowClipOverlap(!m_allowClipOverlap); return; }
+    if (actionId == QStringLiteral("toggleAutoSelect")) { m_preferences->setAutoSelectUnderPlayhead(!m_preferences->autoSelectUnderPlayhead()); return; }
+    if (actionId == QStringLiteral("toggleMixerStrip")) { m_preferences->setAudioMixerVisible(!m_preferences->audioMixerVisible()); return; }
+    if (actionId == QStringLiteral("toggleKeyframeStrip")) { m_preferences->setKeyframeStripVisible(!m_preferences->keyframeStripVisible()); return; }
+    if (actionId == QStringLiteral("toggleOverview")) { m_preferences->setTimelineOverviewVisible(!m_preferences->timelineOverviewVisible()); return; }
+    if (actionId == QStringLiteral("toggleTrackMuted")) { setTrackMuted(m_selectedTrack, !trackMuted(m_selectedTrack)); return; }
+    if (actionId == QStringLiteral("toggleTrackSolo")) { setTrackSolo(m_selectedTrack, !trackSolo(m_selectedTrack)); return; }
+    if (actionId == QStringLiteral("toggleTrackLocked")) { setTrackLocked(m_selectedTrack, !trackLocked(m_selectedTrack)); return; }
+    if (actionId == QStringLiteral("addVideoTrack")) { addTrack(QStringLiteral("video")); return; }
+    if (actionId == QStringLiteral("addAudioTrack")) { addTrack(QStringLiteral("audio")); return; }
+    if (actionId == QStringLiteral("trackTaller")) { nudgeTrackHeightScale(m_selectedTrack, 1); return; }
+    if (actionId == QStringLiteral("trackShorter")) { nudgeTrackHeightScale(m_selectedTrack, -1); return; }
+    if (actionId == QStringLiteral("addAdjustmentLayer")) { addAdjustmentClip(-1, -1); return; }
+    if (actionId == QStringLiteral("addCamera")) { addCameraTrack(); return; }
+    if (actionId == QStringLiteral("addText")) { addTextClip(QString(), -1); return; }
+    if (actionId == QStringLiteral("recordVoiceover")) {
         if (isRecordingAudio())
             stopAudioRecording();
         else
             startAudioRecording();
+        return;
     }
 }
 

@@ -52,7 +52,8 @@ public slots:
     PreviewVideoFrame decodePreviewVideo(quint64 streamId, drift::TimeUs sourceUs, int maxWidth,
                                          int maxHeight, int rotationCorrection = 0,
                                          bool approximate = false,
-                                         quintptr session = 0);
+                                         quintptr session = 0,
+                                         bool catchUp = false);
     // The streams on this path that `session` (one compositor thread) reads for the frame it is
     // building. A reader of that session outside the set is free to be handed to a new stream.
     void setActiveStreams(quintptr session, const QList<quint64> &streams);

@@ -1056,6 +1056,11 @@ QVariantMap AppController::clipToMap(const drift::Clip &clip, const drift::Clip 
              && drift::framesAlreadyCoverProject(faceAsset->fps, face.speed, m_project.fps())},
         {QStringLiteral("reverse"), clip.reverse},
         {QStringLiteral("loop"), clip.loop},
+        {QStringLiteral("remixEnabled"), clip.hasRemix()},
+        {QStringLiteral("remixBpm"), clip.remix.bpm},
+        {QStringLiteral("remixTargetDuration"), drift::usToSeconds(clip.remix.targetDurationUs)},
+        {QStringLiteral("remixOriginalDuration"), drift::usToSeconds(clip.remix.originalDurationUs)},
+        {QStringLiteral("remixCutCount"), qMax(0, static_cast<int>(clip.remix.plan.size()) - 1)},
         {QStringLiteral("enabled"), clip.enabled},
         {QStringLiteral("locked"), clip.locked},
         {QStringLiteral("flipH"), clip.flipH},
@@ -1256,6 +1261,14 @@ TimelineClipsModel::Row AppController::clipRow(const drift::Clip &clip,
     row.velocityEnvelopeEnabled = clip.velocityEnvelope.enabled();
     row.velocityEnvelope = clip.velocityEnvelope;
     row.velocityPoints = velocityPointsToVariant(clip.velocityEnvelope);
+    row.remixEnabled = clip.hasRemix();
+    row.remixBpm = clip.remix.bpm;
+    if (clip.hasRemix()) {
+        const QList<drift::TimeUs> joints = clip.remix.jointTimelineOffsetsUs();
+        row.remixCuts.reserve(joints.size());
+        for (drift::TimeUs t : joints)
+            row.remixCuts.append(drift::usToSeconds(t));
+    }
     row.activeTakeIndex = clip.activeTakeIndex;
     row.takeCount = clip.takes.size();
     for (int i = 0; i < clip.takes.size(); ++i) {

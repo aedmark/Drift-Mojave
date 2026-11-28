@@ -10,6 +10,7 @@
 #include "core/shapes/ShapeStyle.h"
 #include "core/animation/SpeedCurve.h"
 #include "core/animation/VelocityEnvelope.h"
+#include "core/audio/MusicRemix.h"
 #include "core/project/SubtitleCue.h"
 #include "core/text/TextStyle.h"
 #include "core/base/Time.h"
@@ -174,6 +175,7 @@ struct Clip
     // moment. The source range stays fixed and the timeline duration is what the ramp derives.
     SpeedCurve speedCurve;
     VelocityEnvelope velocityEnvelope;
+    MusicRemixPlan remix;
     bool reverse = false; // play source range backward; speed still applies as magnitude
     // Repeat srcIn..srcOut for as long as the clip runs, so timelineDuration is free of the source
     // range rather than derived from it. loopOffsetUs is how far into the range (in playback
@@ -326,10 +328,11 @@ struct Clip
 
     bool hasSpeedCurve() const { return !speedCurve.isEmpty(); }
     bool hasVelocityEnvelope() const { return velocityEnvelope.enabled(); }
+    bool hasRemix() const { return remix.active(); }
 
     bool loops() const
     {
-        return loop && (type == ClipType::Video || type == ClipType::Audio) && !hasSpeedCurve() && !hasVelocityEnvelope() && srcOut > srcIn;
+        return loop && (type == ClipType::Video || type == ClipType::Audio) && !hasSpeedCurve() && !hasVelocityEnvelope() && !hasRemix() && srcOut > srcIn;
     }
 
     // Timeline length of one pass through srcIn..srcOut.

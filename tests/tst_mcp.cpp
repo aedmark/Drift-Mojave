@@ -364,6 +364,7 @@ private slots:
     void performanceSettingsRoundTrip();
     void binFolderOps();
     void removeAssetRefusesLockedTimeline();
+    void remixClipAndRevertUndo();
 };
 
 static QJsonObject rpc(const QString &method, const QJsonObject &params = {}, int id = 1)
@@ -7716,6 +7717,13 @@ void McpTest::memoryStatsAndClearCache()
     QVERIFY(decoders.value(QStringLiteral("readers")).toInt() > 0);
     QVERIFY(decoders.value(QStringLiteral("video_workers")).toInt() > 0);
     QVERIFY(stats.value(QStringLiteral("undo_history")).toObject().contains(QStringLiteral("steps")));
+
+    const QJsonObject perf = dispatcher.applyOne(QStringLiteral("perf_stats"), {});
+    QVERIFY2(perf.value(QStringLiteral("ok")).toBool(), qPrintable(QJsonDocument(perf).toJson()));
+    const QJsonObject pDec = perf.value(QStringLiteral("decode")).toObject();
+    QVERIFY(pDec.value(QStringLiteral("seeks")).toDouble() >= 1.0);
+    QVERIFY(pDec.value(QStringLiteral("cache_requests")).toDouble() >= 1.0);
+    QVERIFY(perf.value(QStringLiteral("playback")).toObject().contains(QStringLiteral("composite_median_ms")));
 
     // Nothing is mid-decode now, so every decoder closes and its frames go with it.
     const QJsonObject cleared = dispatcher.applyOne(QStringLiteral("clear_cache"), {});
@@ -16243,6 +16251,67 @@ void McpTest::setTrackSolo()
     batch = dispatcher.apply({{S("ops"), QJsonArray{op(S("set_track"), {{S("track"), layer.value(S("track")).toInt()}, {S("solo"), true}})}}});
     QVERIFY(!batch.value(S("ok")).toBool());
     QCOMPARE(batch.value(S("failed")).toObject().value(S("error")).toString(), QStringLiteral("bad_args"));
+}
+
+void McpTest::remixClipAndRevertUndo()
+{
+    if (ffmpegPath().isEmpty())
+        QSKIP("ffmpeg not available to generate a test clip");
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString source = dir.filePath(QStringLiteral("clicks.wav"));
+    QVERIFY(writeClickTrack(source, 12));
+
+    AssetLibrary library;
+    AppController state(&library);
+    drift::mcp::McpDispatcher dispatcher(&state);
+    const QString clipId = importAndPlace(dispatcher, source, 0.0);
+    QVERIFY(!clipId.isEmpty());
+
+    const auto findClip = [&]() -> const drift::Clip * {
+        for (const drift::Track &t : state.project()->tracks()) {
+            for (const drift::Clip &c : t.clips) {
+                if (c.id == clipId)
+                    return &c;
+            }
+        }
+        return nullptr;
+    };
+    QVERIFY(findClip());
+    const drift::TimeUs origDur = findClip()->timelineDuration;
+
+    const QJsonObject preview = dispatcher.applyOne(
+        QStringLiteral("remix_clip"),
+        {{QStringLiteral("clip"), clipId},
+         {QStringLiteral("target_duration"), 7.0},
+         {QStringLiteral("preview_only"), true}});
+    QVERIFY2(preview.value(QStringLiteral("ok")).toBool(), qPrintable(QJsonDocument(preview).toJson()));
+    QCOMPARE(findClip()->timelineDuration, origDur);
+    QVERIFY(!findClip()->hasRemix());
+
+    const QJsonObject applied = dispatcher.applyOne(
+        QStringLiteral("remix_clip"),
+        {{QStringLiteral("clip"), clipId},
+         {QStringLiteral("target_duration"), 7.0},
+         {QStringLiteral("segments"), 40}});
+    QVERIFY2(applied.value(QStringLiteral("ok")).toBool(), qPrintable(QJsonDocument(applied).toJson()));
+    QVERIFY(findClip()->hasRemix());
+    QVERIFY2(std::abs(applied.value(QStringLiteral("actual_duration")).toDouble() - 7.0) <= 0.6,
+             qPrintable(QJsonDocument(applied).toJson()));
+
+    // Undo restores original duration cleanly; redo re-applies the remix.
+    state.undo();
+    QVERIFY(!findClip()->hasRemix());
+    QCOMPARE(findClip()->timelineDuration, origDur);
+    state.redo();
+    QVERIFY(findClip()->hasRemix());
+
+    // revert_remix restores original duration as an undoable edit.
+    const QJsonObject reverted =
+        dispatcher.applyOne(QStringLiteral("revert_remix"), {{QStringLiteral("clip"), clipId}});
+    QVERIFY2(reverted.value(QStringLiteral("ok")).toBool(), qPrintable(QJsonDocument(reverted).toJson()));
+    QVERIFY(!findClip()->hasRemix());
+    QCOMPARE(findClip()->timelineDuration, origDur);
 }
 
 QTEST_MAIN(McpTest)

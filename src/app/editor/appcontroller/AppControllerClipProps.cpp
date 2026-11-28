@@ -2,6 +2,7 @@
 #include "app/editor/appcontroller/AppControllerInternal.h"
 #include "core/animation/VelocityEnvelope.h"
 #include "engine/audio/AudioMixer.h"
+#include "engine/audio/analysis/AudioRemix.h"
 #include "engine/audio/dsp/ClipAudioRetimer.h"
 #include "engine/decode/readers/ClipReaderPool.h"
 #include "engine/packages/effects/EffectCatalog.h"
@@ -446,6 +447,7 @@ void AppController::previewSetClipSpeed(int trackIndex, int clipIndex, double sp
         beginPreviewDrag(tr("Speed changed"));
 
     const drift::Project before = m_project;
+    clip.remix.clear();
     clip.speed = qBound(0.25, speed, drift::kMaxCurveSpeed);
     clip.syncSrcOutFromSpeed(sourceDurationForClip(clip));
     syncLinkedPartnersFrom(m_project, clip);
@@ -499,6 +501,7 @@ void AppController::commitPreviewDrag()
     m_previewAutoCommit->stop();
     m_previewDragAuto = false;
     m_previewDragActive = false;
+    endSlipPreview();
     emit previewDragActiveChanged();
     // A press that never moved, or a drag whose every write was refused.
     if (!m_previewDragDirty)
@@ -557,6 +560,7 @@ void AppController::cancelPreviewDrag()
     m_project = m_previewDragBefore;
     m_project.setTranscripts(transcripts);
     m_previewDragActive = false;
+    endSlipPreview();
     emit previewDragActiveChanged();
     emitPreviewFrame();
 }
@@ -1676,6 +1680,7 @@ bool AppController::setClipSpeed(int trackIndex, int clipIndex, double speed)
         return false;
 
     const drift::Project before = m_project;
+    clip.remix.clear();
     clip.speed = qBound(0.25, speed, drift::kMaxCurveSpeed);
     clip.syncSrcOutFromSpeed(sourceDurationForClip(clip));
     syncLinkedPartnersFrom(m_project, clip);
@@ -1723,6 +1728,8 @@ bool AppController::setClipLoop(int trackIndex, int clipIndex, bool loop)
 
     const drift::Project before = m_project;
     clip.loop = loop;
+    if (loop)
+        clip.remix.clear();
     if (!loop) {
         // Back to a plain clip: at most one pass of the range, starting at its head, so the
         // duration is derived from the range again.
@@ -2908,4 +2915,156 @@ void AppController::clearClipVelocityEnvelope(int trackIndex, int clipIndex)
 
     pushProjectEdit(before, tr("Clear velocity envelope"));
     finishEdit(tr("Velocity envelope removed"));
+}
+
+namespace {
+
+drift::AudioRemixResult runMusicRemixForClip(const drift::Clip &clip, double targetDurationSec,
+                                             int segments, int variations)
+{
+    drift::AudioRemixResult fail;
+    if (clip.type != drift::ClipType::Audio || clip.path.isEmpty()) {
+        fail.error = QStringLiteral("Music Auto-Remix only supports audio file clips.");
+        return fail;
+    }
+    if (targetDurationSec <= 0.0 || !std::isfinite(targetDurationSec)) {
+        fail.error = QStringLiteral("Target duration must be positive.");
+        return fail;
+    }
+    const drift::TimeUs origSrcOut =
+        (clip.hasRemix() && clip.remix.originalSrcOutUs > clip.srcIn)
+            ? clip.remix.originalSrcOutUs
+            : clip.srcOut;
+    const drift::TimeUs origDuration =
+        (clip.hasRemix() && clip.remix.originalDurationUs > 0)
+            ? clip.remix.originalDurationUs
+            : clip.timelineDuration;
+
+    drift::AudioRemixOptions opts;
+    opts.targetDurationUs = drift::secondsToUs(targetDurationSec);
+    opts.segments = qBound(0, segments, 100);
+    opts.variations = qBound(0, variations, 100);
+
+    drift::AudioRemixResult res =
+        drift::AudioRemix::planFromMedia(clip.path, clip.audioStreamIndex, clip.srcIn, origSrcOut, opts);
+    if (res.ok) {
+        res.plan.originalDurationUs = origDuration;
+        res.plan.originalSrcOutUs = origSrcOut;
+    }
+    return res;
+}
+
+} // namespace
+
+QVariantMap AppController::analyzeMusicRemix(int trackIndex, int clipIndex, double targetDurationSec,
+                                             int segments, int variations) const
+{
+    QVariantMap out{{QStringLiteral("ok"), false}};
+    if (!isValidClipIndex(trackIndex, clipIndex)) {
+        out.insert(QStringLiteral("error"), tr("Clip not found"));
+        return out;
+    }
+    const drift::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    const drift::AudioRemixResult res =
+        runMusicRemixForClip(clip, targetDurationSec, segments, variations);
+    if (!res.ok) {
+        out.insert(QStringLiteral("error"), res.error);
+        return out;
+    }
+
+    QVariantList segList;
+    segList.reserve(res.plan.plan.size());
+    for (const drift::MusicRemixSegment &s : res.plan.plan) {
+        segList.append(QVariantMap{
+            {QStringLiteral("srcStart"), drift::usToSeconds(s.srcStartUs)},
+            {QStringLiteral("srcEnd"), drift::usToSeconds(s.srcEndUs)},
+            {QStringLiteral("crossfadeMs"), static_cast<double>(s.crossfadeUs) / 1000.0},
+        });
+    }
+    out.insert(QStringLiteral("ok"), true);
+    out.insert(QStringLiteral("bpm"), res.plan.bpm);
+    out.insert(QStringLiteral("targetDuration"), targetDurationSec);
+    out.insert(QStringLiteral("actualDuration"), drift::usToSeconds(res.actualDurationUs));
+    out.insert(QStringLiteral("cutCount"), qMax(0, static_cast<int>(res.plan.plan.size()) - 1));
+    out.insert(QStringLiteral("avgSimilarity"), res.avgSimilarity);
+    out.insert(QStringLiteral("segments"), segList);
+    return out;
+}
+
+bool AppController::applyMusicRemixDetailed(int trackIndex, int clipIndex, double targetDurationSec,
+                                            int segments, int variations, QString *errorOut)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex)) {
+        if (errorOut)
+            *errorOut = QStringLiteral("Clip not found");
+        return false;
+    }
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    if (clip.locked) {
+        if (errorOut)
+            *errorOut = tr("Clip is locked");
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return false;
+    }
+
+    const drift::AudioRemixResult res =
+        runMusicRemixForClip(clip, targetDurationSec, segments, variations);
+    if (!res.ok) {
+        if (errorOut)
+            *errorOut = res.error;
+        setLastMessage(res.error, QStringLiteral("warning"));
+        return false;
+    }
+
+    const drift::Project before = m_project;
+    clip.loop = false;
+    clip.loopOffsetUs = 0;
+    clip.speed = 1.0;
+    clip.speedCurve.clear();
+    clip.velocityEnvelope.clear();
+    clip.reverse = false;
+    clip.srcOut = res.plan.originalSrcOutUs;
+    clip.remix = res.plan;
+    clip.timelineDuration = qMax<drift::TimeUs>(1, res.actualDurationUs);
+    clip.fadeInUs = qMin(clip.fadeInUs, clip.timelineDuration);
+    clip.fadeOutUs = qMin(clip.fadeOutUs, clip.timelineDuration);
+
+    pushProjectEdit(before, tr("Remix music clip"));
+    finishEdit(tr("Remixed to %1 s (%2 BPM)")
+                   .arg(drift::usToSeconds(clip.timelineDuration), 0, 'f', 2)
+                   .arg(res.plan.bpm, 0, 'f', 0));
+    return true;
+}
+
+bool AppController::applyMusicRemix(int trackIndex, int clipIndex, double targetDurationSec,
+                                    int segments, int variations)
+{
+    return applyMusicRemixDetailed(trackIndex, clipIndex, targetDurationSec, segments, variations, nullptr);
+}
+
+bool AppController::revertMusicRemix(int trackIndex, int clipIndex)
+{
+    if (!isValidClipIndex(trackIndex, clipIndex))
+        return false;
+    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    if (!clip.hasRemix())
+        return false;
+    if (clip.locked) {
+        setLastMessage(tr("Clip is locked"), QStringLiteral("warning"));
+        return false;
+    }
+
+    const drift::Project before = m_project;
+    if (clip.remix.originalSrcOutUs > clip.srcIn)
+        clip.srcOut = clip.remix.originalSrcOutUs;
+    clip.timelineDuration = qMax<drift::TimeUs>(
+        1, clip.remix.originalDurationUs > 0 ? clip.remix.originalDurationUs
+                                             : (clip.srcOut - clip.srcIn));
+    clip.remix.clear();
+    clip.fadeInUs = qMin(clip.fadeInUs, clip.timelineDuration);
+    clip.fadeOutUs = qMin(clip.fadeOutUs, clip.timelineDuration);
+
+    pushProjectEdit(before, tr("Revert music remix"));
+    finishEdit(tr("Music remix reverted"));
+    return true;
 }

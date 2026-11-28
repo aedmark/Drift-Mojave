@@ -2,7 +2,7 @@
 
 Tracks work done on `main` **since the last public release**. Use this to see what is already fixed or added before filing an issue. Cleared when a new release ships.
 
-**Last released version:** `1.9.0`
+**Last released version:** `1.10.0`
 
 ---
 

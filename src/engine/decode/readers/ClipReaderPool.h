@@ -83,6 +83,15 @@ public:
         bool previous;
     };
 
+    // Catch-up mode for preview reads made on this thread while the scope lives: allows skipping
+    // disposable non-reference packets well before sourceUs when decoding lags behind playback.
+    struct CatchUpScope
+    {
+        explicit CatchUpScope(bool catchUp);
+        ~CatchUpScope();
+        bool previous;
+    };
+
     // Preview toolbar: Auto (per clip), Software, or Hardware on a named backend.
     // Drops every open video decoder so the next read opens on the chosen path.
     // Drop every open video decoder so the next read reopens on whatever the current decode

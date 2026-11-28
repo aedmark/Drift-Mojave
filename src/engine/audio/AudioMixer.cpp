@@ -257,6 +257,71 @@ void AudioMixer::readClipAudio(QVector<float> &out, const drift::Clip &clip, qui
         return;
     }
 
+    // A remixed audio clip plays its planned sequence of beat-matched segments with 20 ms
+    // equal-power overlaps at each joint.
+    if (clip.hasRemix()) {
+        const auto &segs = clip.remix.plan;
+        drift::Clip plainSeg = clip;
+        plainSeg.remix.clear();
+        plainSeg.loop = false;
+        plainSeg.loopOffsetUs = 0;
+        plainSeg.speed = 1.0;
+        plainSeg.speedCurve.clear();
+        plainSeg.velocityEnvelope.clear();
+        plainSeg.reverse = false;
+
+        QVector<float> part;
+        const drift::TimeUs winDurUs = framesToUs(outFrames, sampleRate);
+        const drift::TimeUs winEndUs = winStartUs + winDurUs;
+
+        drift::TimeUs segRelStartUs = 0;
+        for (int i = 0; i < segs.size(); ++i) {
+            const drift::MusicRemixSegment &seg = segs.at(i);
+            const drift::TimeUs segDurUs = seg.rawDurationUs();
+            const drift::TimeUs xfIn = (i > 0) ? clip.remix.effectiveCrossfadeUs(i - 1) : 0;
+            const drift::TimeUs xfOut = (i + 1 < segs.size()) ? clip.remix.effectiveCrossfadeUs(i) : 0;
+
+            const drift::TimeUs segTlStart = clip.timelineStart + segRelStartUs;
+            const drift::TimeUs segTlEnd = segTlStart + segDurUs;
+            const drift::TimeUs effStart =
+                (i == 0 && audibleStartUs >= 0) ? qMin(audibleStartUs, segTlStart) : segTlStart;
+            const drift::TimeUs effEnd =
+                (i + 1 == segs.size() && audibleEndUs >= 0) ? qMax(audibleEndUs, segTlEnd) : segTlEnd;
+
+            if (winEndUs > effStart && winStartUs < effEnd) {
+                plainSeg.timelineStart = segTlStart;
+                plainSeg.timelineDuration = segDurUs;
+                plainSeg.srcIn = seg.srcStartUs;
+                plainSeg.srcOut = seg.srcEndUs;
+                const quint64 segStreamId =
+                    (i & 1) == 0 ? streamId : (streamId ^ 0x9E3779B97F4A7C15ULL);
+                readClipAudio(part, plainSeg, segStreamId, winStartUs, outFrames, sampleRate, retimer, source,
+                              i == 0 ? audibleStartUs : -1, i + 1 == segs.size() ? audibleEndUs : -1);
+
+                const int copyFrames = qMin(outFrames, part.size() / 2);
+                for (int f = 0; f < copyFrames; ++f) {
+                    const drift::TimeUs t = winStartUs + framesToUs(f, sampleRate);
+                    float gain = 1.0f;
+                    if (xfIn > 0 && t >= segTlStart && t < segTlStart + xfIn) {
+                        const double alpha = std::clamp(
+                            static_cast<double>(t - segTlStart) / static_cast<double>(xfIn), 0.0, 1.0);
+                        gain *= static_cast<float>(std::sin(0.5 * M_PI * alpha));
+                    }
+                    if (xfOut > 0 && t >= segTlEnd - xfOut && t < segTlEnd) {
+                        const double beta = std::clamp(
+                            static_cast<double>(t - (segTlEnd - xfOut)) / static_cast<double>(xfOut), 0.0, 1.0);
+                        gain *= static_cast<float>(std::cos(0.5 * M_PI * beta));
+                    }
+                    out[f * 2] += part[f * 2] * gain;
+                    out[f * 2 + 1] += part[f * 2 + 1] * gain;
+                }
+            }
+            if (i + 1 < segs.size())
+                segRelStartUs += segDurUs - xfOut;
+        }
+        return;
+    }
+
     const drift::TimeUs startUs = audibleStartUs >= 0 ? qMin(audibleStartUs, clip.timelineStart) : clip.timelineStart;
     const drift::TimeUs endUs = audibleEndUs >= 0 ? qMax(audibleEndUs, clip.timelineEnd()) : clip.timelineEnd();
     // Inside the clip this is exactly timelineToSourceUs; only a handle needs the unclamped form.

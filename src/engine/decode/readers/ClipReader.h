@@ -15,8 +15,10 @@
 #include <optional>
 
 extern "C" {
+#include <libavcodec/codec_id.h>
 #include <libavutil/pixfmt.h>
 struct AVFrame;
+struct AVPacket;
 }
 
 // Threaded-capable demux/decode for a single media file.
@@ -52,8 +54,9 @@ public:
     // With `approximate` (a scrub in progress) the reader may return the nearest frame that is
     // cheap to reach — a cached one, a few frames of forward decode, or the keyframe at or before
     // the time — instead of decoding forward through the GOP to the exact frame.
+    // With `catchUp`, intermediate non-reference frames well before `sourceUs` may be skipped.
     bool readPreviewVideoFrame(drift::TimeUs sourceUs, PreviewVideoFrame &out, int maxWidth, int maxHeight,
-                               bool approximate = false);
+                               bool approximate = false, bool catchUp = false);
     // Decode one frame past the current position into the cache, to overlap
     // decode with the caller's compositing work. Match the format of the last
     // read so prefetch does not consume a frame the other format still needs.
@@ -94,6 +97,21 @@ public:
     // cursor is not near has to decode its way there from the preceding keyframe, so this is what
     // a badly shared decoder costs. Tests read the delta.
     static quint64 videoFramesDecoded();
+
+    struct DecodeStats
+    {
+        quint64 framesDecoded = 0;
+        quint64 framesSkippedCatchUp = 0;
+        quint64 seeks = 0;
+        quint64 cacheRequests = 0;
+        quint64 cacheHits = 0;
+        quint64 hwFrames = 0;
+        quint64 swFrames = 0;
+        quint64 hwFallbacks = 0;
+    };
+    static DecodeStats decodeStats();
+    static bool isDisposablePacket(const AVPacket *packet);
+    static bool isDisposableVideoPacket(AVCodecID codecId, const AVPacket *packet, int nalLengthSize = 0);
 
     // Decoded frames held in readers' caches across the process, for memory_stats. Bytes count
     // CPU-side frames only; hardware frames are GPU surfaces and are counted as frames. A cached
@@ -215,9 +233,9 @@ private:
     bool decodeVideoFrameAtOnce(drift::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight,
                                 bool *hwFailure);
     bool decodePreviewVideoFrameAtOnce(drift::TimeUs sourceUs, PreviewVideoFrame &out, int maxWidth,
-                                       int maxHeight, bool *hwFailure);
+                                       int maxHeight, bool *hwFailure, bool catchUp = false);
     bool decodePreviewVideoFrameApprox(drift::TimeUs sourceUs, PreviewVideoFrame &out, int maxWidth,
-                                       int maxHeight, bool *hwFailure);
+                                       int maxHeight, bool *hwFailure, bool catchUp = false);
     // Keyframe at or before the time, from the demuxer's index; -1 when the container has none.
     drift::TimeUs keyframeAtOrBeforeUs(drift::TimeUs sourceUs) const;
     bool seekVideoStream(drift::TimeUs sourceUs);
@@ -242,6 +260,8 @@ private:
         int maxFrames = std::numeric_limits<int>::max();
         // Seek even if decoding forward from the current position would get there.
         bool forceSeek = false;
+        // Skip disposable non-reference packets well before sourceUs during catch-up.
+        bool catchUp = false;
     };
     bool advanceVideoTo(drift::TimeUs sourceUs, bool *hwFailure)
     {

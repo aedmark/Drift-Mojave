@@ -982,6 +982,20 @@ ThemedContextMenu {
                 onTriggered: ShellBridge.main.openBeatCut(clipContextMenu.owner.trackIndex, clipContextMenu.owner.clipIndex)
             }
             ThemedMenuItem {
+                text: qsTr("Remix to duration…")
+                icon.name: Theme.icons.music
+                visible: clipContextMenu.owner.clipData.kind === "audio"
+                         && typeof clipContextMenu.owner.panel.requestMusicRemix === "function"
+                onTriggered: clipContextMenu.owner.panel.requestMusicRemix(clipContextMenu.owner.trackIndex, clipContextMenu.owner.clipIndex)
+            }
+            ThemedMenuItem {
+                text: qsTr("Revert music remix")
+                icon.name: Theme.icons.undo
+                visible: clipContextMenu.owner.clipData.kind === "audio"
+                         && !!clipContextMenu.owner.clipData.remixEnabled
+                onTriggered: EditorState.revertMusicRemix(clipContextMenu.owner.trackIndex, clipContextMenu.owner.clipIndex)
+            }
+            ThemedMenuItem {
                 text: qsTr("Cancel audio analysis")
                 icon.name: Theme.icons.x
                 visible: EditorState.audioAlign.running

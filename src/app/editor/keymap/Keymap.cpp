@@ -628,10 +628,13 @@ void Keymap::resetAction(const QString &actionId)
 
 void Keymap::resetAll()
 {
-    if (m_overrides.isEmpty())
+    const QString defaultPreset = QLatin1String(keymap::kDefaultPresetId);
+    if (m_overrides.isEmpty() && m_presetId == defaultPreset)
         return;
     m_overrides.clear();
     QSettings().remove(kGroup + QStringLiteral("/overrides"));
+    m_presetId = defaultPreset;
+    persistPreset();
     rebuild();
     emit changed();
 }

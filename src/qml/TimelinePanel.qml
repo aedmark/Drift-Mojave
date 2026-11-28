@@ -1159,6 +1159,13 @@ PanelFrame {
         autoReframeDialog.openFor(trackIndex, clipIndex)
     }
 
+    function requestMusicRemix(trackIndex, clipIndex) {
+        const clips = (trackIndex >= 0 && trackIndex < root.tracks.length)
+            ? (root.tracks[trackIndex].clips || []) : []
+        const dur = (clipIndex >= 0 && clipIndex < clips.length) ? (clips[clipIndex].duration || 15.0) : 15.0
+        musicRemixDialog.openFor(trackIndex, clipIndex, dur)
+    }
+
     function requestRenameClip(trackIndex, clipIndex) {
         if (trackIndex < 0 || clipIndex < 0)
             return
@@ -2564,6 +2571,10 @@ PanelFrame {
 
     TimelineAutoReframeDialog {
         id: autoReframeDialog
+    }
+
+    TimelineMusicRemixDialog {
+        id: musicRemixDialog
     }
 
     ThemedDialog {

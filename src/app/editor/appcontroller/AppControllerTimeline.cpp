@@ -6,6 +6,10 @@
 #include "app/editor/sessions/SpeedCurveController.h"
 #include "app/editor/PreferencesController.h"
 #include "app/editor/ProjectFileController.h"
+#include "engine/decode/readers/ClipReaderPool.h"
+#include "ui/imageproviders/slippreview/SlipPreviewImageStore.h"
+
+#include <QtConcurrent/QtConcurrentRun>
 
 #include "engine/render2d/pdf/PdfClipRenderer.h"
 // Engine-internal by its own header comment, and included here only for releaseCaches(): the GPU
@@ -3377,12 +3381,15 @@ AppController::SlipComputation AppController::computeSlipClip(int trackIndex, in
     return out;
 }
 
-QVariantMap AppController::previewSlipClip(int trackIndex, int clipIndex, double deltaSeconds) const
+QVariantMap AppController::previewSlipClip(int trackIndex, int clipIndex, double deltaSeconds)
 {
     const SlipComputation c = computeSlipClip(trackIndex, clipIndex, deltaSeconds);
-    if (!c.ok)
+    if (!c.ok) {
+        endSlipPreview();
         return {{QStringLiteral("ok"), false}};
+    }
     const drift::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    updateSlipPreview(trackIndex, clipIndex, c);
     return QVariantMap{
         {QStringLiteral("ok"), true},
         {QStringLiteral("changed"), c.changed},
@@ -3396,6 +3403,7 @@ QVariantMap AppController::previewSlipClip(int trackIndex, int clipIndex, double
 
 bool AppController::commitSlipClip(int trackIndex, int clipIndex, double deltaSeconds)
 {
+    endSlipPreview();
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return false;
     drift::Track &track = m_project.tracks()[trackIndex];
@@ -3514,6 +3522,235 @@ void findAdjacentNeighbors(const drift::Track &track, int clipIndex, int *prevOu
         }
     }
 }
+
+constexpr quint64 kSlipStreamSalt = 0x534C4950555034ULL;
+constexpr double kSlipTileScale = 0.35;
+
+} // namespace
+
+void AppController::updateSlipPreview(int trackIndex, int clipIndex, const SlipComputation &c)
+{
+    if (!c.ok || trackIndex < 0 || trackIndex >= m_project.tracks().size()) {
+        endSlipPreview();
+        return;
+    }
+    const drift::Track &srcTrack = m_project.tracks().at(trackIndex);
+    if (clipIndex < 0 || clipIndex >= srcTrack.clips.size()) {
+        endSlipPreview();
+        return;
+    }
+
+    int visualTrackIndex = trackIndex;
+    int visualClipIndex = clipIndex;
+    const drift::Clip &origClip = srcTrack.clips.at(clipIndex);
+    if (origClip.type == drift::ClipType::Audio) {
+        for (const drift::ClipRef &ref : drift::linkedPartners(m_project, origClip)) {
+            if (ref.trackIndex < 0 || ref.trackIndex >= m_project.tracks().size())
+                continue;
+            const drift::Track &pt = m_project.tracks().at(ref.trackIndex);
+            if (ref.clipIndex < 0 || ref.clipIndex >= pt.clips.size())
+                continue;
+            const drift::Clip &pc = pt.clips.at(ref.clipIndex);
+            if (pc.type == drift::ClipType::Video || pc.type == drift::ClipType::Image
+                || pc.type == drift::ClipType::Composite) {
+                visualTrackIndex = ref.trackIndex;
+                visualClipIndex = ref.clipIndex;
+                break;
+            }
+        }
+    }
+
+    const drift::Track &vTrack = m_project.tracks().at(visualTrackIndex);
+    const drift::Clip &vClip = vTrack.clips.at(visualClipIndex);
+    const drift::TimeUs frameDurUs = drift::frameDurationUs(m_project.fpsNum(), m_project.fpsDen());
+
+    const auto firstSourceUs = [&](const drift::Clip &cl, drift::TimeUs inUs, drift::TimeUs outUs,
+                                   drift::TimeUs loopOffset) {
+        const drift::TimeUs span = qMax<drift::TimeUs>(1, outUs - inUs);
+        if (cl.loops()) {
+            const drift::TimeUs off = ((loopOffset % span) + span) % span;
+            return !cl.reverse ? (inUs + off)
+                               : (inUs + ((off + span - qMin(span, frameDurUs)) % span));
+        }
+        return !cl.reverse ? inUs : qMax(inUs, outUs - frameDurUs);
+    };
+    const auto lastSourceUs = [&](const drift::Clip &cl, drift::TimeUs inUs, drift::TimeUs outUs,
+                                  drift::TimeUs loopOffset) {
+        const drift::TimeUs span = qMax<drift::TimeUs>(1, outUs - inUs);
+        if (cl.loops()) {
+            const drift::TimeUs off = ((loopOffset % span) + span) % span;
+            return !cl.reverse ? (inUs + ((off + span - qMin(span, frameDurUs)) % span))
+                               : (inUs + off);
+        }
+        return !cl.reverse ? qMax(inUs, outUs - frameDurUs) : inUs;
+    };
+
+    const drift::TimeUs clipInUs = firstSourceUs(vClip, c.newSrcIn, c.newSrcOut, c.newLoopOffsetUs);
+    const drift::TimeUs clipOutUs = lastSourceUs(vClip, c.newSrcIn, c.newSrcOut, c.newLoopOffsetUs);
+
+    int prevIdx = -1;
+    int nextIdx = -1;
+    findAdjacentNeighbors(vTrack, visualClipIndex, &prevIdx, &nextIdx);
+
+    auto makeQuad = [&](int slot, const drift::Clip *cl, drift::TimeUs srcUs,
+                        QList<SlipQuadRequest> &reads, QList<int> &emptySlots) -> QVariantMap {
+        if (!cl) {
+            emptySlots.append(slot);
+            return QVariantMap{{QStringLiteral("valid"), false}, {QStringLiteral("hasImage"), false}};
+        }
+        const bool decodable = !cl->path.isEmpty()
+            && (cl->type == drift::ClipType::Video || cl->type == drift::ClipType::Image);
+        if (decodable) {
+            reads.append(SlipQuadRequest{
+                slot, cl->path,
+                kSlipStreamSalt ^ ClipReaderPool::streamIdForClip(
+                    cl->id + QStringLiteral(":slip.%1").arg(slot)),
+                srcUs, cl->rotationCorrection});
+        } else {
+            emptySlots.append(slot);
+        }
+        return QVariantMap{
+            {QStringLiteral("valid"), true},
+            {QStringLiteral("hasImage"), decodable},
+            {QStringLiteral("clipName"), cl->name},
+            {QStringLiteral("sourceSeconds"), drift::usToSeconds(srcUs)},
+            {QStringLiteral("timecode"),
+             drift::Project::formatTimecode(srcUs, m_project.fpsNum(), m_project.fpsDen(),
+                                            m_project.dropFrame())},
+        };
+    };
+
+    QList<SlipQuadRequest> reads;
+    QList<int> emptySlots;
+    const drift::Clip *prevClip = (prevIdx >= 0 && prevIdx < vTrack.clips.size()) ? &vTrack.clips.at(prevIdx) : nullptr;
+    const drift::Clip *nextClip = (nextIdx >= 0 && nextIdx < vTrack.clips.size()) ? &vTrack.clips.at(nextIdx) : nullptr;
+    const drift::TimeUs prevOutUs = prevClip
+        ? lastSourceUs(*prevClip, prevClip->srcIn, prevClip->srcOut, prevClip->loopOffsetUs)
+        : 0;
+    const drift::TimeUs nextInUs = nextClip
+        ? firstSourceUs(*nextClip, nextClip->srcIn, nextClip->srcOut, nextClip->loopOffsetUs)
+        : 0;
+
+    const qint64 deltaFrames = frameDurUs > 0 ? qRound64(double(c.sourceDeltaUs) / double(frameDurUs)) : 0;
+
+    QVariantMap state;
+    state.insert(QStringLiteral("active"), true);
+    state.insert(QStringLiteral("clipName"), vClip.name);
+    state.insert(QStringLiteral("deltaFrames"), deltaFrames);
+    state.insert(QStringLiteral("deltaSeconds"), drift::usToSeconds(c.sourceDeltaUs));
+    state.insert(QStringLiteral("prev"), makeQuad(SlipPreviewImageStore::PrevOut, prevClip, prevOutUs, reads, emptySlots));
+    state.insert(QStringLiteral("in"), makeQuad(SlipPreviewImageStore::ClipIn, &vClip, clipInUs, reads, emptySlots));
+    state.insert(QStringLiteral("out"), makeQuad(SlipPreviewImageStore::ClipOut, &vClip, clipOutUs, reads, emptySlots));
+    state.insert(QStringLiteral("next"), makeQuad(SlipPreviewImageStore::NextIn, nextClip, nextInUs, reads, emptySlots));
+
+    m_slipPreviewActive = true;
+    m_slipPreviewState = state;
+    emit slipPreviewChanged();
+
+    startSlipQuadDecode(reads, emptySlots);
+}
+
+void AppController::startSlipQuadDecode(const QList<SlipQuadRequest> &reads, const QList<int> &emptySlots)
+{
+    for (const int slot : emptySlots)
+        SlipPreviewImageStore::setQuad(slot, QImage());
+
+    if (reads.isEmpty()) {
+        m_pendingSlipReads.clear();
+        m_pendingSlipEmptySlots.clear();
+        m_slipRefreshPending = false;
+        ++m_slipPreviewRevision;
+        emit slipPreviewFramesChanged();
+        return;
+    }
+
+    if (m_slipRefreshing) {
+        m_pendingSlipReads = reads;
+        m_pendingSlipEmptySlots = emptySlots;
+        m_slipRefreshPending = true;
+        return;
+    }
+
+    m_slipRefreshing = true;
+    m_slipRefreshPending = false;
+    const int generation = ++m_slipGeneration;
+    const int maxWidth = qMax(1, static_cast<int>(std::lround(m_project.width() * kSlipTileScale)));
+    const int maxHeight = qMax(1, static_cast<int>(std::lround(m_project.height() * kSlipTileScale)));
+
+    QList<ClipReaderPool::VideoRequest> warmRequests;
+    warmRequests.reserve(reads.size());
+    for (const SlipQuadRequest &r : reads) {
+        warmRequests.append(ClipReaderPool::VideoRequest{
+            r.path, r.streamId, r.sourceUs, maxWidth, maxHeight, r.rotationCorrection});
+    }
+
+    m_slipRefreshFuture = QtConcurrent::run([this, reads, warmRequests, maxWidth, maxHeight, generation]() {
+        ClipReaderPool::instance().warmVideoFrames(warmRequests);
+
+        QList<QPair<int, QImage>> quads;
+        quads.reserve(reads.size());
+        for (const SlipQuadRequest &r : reads) {
+            quads.append(qMakePair(r.slot,
+                                   ClipReaderPool::instance().readVideoFrame(
+                                       r.path, r.streamId, r.sourceUs, maxWidth, maxHeight,
+                                       r.rotationCorrection)));
+        }
+
+        QMetaObject::invokeMethod(this, [this, quads, generation]() {
+            if (generation != m_slipGeneration)
+                return;
+            m_slipRefreshing = false;
+
+            if (!m_slipPreviewActive)
+                return;
+
+            for (const auto &q : quads)
+                SlipPreviewImageStore::setQuad(q.first, q.second);
+            ++m_slipPreviewRevision;
+            emit slipPreviewFramesChanged();
+
+            if (m_slipRefreshPending) {
+                const QList<SlipQuadRequest> nextReads = std::move(m_pendingSlipReads);
+                const QList<int> nextEmpty = std::move(m_pendingSlipEmptySlots);
+                m_pendingSlipReads.clear();
+                m_pendingSlipEmptySlots.clear();
+                m_slipRefreshPending = false;
+                startSlipQuadDecode(nextReads, nextEmpty);
+            }
+        }, Qt::QueuedConnection);
+    });
+}
+
+void AppController::endSlipPreview()
+{
+    m_pendingSlipReads.clear();
+    m_pendingSlipEmptySlots.clear();
+    m_slipRefreshPending = false;
+    ++m_slipGeneration;
+    m_slipRefreshing = false;
+
+    const bool wasActive = m_slipPreviewActive || !m_slipPreviewState.isEmpty();
+    m_slipPreviewActive = false;
+    m_slipPreviewState.clear();
+    SlipPreviewImageStore::clear();
+
+    if (wasActive) {
+        ++m_slipPreviewRevision;
+        emit slipPreviewChanged();
+        emit slipPreviewFramesChanged();
+    }
+}
+
+void AppController::waitForSlipRefresh()
+{
+    ++m_slipGeneration;
+    m_slipRefreshPending = false;
+    if (m_slipRefreshFuture.isRunning())
+        m_slipRefreshFuture.waitForFinished();
+    m_slipRefreshing = false;
+}
+
+namespace {
 
 drift::TimeUs timelineExtendBudget(const drift::Project &project, const drift::Clip &clip, bool extendLeft)
 {

@@ -185,3 +185,18 @@ Status: **Shipped in `v1.8.0`**
    - Completed the final 4 native `.veg` plugin stragglers in `VegasReader`: `chromakeyer` (`key.chroma`), `invert` (`color.grade` inverted master curve), `ExpressFX Equalization` (`utility.eq`), and `Pitch Shift` (`Clip::pitchSemitones`).
 2. **Tier 10B — Multicam Sync & Switcher Polish** — ✅ Implemented on `main`
    - One-click `syncAndStartInlineMulticam()` (audio waveform auto-sync → multicam track creation → inline multicam mode), `jumpToAdjacentMulticamCut()` / `multicamCutCount()`, Prev Cut / Next Cut / Undo controls + broadcast Drop-Frame timecode in `InlineMulticamOverlay.qml` & `MulticamWindow.qml`.
+
+---
+
+## Tier 11 — 4-Up Slip Monitor, Catch-Up Skipping, Golden Render Parity / Bench & Music Auto-Remix (`v1.10.0`)
+
+Status: **Shipped in `v1.10.0`**
+
+1. **Tier 11A (`P12-01`, `D-026`) — 4-Up Slip Monitor**:
+   - `SlipPreviewImageStore` / `SlipPreviewImageProvider` (`image://slippreview/<slot>?rev=<n>`), `SlipMonitorOverlay.qml` in `PreviewPanel.qml`, and coalescing async quad-frame decode in `AppController::previewSlipClip` / `endSlipPreview` (`Prev Out`, `Slip In`, `Slip Out`, `Next In`).
+2. **Tier 11B (`P12-02`, `D-027`) — Catch-Up Non-Ref Skipping & Source-Bound Lookback**:
+   - `ClipReader::isDisposableVideoPacket` (H.264/HEVC Annex-B + AVCC/HVCC NAL inspection) + `AVDISCARD_NONREF` with a 4-frame safety margin, `ClipReader::DecodeStats`, `CompositorService::isSourceDecoderBound()` monotonic 1s lookback, and 3-frame `PlaybackEngine` read-ahead throttling when decoder-bound.
+3. **Tier 11C (`P12-03`, `D-028`) — Golden Render Parity Suite, `perf_stats`, & `--headless --bench`**:
+   - Procedural golden render regression suite (`tst_golden_render` + `tests/data/golden/*.png`), RGBA8-fallback vs float FBO parity test, `.cube` tetrahedral LUT analytic check, `perf_stats` MCP tool (`McpController::perfStats()`), `PlaybackDiagnostics` decode telemetry, and `drift --headless --bench [--json]`.
+4. **Tier 11D (`P12-04`, `D-029`) — Beat-Matched Music Auto-Remix**:
+   - `MusicRemixPlan` (`Clip::remix`), `AudioRemix` (`AudioOnsets` + `drift::Stft` 12-chroma/8-timbre 4-beat context beam search), 20 ms equal-power `cos`/`sin` crossfade mixing in `AudioMixer::readClipAudio`, `TimelineMusicRemixDialog.qml` + context menu, and `remix_clip`/`revert_remix` MCP tools.

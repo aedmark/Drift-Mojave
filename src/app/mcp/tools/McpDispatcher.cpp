@@ -1278,6 +1278,8 @@ QJsonObject McpDispatcher::applyOneUnchecked(const QString &tool, const QJsonObj
         return m_controller->mcp()->setPerformance(args);
     if (tool == QLatin1String("memory_stats"))
         return m_controller->mcp()->memoryStats();
+    if (tool == QLatin1String("perf_stats"))
+        return m_controller->mcp()->perfStats();
     if (tool == QLatin1String("clear_cache"))
         return m_controller->mcp()->clearCache();
     if (tool == QLatin1String("quit_instance"))

@@ -2257,8 +2257,10 @@ void TimelineTrackItem::finishPress(bool canceled)
         if (m_viewState)
             m_viewState->clearTrimFollow();
         if (canceled) {
-            if (m_editor)
+            if (m_editor) {
+                m_editor->endSlipPreview();
                 m_editor->cancelPreviewDrag();
+            }
         } else if (m_editor) {
             m_editor->commitSlipClip(m_trackIndex, drag.clipIndex, drag.slipDeltaSeconds);
         }

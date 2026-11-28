@@ -1,4 +1,5 @@
 #include "app/HeadlessApp.h"
+#include "app/HeadlessBench.h"
 #include "app/ProjectDirCli.h"
 #include "engine/projdir/ProjectTemplate.h"
 #include "app/editor/PreferencesController.h"
@@ -122,6 +123,8 @@ int runHeadless(int argc, char *argv[])
     QString httpToken;
     bool stdioRequested = false;
     bool isolated = false;
+    bool benchRequested = false;
+    QString benchJsonPath;
     QStringList positional;
     for (int i = 1; i < argc; ++i) {
         const QByteArray arg(argv[i]);
@@ -133,6 +136,10 @@ int runHeadless(int argc, char *argv[])
             httpToken = QString::fromLocal8Bit(argv[++i]);
         } else if (arg == "--isolated-session") {
             isolated = true;
+        } else if (arg == "--bench") {
+            benchRequested = true;
+        } else if (arg == "--json" && i + 1 < argc) {
+            benchJsonPath = QString::fromLocal8Bit(argv[++i]);
         } else if (drift::farm::isFarmValueFlag(arg)) {
             ++i;
         } else if (!arg.startsWith('-')) {
@@ -177,6 +184,9 @@ int runHeadless(int argc, char *argv[])
     drift::sweepDenoisePreviews();
     drift::ReverseProxyCache::instance().load();
     drift::ReverseProxyCache::instance().sweep(drift::ReverseProxyCache::kDefaultMaxBytes);
+
+    if (benchRequested)
+        return drift::runHeadlessBench(benchJsonPath);
 
     const QString glLine = describeOpenGl();
     // Farm and templates share `--render`; a template folder goes to the template path below.

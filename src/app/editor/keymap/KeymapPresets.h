@@ -14,7 +14,7 @@ struct Preset {
     QHash<QString, QStringList> chords;
 };
 
-inline constexpr char kDefaultPresetId[] = "drift";
+inline constexpr char kDefaultPresetId[] = "vegas";
 
 // Presets in picker order.
 const QList<Preset> &presets();

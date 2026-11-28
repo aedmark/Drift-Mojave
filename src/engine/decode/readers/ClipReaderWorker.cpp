@@ -111,14 +111,14 @@ QImage ClipReaderWorker::decodeVideo(quint64 streamId, drift::TimeUs sourceUs, i
 PreviewVideoFrame ClipReaderWorker::decodePreviewVideo(quint64 streamId, drift::TimeUs sourceUs,
                                                        int maxWidth, int maxHeight,
                                                        int rotationCorrection, bool approximate,
-                                                       quintptr session)
+                                                       quintptr session, bool catchUp)
 {
     QMutexLocker lock(&m_mutex);
     ClipReader *reader = readerFor(streamId, 0, session);
     if (reader)
         reader->setRotationCorrection(rotationCorrection);
     PreviewVideoFrame frame;
-    if (!reader || !reader->readPreviewVideoFrame(sourceUs, frame, maxWidth, maxHeight, approximate))
+    if (!reader || !reader->readPreviewVideoFrame(sourceUs, frame, maxWidth, maxHeight, approximate, catchUp))
         return {};
     return frame;
 }

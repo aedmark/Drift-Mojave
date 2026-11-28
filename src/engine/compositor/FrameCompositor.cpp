@@ -2720,6 +2720,7 @@ bool FrameCompositor::prepare(drift::TimeUs timelineUs, const RenderOptions &opt
     const ExactHistoryScope exactHistoryGuard(m_exactHistory.get(), historyScope, options.approximateSeek);
     // Covers the warm below and every read buildGpuScene makes, nested timelines included.
     const ClipReaderPool::ApproximateSeekScope approximate(options.approximateSeek);
+    const ClipReaderPool::CatchUpScope catchUp(options.catchUp);
     const NestedViewsScope nestedViews(m_nestedViews);
     QSet<QString> videoPaths;
     QSet<QString> audioPaths;

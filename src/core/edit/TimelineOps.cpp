@@ -2007,17 +2007,24 @@ bool splitClipAtOffsetMin(Clip &head, Clip &tail, TimeUs offset, TimeUs minEdgeU
     const TimeUs sourceSpan = head.srcOut - head.srcIn;
     // A looped clip keeps its range on both sides; only where the tail's first pass begins moves.
     const bool looped = head.loops();
+    const bool remixed = head.hasRemix();
     const TimeUs sourceOffset =
-        looped ? 1
+        (looped || remixed) ? 1
         : head.hasVelocityEnvelope() ? qBound(TimeUs{1}, head.timelineToSourceUs(head.timelineStart + offset) - head.srcIn, sourceSpan - 1)
         : head.hasSpeedCurve() ? head.speedCurve.sourceOffsetForTimelineOffset(offset, sourceSpan)
                              : head.sourceDeltaForTimelineDelta(offset);
-    if (sourceOffset <= 0 || sourceOffset >= sourceSpan)
+    if (!remixed && (sourceOffset <= 0 || sourceOffset >= sourceSpan))
         return false;
 
     tail = head;
     tail.timelineStart = head.timelineStart + offset;
     tail.timelineDuration = head.timelineDuration - offset;
+
+    if (head.hasRemix()) {
+        const MusicRemixPlan parentRemix = head.remix;
+        head.remix = parentRemix.subRange(0, offset);
+        tail.remix = parentRemix.subRange(offset, head.timelineDuration);
+    }
 
     if (head.hasVelocityEnvelope()) {
         const double cut = static_cast<double>(offset) / static_cast<double>(head.timelineDuration);
@@ -2038,6 +2045,8 @@ bool splitClipAtOffsetMin(Clip &head, Clip &tail, TimeUs offset, TimeUs minEdgeU
 
     if (looped) {
         tail.loopOffsetUs = head.loopedSourceOffset(offset);
+    } else if (remixed) {
+        // Remixed segments already slice source bounds via head.remix / tail.remix.
     } else if (head.reverse) {
         const TimeUs sourceAtSplit = head.srcOut - sourceOffset;
         tail.srcIn = head.srcIn;
@@ -2178,7 +2187,7 @@ bool clipsCanMerge(const Clip &left, const Clip &right)
         return false;
     // Two ramps do not concatenate into one: the merged clip would have to carry both shapes
     // over a single normalised range.
-    if (left.hasSpeedCurve() || right.hasSpeedCurve())
+    if (left.hasSpeedCurve() || right.hasSpeedCurve() || left.hasRemix() || right.hasRemix())
         return false;
     if (left.timelineEnd() != right.timelineStart)
         return false;
@@ -2478,6 +2487,7 @@ void syncLinkedTiming(Clip &dst, const Clip &src)
     dst.srcOut = src.srcOut;
     dst.speed = src.speed;
     dst.speedCurve = src.speedCurve;
+    dst.remix = src.remix;
     dst.reverse = src.reverse;
     dst.loop = src.loop;
     dst.loopOffsetUs = src.loopOffsetUs;

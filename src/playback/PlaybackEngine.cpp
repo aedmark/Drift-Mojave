@@ -1078,9 +1078,17 @@ FrameCompositor::RenderOptions PlaybackEngine::playbackRenderOptions(PreviewStre
 
     // Buffer decoded frames ahead of the playhead only while playback is actually
     // running: paused frames have no deadline to miss, and read-ahead during
-    // editing is thrown away by the next edit.
-    options.readAheadUs =
+    // editing is thrown away by the next edit. When a source decoder cannot keep up
+    // with real-time, bound read-ahead to 3 frames so the worker doesn't build lag.
+    constexpr int kSourceBoundAheadFrames = 3;
+    const drift::TimeUs stepUs = frameStepUs();
+    const double frameMs = drift::usToSeconds(stepUs) * 1000.0;
+    const bool decoderBound = m_playing && m_compositor.isSourceDecoderBound(frameMs);
+    drift::TimeUs readAheadUs =
         m_playing ? drift::TimeUs(drift::tuning::readAheadMs.load(std::memory_order_relaxed)) * 1000 : 0;
+    if (decoderBound && stepUs > 0)
+        readAheadUs = qMin(readAheadUs, kSourceBoundAheadFrames * stepUs);
+    options.readAheadUs = readAheadUs;
 
     // Never while playing: the editor is a paused-preview tool, and the rest pose would be wrong.
     if (!m_playing)
@@ -1108,7 +1116,11 @@ FrameCompositor::RenderOptions PlaybackEngine::playbackRenderOptions(PreviewStre
     // the ones after it are passing through.
     if (m_scrubbing && !m_playing && m_scrubSeeks >= 2) {
         options.approximateSeek = true;
+        options.catchUp = true;
     }
+    const drift::TimeUs lastPresentedUs = m_compositor.lastPresentedTimeUs(stream);
+    if (decoderBound || (m_playing && lastPresentedUs >= 0 && m_playheadUs - lastPresentedUs > stepUs))
+        options.catchUp = true;
     return options;
 }
 

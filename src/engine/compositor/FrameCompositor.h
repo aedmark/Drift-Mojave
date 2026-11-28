@@ -51,6 +51,9 @@ public:
         // the keyframe at or before the time) instead of decoding forward to the exact one. The
         // caller asks again without it once the gesture settles.
         bool approximateSeek = false;
+        // Catch-up: playback or scrubbing is behind, so ClipReader may skip disposable
+        // non-reference frames earlier in the GOP before reaching the target timestamp.
+        bool catchUp = false;
         // Audio params: a source whose onsets are not computed yet is analysed in the background
         // and its beat reads 0 until it is. Only the preview sets it; export and every other caller
         // wait, so a frame never depends on how fast the analysis happened to run.

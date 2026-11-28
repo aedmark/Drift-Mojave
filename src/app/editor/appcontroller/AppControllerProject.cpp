@@ -161,6 +161,7 @@ void AppController::resetSessionState()
     m_expandedEditTrack = -1;
     m_expandedEditLeftClip = -1;
     emit expandedEditChanged();
+    endSlipPreview();
 
     emit projectReset();
 }

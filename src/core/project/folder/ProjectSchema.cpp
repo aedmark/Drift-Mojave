@@ -104,6 +104,8 @@ QList<FieldDesc> clipFields()
         f("blendMode", "string", "How the clip blends over what is below (normal, multiply, screen, ...)."),
         f("speed", "number", "Playback speed; 1 is normal."),
         f("speedCurve", "any", "Speed ramp keyframes."),
+        f("velocityEnvelope", "any", "Clip velocity envelope points."),
+        f("remix", "any", "Beat-matched music auto-remix plan."),
         f("reverse", "boolean", "Play backwards."),
         f("loop", "boolean", "Repeat the source to fill the clip."),
         f("loopOffsetUs", "number", "Loop phase, in microseconds."),

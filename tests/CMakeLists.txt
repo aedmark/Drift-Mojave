@@ -98,6 +98,11 @@ target_include_directories(tst_stft PRIVATE ../src)
 target_link_libraries(tst_stft PRIVATE Qt6::Test Qt6::Core driftengine driftcore)
 add_test(NAME Stft COMMAND tst_stft)
 
+qt_add_executable(tst_audioremix tst_audioremix.cpp)
+target_include_directories(tst_audioremix PRIVATE ../src)
+target_link_libraries(tst_audioremix PRIVATE Qt6::Test Qt6::Core driftengine driftcore)
+add_test(NAME AudioRemix COMMAND tst_audioremix)
+
 qt_add_executable(tst_facemask tst_facemask.cpp)
 target_include_directories(tst_facemask PRIVATE ../src)
 target_link_libraries(tst_facemask PRIVATE Qt6::Test Qt6::Core Qt6::Gui driftengine driftcore)
@@ -339,6 +344,18 @@ target_compile_definitions(tst_effectshaders PRIVATE
     DRIFT_TEST_TRANSITIONS_DIR="${CMAKE_SOURCE_DIR}/transitions")
 add_test(NAME EffectShaders COMMAND tst_effectshaders)
 
+qt_add_executable(tst_golden_render tst_golden_render.cpp)
+target_include_directories(tst_golden_render PRIVATE ../src)
+target_link_libraries(tst_golden_render PRIVATE Qt6::Test Qt6::Gui Qt6::OpenGL driftengine driftcore)
+target_compile_definitions(tst_golden_render PRIVATE
+    DRIFT_TEST_EFFECTS_DIR="${CMAKE_SOURCE_DIR}/effects"
+    DRIFT_TEST_TRANSITIONS_DIR="${CMAKE_SOURCE_DIR}/transitions"
+    DRIFT_TEST_GOLDEN_DIR="${CMAKE_SOURCE_DIR}/tests/data/golden"
+    DRIFT_TEST_GOLDEN_FAIL_DIR="${CMAKE_BINARY_DIR}/golden-failures")
+add_test(NAME GoldenRender COMMAND tst_golden_render)
+drift_copy_effects(tst_golden_render)
+drift_copy_transitions(tst_golden_render)
+
 if(DRIFT_WITH_SKIA)
     qt_add_executable(tst_skia tst_skia.cpp)
     target_include_directories(tst_skia PRIVATE ../src)
@@ -367,6 +384,7 @@ qt_add_executable(tst_mcp
     ../src/ui/imageproviders/segment/SegmentImageStore.cpp
     ../src/playback/preview/ClipPreviewImageStore.cpp
     ../src/playback/preview/SplitPreviewImageStore.cpp
+    ../src/ui/imageproviders/slippreview/SlipPreviewImageStore.cpp
     ../src/ui/imageproviders/multicam/MulticamImageStore.cpp
     ../src/app/editor/AppController.cpp
     ../src/app/surfaces/EditorSurfaceTargets.cpp

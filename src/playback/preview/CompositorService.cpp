@@ -112,6 +112,8 @@ void CompositorService::invalidateSnapshot()
     // served and decline to redraw — leaving the edit invisible until the playhead moved.
     for (StreamSlot &slot : m_slots)
         slot.lastDispatchedTimeUs = -1;
+    for (drift::TimeUs &t : m_lastPresentedTimeUs)
+        t = -1;
 }
 
 void CompositorService::setDropLateFrames(bool drop)
@@ -145,6 +147,21 @@ void CompositorService::setPlaybackActive(bool active)
     m_lateStreak = 0;
     m_onTimeStreak = 0;
     m_warmupFramesLeft = active ? kWarmupFrames : 0;
+    if (!active)
+        m_smoothedDecodeWaitMs = 0.0;
+}
+
+bool CompositorService::isSourceDecoderBound(double framePeriodMs) const
+{
+    return m_playbackActive && framePeriodMs > 0.0 && m_smoothedDecodeWaitMs > framePeriodMs * 0.85;
+}
+
+drift::TimeUs CompositorService::lastPresentedTimeUs(PreviewStream stream) const
+{
+    const int idx = int(stream);
+    if (idx < 0 || idx >= kPreviewStreamCount)
+        return -1;
+    return m_lastPresentedTimeUs[idx];
 }
 
 void CompositorService::setLateFrameBudgetMs(int ms)
@@ -396,14 +413,28 @@ void CompositorService::onWorkerFrameReady(const GpuFrameTexture &frame, drift::
     if (stream == int(PreviewStream::Camera) && m_adaptiveQuality && m_dropLateFrames && m_playbackActive)
         noteFrameLate(timing.compositeMs > double(m_lateFrameBudgetMs));
 
+    if (m_playbackActive && stream == int(PreviewStream::Camera)) {
+        m_smoothedDecodeWaitMs = m_smoothedDecodeWaitMs <= 0.0
+            ? timing.decodeWaitMs
+            : (0.35 * timing.decodeWaitMs + 0.65 * m_smoothedDecodeWaitMs);
+    }
+
     // Present unless something newer already got there. Optionally also drop a frame that finished
     // far behind the playhead (a slow decoder open at a cut can otherwise show the outgoing clip
-    // in slow motion). Off by default: a late frame is usually better than none.
+    // in slow motion). When the decoder itself cannot keep up with real-time, allow monotonically
+    // advancing lookback frames up to 1 s behind the playhead so the monitor never freezes.
     const bool overtaken = sequence <= m_lastPresentedSequence[stream];
     const drift::TimeUs allowedLagUs =
         drift::TimeUs(drift::tuning::staleFrameLagMs.load(std::memory_order_relaxed)) * 1000;
+    const drift::TimeUs framePeriodMs = m_project
+        ? drift::usToSeconds(drift::frameDurationUs(m_project->fpsNum(), m_project->fpsDen())) * 1000.0
+        : 33.33;
+    const bool decoderBound = isSourceDecoderBound(framePeriodMs);
+    const drift::TimeUs maxLookbackUs = decoderBound ? qMax<drift::TimeUs>(allowedLagUs, 1'000'000) : allowedLagUs;
+    const bool monotonic = timeUs > m_lastPresentedTimeUs[stream];
     const bool stale = allowedLagUs > 0 && m_playbackActive && m_dropLateFrames
-        && slot.pendingTimeUs > timeUs && slot.pendingTimeUs - timeUs > allowedLagUs;
+        && slot.pendingTimeUs > timeUs
+        && (slot.pendingTimeUs - timeUs > maxLookbackUs || (decoderBound && !monotonic));
     if (drift::perf::enabled()) {
         const qint64 dispatchedNs = m_perfDispatchNs.take(sequence);
         drift::perf::record(slot.pendingOptions.approximateSeek ? "composite.work.approx" : "composite.work",
@@ -415,6 +446,7 @@ void CompositorService::onWorkerFrameReady(const GpuFrameTexture &frame, drift::
     }
     if (!overtaken && !stale && frame.isValid()) {
         m_lastPresentedSequence[stream] = sequence;
+        m_lastPresentedTimeUs[stream] = timeUs;
         if (m_stats)
             m_stats->noteDelivered();
         emit frameReady(stream, frame);

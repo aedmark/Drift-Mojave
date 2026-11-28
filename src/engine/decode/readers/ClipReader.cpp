@@ -370,6 +370,12 @@ void ClipReader::applyDecodeSize(const QSize &size)
 
 namespace {
 std::atomic<quint64> g_videoFramesDecoded{0};
+std::atomic<quint64> g_framesSkippedCatchUp{0};
+std::atomic<quint64> g_videoSeeks{0};
+std::atomic<quint64> g_videoCacheRequests{0};
+std::atomic<quint64> g_videoCacheHits{0};
+std::atomic<quint64> g_hwPreviewFrames{0};
+std::atomic<quint64> g_swPreviewFrames{0};
 std::atomic<int> g_hardwareDecodeMode{static_cast<int>(ClipReader::HardwareDecodeMode::Auto)};
 std::atomic<int> g_pinnedDecodeBackend{static_cast<int>(drift::hwaccel::Backend::None)};
 // -1 until a video decoder opens; otherwise the Backend the last one landed on.
@@ -489,6 +495,106 @@ QString avErrorText(int rc)
 quint64 ClipReader::videoFramesDecoded()
 {
     return g_videoFramesDecoded.load(std::memory_order_relaxed);
+}
+
+ClipReader::DecodeStats ClipReader::decodeStats()
+{
+    DecodeStats s;
+    s.framesDecoded = g_videoFramesDecoded.load(std::memory_order_relaxed);
+    s.framesSkippedCatchUp = g_framesSkippedCatchUp.load(std::memory_order_relaxed);
+    s.seeks = g_videoSeeks.load(std::memory_order_relaxed);
+    s.cacheRequests = g_videoCacheRequests.load(std::memory_order_relaxed);
+    s.cacheHits = g_videoCacheHits.load(std::memory_order_relaxed);
+    s.hwFrames = g_hwPreviewFrames.load(std::memory_order_relaxed);
+    s.swFrames = g_swPreviewFrames.load(std::memory_order_relaxed);
+    s.hwFallbacks = g_hwFallbackCount.load(std::memory_order_relaxed);
+    return s;
+}
+
+bool ClipReader::isDisposablePacket(const AVPacket *packet)
+{
+    return packet && (packet->flags & AV_PKT_FLAG_DISPOSABLE) != 0;
+}
+
+bool ClipReader::isDisposableVideoPacket(AVCodecID codecId, const AVPacket *packet, int nalLengthSize)
+{
+    if (!packet || !packet->data || packet->size <= 0)
+        return false;
+    if ((packet->flags & AV_PKT_FLAG_DISPOSABLE) != 0)
+        return true;
+    if (codecId != AV_CODEC_ID_H264 && codecId != AV_CODEC_ID_HEVC)
+        return false;
+
+    const uint8_t *data = packet->data;
+    const int size = packet->size;
+    bool sawVcl = false;
+
+    auto checkNal = [&](const uint8_t *nal, int nalSize) -> bool {
+        if (nalSize <= 0)
+            return true;
+        const uint8_t hdr = nal[0];
+        if (codecId == AV_CODEC_ID_H264) {
+            const int nalType = hdr & 0x1F;
+            if (nalType >= 1 && nalType <= 5) {
+                sawVcl = true;
+                if (nalType == 5 || (hdr & 0x60) != 0)
+                    return false;
+            }
+        } else { // AV_CODEC_ID_HEVC
+            if (nalSize < 2)
+                return false;
+            const int nalType = (hdr >> 1) & 0x3F;
+            if (nalType <= 31) {
+                sawVcl = true;
+                if (nalType >= 16 || (nalType & 1) != 0)
+                    return false;
+            }
+        }
+        return true;
+    };
+
+    if (nalLengthSize >= 1 && nalLengthSize <= 4) {
+        int pos = 0;
+        while (pos + nalLengthSize <= size) {
+            uint64_t len = 0;
+            for (int i = 0; i < nalLengthSize; ++i)
+                len = (len << 8) | data[pos + i];
+            pos += nalLengthSize;
+            if (len == 0 || len > static_cast<uint64_t>(size - pos))
+                return false;
+            if (!checkNal(data + pos, static_cast<int>(len)))
+                return false;
+            pos += static_cast<int>(len);
+        }
+        return sawVcl;
+    }
+
+    int i = 0;
+    while (i + 3 <= size) {
+        int scLen = 0;
+        if (data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 1)
+            scLen = 3;
+        else if (i + 4 <= size && data[i] == 0 && data[i + 1] == 0 && data[i + 2] == 0 && data[i + 3] == 1)
+            scLen = 4;
+        if (scLen == 0) {
+            ++i;
+            continue;
+        }
+        const int nalStart = i + scLen;
+        int next = nalStart;
+        while (next + 3 <= size) {
+            if (data[next] == 0 && data[next + 1] == 0
+                && (data[next + 2] == 1 || (next + 4 <= size && data[next + 2] == 0 && data[next + 3] == 1)))
+                break;
+            ++next;
+        }
+        if (next + 3 > size)
+            next = size;
+        if (!checkNal(data + nalStart, next - nalStart))
+            return false;
+        i = next;
+    }
+    return sawVcl;
 }
 
 QString ClipReader::videoDecoderName() const
@@ -1724,6 +1830,8 @@ bool ClipReader::convertFramePreview(const AVFrame *frame, PreviewVideoFrame &ou
                 if (scaled == m_vppScaled)
                     av_frame_unref(m_vppScaled);
                 out = takePreviewFrame(converted, effectiveRotation());
+                if (out.isValid())
+                    g_swPreviewFrames.fetch_add(1, std::memory_order_relaxed);
                 return out.isValid();
             }
             drift::hwaccel::syncVaapiFrame(scaled);
@@ -1731,6 +1839,8 @@ bool ClipReader::convertFramePreview(const AVFrame *frame, PreviewVideoFrame &ou
         out = makePreviewFrame(scaled, effectiveRotation());
         if (scaled == m_vppScaled)
             av_frame_unref(m_vppScaled);
+        if (out.isValid())
+            g_hwPreviewFrames.fetch_add(1, std::memory_order_relaxed);
         return out.isValid();
     }
 
@@ -1738,6 +1848,8 @@ bool ClipReader::convertFramePreview(const AVFrame *frame, PreviewVideoFrame &ou
         ? softwareFrameToRgba(frame, m_swsRgba, targetWidth, targetHeight)
         : softwareFrameToNv12(frame, m_swsNv12, targetWidth, targetHeight);
     out = takePreviewFrame(converted, effectiveRotation());
+    if (out.isValid())
+        g_swPreviewFrames.fetch_add(1, std::memory_order_relaxed);
     return out.isValid();
 }
 
@@ -1796,6 +1908,7 @@ bool ClipReader::seekVideoStream(drift::TimeUs sourceUs)
     }
     avcodec_flush_buffers(m_videoCtx);
     m_videoPositioned = true;
+    g_videoSeeks.fetch_add(1, std::memory_order_relaxed);
     return true;
 }
 
@@ -1936,6 +2049,27 @@ bool ClipReader::advanceVideoTo(drift::TimeUs sourceUs, bool *hwFailure,
     bool droppedPacket = false;
     int received = 0;
 
+    const bool allowCatchUpSkip = limits.catchUp && !m_hwAccelActive && !m_mediaCodecActive
+        && m_videoCtx && m_fmt && m_videoStream >= 0 && limits.maxFrames > 1;
+    const auto restoreSkipFrame = qScopeGuard([this] {
+        if (m_videoCtx)
+            m_videoCtx->skip_frame = AVDISCARD_DEFAULT;
+    });
+    const drift::TimeUs frameUs = m_sourceFrameDurationUs > 0 ? m_sourceFrameDurationUs : 33'333;
+    const drift::TimeUs catchUpSafetyMarginUs = 4 * frameUs;
+    const AVStream *videoStream = (m_fmt && m_videoStream >= 0) ? m_fmt->streams[m_videoStream] : nullptr;
+    const int64_t streamStartTs =
+        (videoStream && videoStream->start_time != AV_NOPTS_VALUE) ? videoStream->start_time : 0;
+    const AVCodecParameters *videoPar = videoStream ? videoStream->codecpar : nullptr;
+    const AVCodecID videoCodecId = videoPar ? videoPar->codec_id : AV_CODEC_ID_NONE;
+    int nalLengthSize = 0;
+    if (videoPar && videoPar->extradata && videoPar->extradata_size > 0 && videoPar->extradata[0] == 1) {
+        if (videoCodecId == AV_CODEC_ID_H264 && videoPar->extradata_size >= 5)
+            nalLengthSize = (videoPar->extradata[4] & 0x03) + 1;
+        else if (videoCodecId == AV_CODEC_ID_HEVC && videoPar->extradata_size >= 22)
+            nalLengthSize = (videoPar->extradata[21] & 0x03) + 1;
+    }
+
     auto markHwFailure = [&](const QString &what) {
         if (m_hwAccelActive || m_mediaCodecActive) {
             if (!sawHwFailure)
@@ -2018,6 +2152,23 @@ bool ClipReader::advanceVideoTo(drift::TimeUs sourceUs, bool *hwFailure,
             continue;
         }
 
+        if (allowCatchUpSkip && videoStream) {
+            const int64_t rawTs = packet->pts != AV_NOPTS_VALUE ? packet->pts : packet->dts;
+            if (rawTs != AV_NOPTS_VALUE) {
+                const drift::TimeUs pktUs =
+                    av_rescale_q(rawTs - streamStartTs, videoStream->time_base, {1, drift::kUsPerSecond});
+                const bool farBehind = pktUs < sourceUs - catchUpSafetyMarginUs;
+                if (farBehind && isDisposableVideoPacket(videoCodecId, packet, nalLengthSize)) {
+                    g_framesSkippedCatchUp.fetch_add(1, std::memory_order_relaxed);
+                    av_packet_unref(packet);
+                    continue;
+                }
+                m_videoCtx->skip_frame = farBehind ? AVDISCARD_NONREF : AVDISCARD_DEFAULT;
+            } else {
+                m_videoCtx->skip_frame = AVDISCARD_DEFAULT;
+            }
+        }
+
         int sendRc = avcodec_send_packet(m_videoCtx, packet);
         // MediaCodec's input queue is finite, so EAGAIN here is routine rather than the
         // cannot-happen it is for a software decoder — and dropping the packet would corrupt
@@ -2092,10 +2243,18 @@ bool ClipReader::decodeVideoFrameAtOnce(drift::TimeUs sourceUs, QImage &out, int
 
     while (m_hasPeek && sourceUs >= m_peekPtsUs)
         promotePeekToCover();
-    if (coverHolds(sourceUs) && lookupCachedFrame(m_coverPtsUs, out))
+    if (!m_prefetching)
+        g_videoCacheRequests.fetch_add(1, std::memory_order_relaxed);
+    if (coverHolds(sourceUs) && lookupCachedFrame(m_coverPtsUs, out)) {
+        if (!m_prefetching)
+            g_videoCacheHits.fetch_add(1, std::memory_order_relaxed);
         return true;
-    if (lookupCachedFrame(sourceUs, out))
+    }
+    if (lookupCachedFrame(sourceUs, out)) {
+        if (!m_prefetching)
+            g_videoCacheHits.fetch_add(1, std::memory_order_relaxed);
         return true;
+    }
 
     if (!advanceVideoTo(sourceUs, hwFailure))
         return false;
@@ -2149,7 +2308,7 @@ bool ClipReader::readVideoFrameAt(drift::TimeUs sourceUs, QImage &out, int maxWi
 }
 
 bool ClipReader::decodePreviewVideoFrameAtOnce(drift::TimeUs sourceUs, PreviewVideoFrame &out, int maxWidth,
-                                               int maxHeight, bool *hwFailure)
+                                               int maxHeight, bool *hwFailure, bool catchUp)
 {
     if (hwFailure)
         *hwFailure = false;
@@ -2160,12 +2319,22 @@ bool ClipReader::decodePreviewVideoFrameAtOnce(drift::TimeUs sourceUs, PreviewVi
 
     while (m_hasPeek && sourceUs >= m_peekPtsUs)
         promotePeekToCover();
-    if (coverHolds(sourceUs) && lookupCachedPreview(m_coverPtsUs, out))
+    if (!m_prefetching)
+        g_videoCacheRequests.fetch_add(1, std::memory_order_relaxed);
+    if (coverHolds(sourceUs) && lookupCachedPreview(m_coverPtsUs, out)) {
+        if (!m_prefetching)
+            g_videoCacheHits.fetch_add(1, std::memory_order_relaxed);
         return true;
-    if (lookupCachedPreview(sourceUs, out))
+    }
+    if (lookupCachedPreview(sourceUs, out)) {
+        if (!m_prefetching)
+            g_videoCacheHits.fetch_add(1, std::memory_order_relaxed);
         return true;
+    }
 
-    if (!advanceVideoTo(sourceUs, hwFailure))
+    AdvanceLimits limits;
+    limits.catchUp = catchUp;
+    if (!advanceVideoTo(sourceUs, hwFailure, limits))
         return false;
     if (!m_coverFrame)
         return false;
@@ -2190,15 +2359,15 @@ bool ClipReader::decodePreviewVideoFrameAtOnce(drift::TimeUs sourceUs, PreviewVi
 }
 
 bool ClipReader::readPreviewVideoFrame(drift::TimeUs sourceUs, PreviewVideoFrame &out, int maxWidth,
-                                       int maxHeight, bool approximate)
+                                       int maxHeight, bool approximate, bool catchUp)
 {
     if (!m_prefetching)
         m_lastRequestedPreviewUs = sourceUs;
 
     const auto decode = [&](bool *hwFailure) {
         return approximate
-                   ? decodePreviewVideoFrameApprox(sourceUs, out, maxWidth, maxHeight, hwFailure)
-                   : decodePreviewVideoFrameAtOnce(sourceUs, out, maxWidth, maxHeight, hwFailure);
+                   ? decodePreviewVideoFrameApprox(sourceUs, out, maxWidth, maxHeight, hwFailure, catchUp)
+                   : decodePreviewVideoFrameAtOnce(sourceUs, out, maxWidth, maxHeight, hwFailure, catchUp);
     };
 
     bool hwFailure = false;
@@ -2253,7 +2422,7 @@ bool ClipReader::lookupNearestCachedPreviewInRange(drift::TimeUs loUs, drift::Ti
 // a bounded step through the GOP when it is further ahead in the same one; the nearest cached frame
 // between the target's keyframe and the target; the keyframe itself.
 bool ClipReader::decodePreviewVideoFrameApprox(drift::TimeUs sourceUs, PreviewVideoFrame &out, int maxWidth,
-                                               int maxHeight, bool *hwFailure)
+                                               int maxHeight, bool *hwFailure, bool catchUp)
 {
     if (hwFailure)
         *hwFailure = false;
@@ -2264,15 +2433,24 @@ bool ClipReader::decodePreviewVideoFrameApprox(drift::TimeUs sourceUs, PreviewVi
 
     while (m_hasPeek && sourceUs >= m_peekPtsUs)
         promotePeekToCover();
-    if (coverHolds(sourceUs) && lookupCachedPreview(m_coverPtsUs, out))
+    if (!m_prefetching)
+        g_videoCacheRequests.fetch_add(1, std::memory_order_relaxed);
+    if (coverHolds(sourceUs) && lookupCachedPreview(m_coverPtsUs, out)) {
+        if (!m_prefetching)
+            g_videoCacheHits.fetch_add(1, std::memory_order_relaxed);
         return true;
-    if (lookupCachedPreview(sourceUs, out))
+    }
+    if (lookupCachedPreview(sourceUs, out)) {
+        if (!m_prefetching)
+            g_videoCacheHits.fetch_add(1, std::memory_order_relaxed);
         return true;
+    }
 
     const drift::TimeUs frameUs = m_sourceFrameDurationUs > 0 ? m_sourceFrameDurationUs
                                                                 : drift::kUsPerSecond / 30;
     const bool ahead = m_videoPositioned && m_hasCover && sourceUs >= m_coverPtsUs;
     AdvanceLimits limits;
+    limits.catchUp = catchUp;
     if (ahead && sourceUs - m_lastVideoPtsUs <= kScrubForwardFrames * frameUs) {
         limits.maxFrames = kScrubForwardFrames + 2;
     } else {
@@ -2285,8 +2463,11 @@ bool ClipReader::decodePreviewVideoFrameApprox(drift::TimeUs sourceUs, PreviewVi
         } else {
             const drift::TimeUs loUs = keyframeUs >= 0 ? keyframeUs - slackUs
                                                        : sourceUs - kForwardSeekThresholdUs;
-            if (lookupNearestCachedPreviewInRange(loUs, sourceUs, out))
+            if (lookupNearestCachedPreviewInRange(loUs, sourceUs, out)) {
+                if (!m_prefetching)
+                    g_videoCacheHits.fetch_add(1, std::memory_order_relaxed);
                 return true;
+            }
             limits.maxFrames = 1;
             limits.forceSeek = true;
         }

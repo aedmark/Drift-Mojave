@@ -86,7 +86,7 @@ PanelFrame {
         // Compact A/B roll cut inspection banner when Expanded Edit Mode (F5) is active.
         Rectangle {
             id: expandedEditBanner
-            visible: EditorState.expandedEditActive && EditorState.expandedEditState.active === true
+            visible: !EditorState.slipPreviewActive && EditorState.expandedEditActive && EditorState.expandedEditState.active === true
             anchors.top: parent.top
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.topMargin: Theme.spacingSm
@@ -142,6 +142,12 @@ PanelFrame {
                     onClicked: EditorState.endExpandedEdit()
                 }
             }
+        }
+
+        // 4-Up Slip Monitor overlay when slipping a clip (Prev Out | Next In / Slip In | Slip Out).
+        SlipMonitorOverlay {
+            visible: EditorState.slipPreviewActive
+            z: 11
         }
 
         PreviewOsd {

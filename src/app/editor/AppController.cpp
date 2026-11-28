@@ -535,6 +535,7 @@ AppController::~AppController()
     const bool hadMulticamSession = m_multicamActive;
     m_multicamActive = false;
     waitForMulticamRefresh();
+    waitForSlipRefresh();
     if (hadMulticamSession)
         m_playback.setProject(&m_project);
     // The export worker captures `this` too; cancel it and let it unwind before teardown.

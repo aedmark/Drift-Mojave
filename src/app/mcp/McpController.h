@@ -238,6 +238,7 @@ public:
     QJsonObject listHistory(int limit = 20) const;
     // jmn8718/Drift#32: where the memory goes, and dropping what can be rebuilt.
     QJsonObject memoryStats() const;
+    QJsonObject perfStats() const;
     QJsonObject clearCache();
     // get_performance / set_performance: the Settings › Performance knobs, preview quality and
     // decode mode, with what the automatic frame cache resolves to.

@@ -172,6 +172,7 @@ private slots:
     void persistentRenderQueueDeliveryPresetsAndChapters();
     void vegasImportSummaryAndProjectSnapshots();
     void snapshotRestoreAndMulticamCutNavigation();
+    void slipMonitorFourUpPreviewAndCancel();
     void bakeFingerprintIgnoresMixAndExportFlags();
     void bakeStaysFreshAfterMuteSoloAndExclude();
     void bakeFingerprintTracksTransformSpanEndMoves();
@@ -3201,10 +3202,10 @@ void EditorStateTest::keymapPresetSwitchKeepsOrDiscardsOverrides()
     KeymapSandbox sandbox;
     {
         drift::Keymap keymap;
-        QCOMPARE(keymap.presetId(), QStringLiteral("drift"));
+        QCOMPARE(keymap.presetId(), QLatin1String(drift::keymap::kDefaultPresetId));
         QVERIFY(keymap.addBinding(QStringLiteral("playPause"), QStringLiteral("F9")).isEmpty());
         keymap.setPreset(QStringLiteral("nonexistent"), true);
-        QCOMPARE(keymap.presetId(), QStringLiteral("drift"));
+        QCOMPARE(keymap.presetId(), QLatin1String(drift::keymap::kDefaultPresetId));
         keymap.setPreset(QStringLiteral("drift"), true);
         QVERIFY(keymap.isModified(QStringLiteral("playPause")));
         keymap.setPreset(QStringLiteral("drift"), false);
@@ -3341,7 +3342,7 @@ void EditorStateTest::keymapCatalogIsConsistent()
 void EditorStateTest::keymapEveryPresetIsConsistent()
 {
     using namespace drift::keymap;
-    QCOMPARE(presets().size(), 7);
+    QCOMPARE(presets().size(), 8);
     const QStringList essentials = {QStringLiteral("undo"), QStringLiteral("redo"), QStringLiteral("save"),
                                     QStringLiteral("open"), QStringLiteral("newProject"), QStringLiteral("copy"),
                                     QStringLiteral("paste"), QStringLiteral("cut"), QStringLiteral("selectAll"),
@@ -8810,6 +8811,111 @@ void EditorStateTest::slipEditingToolAltDrag()
     // Slip by +1.0s with loop=true -> shifts loopOffsetUs by 1.0s % 4.0s = 1.0s, srcIn/srcOut intact
     QVERIFY(state.commitSlipClip(0, 0, 1.0));
     QCOMPARE(state.project()->tracks().at(0).clips.at(0).loopOffsetUs, drift::secondsToUs(1.0));
+}
+
+void EditorStateTest::slipMonitorFourUpPreviewAndCancel()
+{
+    AssetLibrary library;
+    AppController state(&library);
+
+    state.project()->setFps(25);
+    state.project()->tracks().clear();
+    state.project()->tracks().append(drift::Track{.type = drift::TrackType::Video});
+    state.project()->tracks().append(drift::Track{.type = drift::TrackType::Audio});
+
+    drift::MediaAsset asset;
+    asset.id = QStringLiteral("asset-slip4");
+    asset.path = QStringLiteral("/tmp/nonexistent-slip4.mp4");
+    asset.name = QStringLiteral("Clip4");
+    asset.kind = drift::MediaKind::Video;
+    asset.durationUs = drift::secondsToUs(20.0);
+    state.project()->assets().insert(asset.id, asset);
+    state.project()->assetOrder().append(asset.id);
+
+    auto makeClip = [&](const QString &id, const QString &name, drift::ClipType type,
+                        double startSec, double durSec, double srcInSec, double srcOutSec,
+                        const QString &linkId = {}) {
+        drift::Clip c;
+        c.id = id;
+        c.name = name;
+        c.linkId = linkId;
+        c.assetId = asset.id;
+        c.path = asset.path;
+        c.type = type;
+        c.timelineStart = drift::secondsToUs(startSec);
+        c.timelineDuration = drift::secondsToUs(durSec);
+        c.srcIn = drift::secondsToUs(srcInSec);
+        c.srcOut = drift::secondsToUs(srcOutSec);
+        return c;
+    };
+
+    // Prev [0..2s] src [1..3s], Target [2..6s] src [4..8s], Next [6..9s] src [10..13s]
+    state.project()->tracks()[0].clips.append(
+        makeClip(QStringLiteral("c-prev"), QStringLiteral("PrevShot"), drift::ClipType::Video, 0.0, 2.0, 1.0, 3.0));
+    state.project()->tracks()[0].clips.append(
+        makeClip(QStringLiteral("c-mid"), QStringLiteral("MidShot"), drift::ClipType::Video, 2.0, 4.0, 4.0, 8.0,
+                 QStringLiteral("av-1")));
+    state.project()->tracks()[0].clips.append(
+        makeClip(QStringLiteral("c-next"), QStringLiteral("NextShot"), drift::ClipType::Video, 6.0, 3.0, 10.0, 13.0));
+    state.project()->tracks()[1].clips.append(
+        makeClip(QStringLiteral("a-mid"), QStringLiteral("MidAudio"), drift::ClipType::Audio, 2.0, 4.0, 4.0, 8.0,
+                 QStringLiteral("av-1")));
+
+    QVERIFY(!state.slipPreviewActive());
+
+    // Preview slipping the middle clip forward by +1.0s (25 frames at 25 fps; frameDur = 40000 us = 0.04s)
+    const QVariantMap preview = state.previewSlipClip(0, 1, 1.0);
+    QVERIFY(preview.value(QStringLiteral("ok")).toBool());
+    QVERIFY(state.slipPreviewActive());
+
+    const QVariantMap st = state.slipPreviewState();
+    QVERIFY(st.value(QStringLiteral("active")).toBool());
+    QCOMPARE(st.value(QStringLiteral("clipName")).toString(), QStringLiteral("MidShot"));
+    QCOMPARE(st.value(QStringLiteral("deltaFrames")).toLongLong(), 25LL);
+
+    const QVariantMap prevQ = st.value(QStringLiteral("prev")).toMap();
+    const QVariantMap inQ = st.value(QStringLiteral("in")).toMap();
+    const QVariantMap outQ = st.value(QStringLiteral("out")).toMap();
+    const QVariantMap nextQ = st.value(QStringLiteral("next")).toMap();
+
+    QVERIFY(prevQ.value(QStringLiteral("valid")).toBool());
+    QCOMPARE(prevQ.value(QStringLiteral("clipName")).toString(), QStringLiteral("PrevShot"));
+    QCOMPARE(prevQ.value(QStringLiteral("sourceSeconds")).toDouble(), 2.96);
+
+    QVERIFY(inQ.value(QStringLiteral("valid")).toBool());
+    QCOMPARE(inQ.value(QStringLiteral("sourceSeconds")).toDouble(), 5.0);
+
+    QVERIFY(outQ.value(QStringLiteral("valid")).toBool());
+    QCOMPARE(outQ.value(QStringLiteral("sourceSeconds")).toDouble(), 8.96);
+
+    QVERIFY(nextQ.value(QStringLiteral("valid")).toBool());
+    QCOMPARE(nextQ.value(QStringLiteral("clipName")).toString(), QStringLiteral("NextShot"));
+    QCOMPARE(nextQ.value(QStringLiteral("sourceSeconds")).toDouble(), 10.0);
+
+    // Dragging the linked audio clip resolves the companion video clip's 4-up quads too.
+    const QVariantMap audioPreview = state.previewSlipClip(1, 0, -0.5);
+    QVERIFY(audioPreview.value(QStringLiteral("ok")).toBool());
+    QVERIFY(state.slipPreviewActive());
+    QCOMPARE(state.slipPreviewState().value(QStringLiteral("clipName")).toString(), QStringLiteral("MidShot"));
+    QCOMPARE(state.slipPreviewState().value(QStringLiteral("in")).toMap().value(QStringLiteral("sourceSeconds")).toDouble(), 3.5);
+
+    // Canceling dismisses the 4-up overlay and leaves project unchanged.
+    state.endSlipPreview();
+    QVERIFY(!state.slipPreviewActive());
+    QCOMPARE(state.project()->tracks().at(0).clips.at(1).srcIn, drift::secondsToUs(4.0));
+
+    // Re-open via previewSlipClip then commit -> clears overlay and applies slip.
+    QVERIFY(state.previewSlipClip(0, 1, 1.0).value(QStringLiteral("ok")).toBool());
+    QVERIFY(state.slipPreviewActive());
+    QVERIFY(state.commitSlipClip(0, 1, 1.0));
+    QVERIFY(!state.slipPreviewActive());
+    QCOMPARE(state.project()->tracks().at(0).clips.at(1).srcIn, drift::secondsToUs(5.0));
+
+    // Edge clip with no left neighbor marks `prev.valid == false`.
+    QVERIFY(state.previewSlipClip(0, 0, 0.2).value(QStringLiteral("ok")).toBool());
+    QVERIFY(!state.slipPreviewState().value(QStringLiteral("prev")).toMap().value(QStringLiteral("valid")).toBool());
+    QVERIFY(state.slipPreviewState().value(QStringLiteral("next")).toMap().value(QStringLiteral("valid")).toBool());
+    state.endSlipPreview();
 }
 
 void EditorStateTest::trackAndMasterAudioFxRacks()
